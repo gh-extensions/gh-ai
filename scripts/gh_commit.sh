@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# Commit-related functions for gh-agent
+# Commit-related functions for gh-assistant
 
-# Filter out agent-managed arguments for commit
+# Filter out assistant-managed arguments for commit
 #
-# Removes arguments that agent manages internally (-m, --message, -F, --file)
+# Removes arguments that assistant manages internally (-m, --message, -F, --file)
 # and returns the remaining arguments. This allows users to pass other git commit
-# flags while agent handles the commit message.
+# flags while assistant handles the commit message.
 #
 # Example: _filter_gh_commit_args --all -m "message" --signoff
 # Returns: --all --signoff
@@ -17,7 +17,7 @@ _filter_gh_commit_args() {
 
 	while [[ $i -lt ${#input_args[@]} ]]; do
 		case "${input_args[$i]}" in
-		# Arguments to filter out (agent manages these)
+		# Arguments to filter out (assistant manages these)
 		-m | --message | -F | --file)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
@@ -39,7 +39,7 @@ _filter_gh_commit_args() {
 # Main commit command implementation
 #
 # Creates a git commit with an AI-generated message based on staged changes.
-# Uses agent run with the template content directly injected into the prompt,
+# Uses assistant run with the template content directly injected into the prompt,
 # and passes the staged diff as a file attachment.
 #
 # Usage: _gh_commit [GIT_COMMIT_OPTIONS]
@@ -61,13 +61,13 @@ _gh_commit() {
 	# Model for commit message generation
 	model="claude-3-5-haiku-20241022"
 
-	# Filter out agent-managed arguments
+	# Filter out assistant-managed arguments
 	local filtered_output
 	filtered_output=$(_filter_gh_commit_args "${args[@]}")
 	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
 
 	# Create temporary file for diff
-	diff_file=$(_create_temp_file "gh-agent-diff")
+	diff_file=$(_create_temp_file "gh-assistant-diff")
 	# shellcheck disable=SC2064
 	trap "rm -f '$diff_file'" RETURN
 
@@ -87,7 +87,7 @@ _gh_commit() {
 	or any extra text. Output must be valid for direct use by 'git commit'. The
 	staged diff is provided in @$diff_file."
 
-	# Generate commit message using agent run
+	# Generate commit message using assistant run
 	output=$(
 		gum spin --title "Generating Git commit message..." -- \
 			claude --model "$model" -p "$prompt"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# PR API functions for gh-agent
+# PR API functions for gh-assistant
 #
 # Low-level GitHub API wrappers for pull request operations.
 # These functions provide direct access to the GitHub REST API.
@@ -79,12 +79,12 @@ _gh_api_pr_update() {
 # including usage examples and available options.
 _show_api_pr_help() {
 	cat <<'EOF'
-gh agent api pr - GitHub PR API operations
+gh assistant api pr - GitHub PR API operations
 
 USAGE:
-    gh agent api pr view <number>
-    gh agent api pr create <field=value>...
-    gh agent api pr update <number> <field=value>...
+    gh assistant api pr view <number>
+    gh assistant api pr create <field=value>...
+    gh assistant api pr update <number> <field=value>...
 
 DESCRIPTION:
     Low-level GitHub API wrappers for pull request operations.
@@ -127,7 +127,7 @@ _gh_api_pr() {
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
 		gum log --level info "Available commands: view, create, update"
-		gum log --level info "Run 'gh agent api pr --help' for usage information"
+		gum log --level info "Run 'gh assistant api pr --help' for usage information"
 		exit 1
 		;;
 	esac

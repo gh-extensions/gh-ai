@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Issue API functions for gh-agent
+# Issue API functions for gh-assistant
 #
 # Low-level GitHub API wrappers for issue operations.
 # These functions provide direct access to the GitHub REST API.
@@ -133,14 +133,14 @@ _gh_api_issue_develop() {
 # including usage examples and available options.
 _show_api_issue_help() {
 	cat <<'EOF'
-gh agent api issue - GitHub Issue API operations
+gh assistant api issue - GitHub Issue API operations
 
 USAGE:
-    gh agent api issue view <number>
-    gh agent api issue create <field=value>...
-    gh agent api issue update <number> <field=value>...
-    gh agent api issue link <parent> <child>
-    gh agent api issue develop <number>
+    gh assistant api issue view <number>
+    gh assistant api issue create <field=value>...
+    gh assistant api issue update <number> <field=value>...
+    gh assistant api issue link <parent> <child>
+    gh assistant api issue develop <number>
 
 DESCRIPTION:
     Low-level GitHub API wrappers for issue operations.
@@ -189,7 +189,7 @@ _gh_api_issue() {
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
 		gum log --level info "Available commands: view, link, create, update, develop"
-		gum log --level info "Run 'gh agent api issue --help' for usage information"
+		gum log --level info "Run 'gh assistant api issue --help' for usage information"
 		exit 1
 		;;
 	esac

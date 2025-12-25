@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# GitHub API functions for gh-agent
+# GitHub API functions for gh-assistant
 #
 # Unified entry point for GitHub API operations.
 # Routes commands to PR and Issue API modules.
@@ -64,11 +64,11 @@ source "$_gh_api_source_dir/gh_api_issue.sh"
 # including usage examples and available options.
 _show_api_help() {
 	cat <<'EOF'
-gh agent api - GitHub API operations
+gh assistant api - GitHub API operations
 
 USAGE:
-    gh agent api pr <command> [arguments]
-    gh agent api issue <command> [arguments]
+    gh assistant api pr <command> [arguments]
+    gh assistant api issue <command> [arguments]
 
 DESCRIPTION:
     Low-level GitHub API wrappers for PR and issue operations.
@@ -79,8 +79,8 @@ COMMANDS:
     issue     Issue API operations
 
 SEE ALSO:
-    gh agent api pr --help       # PR API commands
-    gh agent api issue --help    # Issue API commands
+    gh assistant api pr --help       # PR API commands
+    gh assistant api issue --help    # Issue API commands
 EOF
 }
 
@@ -108,7 +108,7 @@ _gh_api() {
 	*)
 		gum log --level error "Unknown api command '$subcommand'"
 		gum log --level info "Available commands: pr, issue"
-		gum log --level info "Run 'gh agent api --help' for usage information"
+		gum log --level info "Run 'gh assistant api --help' for usage information"
 		exit 1
 		;;
 	esac

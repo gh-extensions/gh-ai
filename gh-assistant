@@ -2,13 +2,13 @@
 
 [ -z "$DEBUG" ] || set -x
 
-_gh_agent_source_dir=$(dirname "${BASH_SOURCE[0]}")
+_gh_assistant_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Source command modules
-source "$_gh_agent_source_dir/scripts/utils.sh"
-source "$_gh_agent_source_dir/scripts/gh_pr.sh"
-source "$_gh_agent_source_dir/scripts/gh_api.sh"
-source "$_gh_agent_source_dir/scripts/gh_commit.sh"
+source "$_gh_assistant_source_dir/scripts/utils.sh"
+source "$_gh_assistant_source_dir/scripts/gh_pr.sh"
+source "$_gh_assistant_source_dir/scripts/gh_api.sh"
+source "$_gh_assistant_source_dir/scripts/gh_commit.sh"
 
 # Help function
 #
@@ -16,10 +16,10 @@ source "$_gh_agent_source_dir/scripts/gh_commit.sh"
 # including usage examples and available options.
 _show_help() {
 	cat <<'EOF'
-gh agent - AI-powered GitHub CLI extension
+gh assistant - AI-powered GitHub CLI extension
 
 USAGE:
-    gh agent <command> [subcommand] [options]
+    gh assistant <command> [subcommand] [options]
 
 COMMANDS:
     commit      Generate a commit message for staged changes
@@ -27,9 +27,9 @@ COMMANDS:
     api         Low-level GitHub API operations (pr, issue)
 
 SEE ALSO:
-    gh agent commit --help    # Commit command help
-    gh agent pr --help        # PR command help
-    gh agent api --help       # API command help
+    gh assistant commit --help    # Commit command help
+    gh assistant pr --help        # PR command help
+    gh assistant api --help       # API command help
 EOF
 }
 
@@ -54,7 +54,7 @@ main() {
 	*)
 		gum log --level error "Unknown command '$command'"
 		gum log --level info "Available commands: commit, pr, api"
-		gum log --level info "Run 'gh agent --help' for usage information"
+		gum log --level info "Run 'gh assistant --help' for usage information"
 		exit 1
 		;;
 	esac

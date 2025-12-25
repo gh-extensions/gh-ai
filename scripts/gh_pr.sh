@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# PR-related functions for gh-agent
+# PR-related functions for gh-assistant
 
 # Extract PR number from arguments
 #
@@ -88,9 +88,9 @@ _get_pr_body() {
 	echo "$body_file"
 }
 
-# Filter out agent-managed arguments for PR create
+# Filter out assistant-managed arguments for PR create
 #
-# Removes PR create arguments that agent handles (title, body, fill flags)
+# Removes PR create arguments that assistant handles (title, body, fill flags)
 # so users can still pass other options like --draft, --base, etc.
 #
 # Filters out: --title/-t, --body/-b, --body-file/-F, --fill variants
@@ -103,7 +103,7 @@ _filter_gh_pr_create_args() {
 
 	while [[ $i -lt ${#input_args[@]} ]]; do
 		case "${input_args[$i]}" in
-		# Arguments to filter out (agent manages these)
+		# Arguments to filter out (assistant manages these)
 		--title | -t | --body | -b | --body-file | -F)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
@@ -125,9 +125,9 @@ _filter_gh_pr_create_args() {
 	printf '%s\n' "${filtered_args[@]}"
 }
 
-# Filter arguments for PR review (remove agent-managed ones)
+# Filter arguments for PR review (remove assistant-managed ones)
 #
-# Removes review arguments that agent handles (body, comment flags)
+# Removes review arguments that assistant handles (body, comment flags)
 # while preserving other options like PR number and --approve.
 #
 # Filters out: --body/-b, --body-file/-F, --comment/-c
@@ -140,7 +140,7 @@ _filter_gh_pr_review_args() {
 
 	while [[ $i -lt ${#input_args[@]} ]]; do
 		case "${input_args[$i]}" in
-		# Arguments to filter out (agent manages these)
+		# Arguments to filter out (assistant manages these)
 		--body | -b | --body-file | -F | --comment | -c)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
@@ -162,7 +162,7 @@ _filter_gh_pr_review_args() {
 # PR Create implementation
 #
 # Creates a GitHub PR with AI-generated title and description.
-# Uses agent run with the template content directly injected into the prompt,
+# Uses assistant run with the template content directly injected into the prompt,
 # and passes the git diff and commit log as file attachments.
 # Falls back to manual PR creation if AI generation fails.
 #
@@ -188,7 +188,7 @@ _gh_pr_create() {
 	# Model for PR content generation
 	model="claude-3-5-haiku-20241022"
 
-	# Filter out agent-managed arguments
+	# Filter out assistant-managed arguments
 	local filtered_output
 	filtered_output=$(_filter_gh_pr_create_args "${args[@]}")
 	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
@@ -208,8 +208,8 @@ _gh_pr_create() {
 	done
 
 	# Create temporary files for diff and log
-	diff_file=$(_create_temp_file "gh-agent-pr-diff")
-	log_file=$(_create_temp_file "gh-agent-pr-log")
+	diff_file=$(_create_temp_file "gh-assistant-pr-diff")
+	log_file=$(_create_temp_file "gh-assistant-pr-log")
 	# shellcheck disable=SC2064
 	trap "rm -f '$diff_file' '$log_file'" RETURN
 
@@ -238,7 +238,7 @@ _gh_pr_create() {
 	include any preamble, analysis, steps, code fences, or extra text. The PR
 	diff is @$diff_file. The commit log is @$log_file."
 
-	# Generate PR content using agent run
+	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			claude --model "$model" -p "$prompt"
@@ -274,7 +274,7 @@ _gh_pr_create() {
 # PR Review implementation
 #
 # Submits a GitHub PR review with AI-generated feedback.
-# Uses agent run with the template content directly injected into the prompt,
+# Uses assistant run with the template content directly injected into the prompt,
 # and passes the PR diff as a file attachment.
 # Auto-detects PR number from current branch if not provided.
 #
@@ -303,19 +303,19 @@ _gh_pr_review() {
 		pr_number=$(_detect_pr_number)
 		if [[ -z "$pr_number" ]]; then
 			gum log --level error "No PR number provided and could not detect PR for current branch"
-			gum log --level info "Usage: gh agent pr review <PR_NUMBER> [OPTIONS]"
+			gum log --level info "Usage: gh assistant pr review <PR_NUMBER> [OPTIONS]"
 			return 1
 		fi
 		gum log --level info "Auto-detected PR #$pr_number for current branch"
 	fi
 
-	# Filter out agent-managed arguments
+	# Filter out assistant-managed arguments
 	local filtered_output
 	filtered_output=$(_filter_gh_pr_review_args "${args[@]}")
 	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
 
 	# Create temporary file for PR diff
-	diff_file=$(_create_temp_file "gh-agent-review-diff")
+	diff_file=$(_create_temp_file "gh-assistant-review-diff")
 	# shellcheck disable=SC2064
 	trap "rm -f '$diff_file'" RETURN
 
@@ -334,7 +334,7 @@ _gh_pr_review() {
 	include any preamble, analysis, steps, code fences, or extra text. The PR
 	diff is @$diff_file. The commit log is @$log_file."
 
-	# Generate PR content using agent run
+	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
 			claude --model "$model" -p "$prompt"
@@ -356,7 +356,7 @@ _gh_pr_review() {
 	fi
 
 	# Create review file from content
-	review_file=$(_create_temp_file "gh-agent-review")
+	review_file=$(_create_temp_file "gh-assistant-review")
 	echo "$review_content" >"$review_file"
 	trap 'rm -f "$review_file"' EXIT INT TERM
 
@@ -370,11 +370,11 @@ _gh_pr_review() {
 # including usage examples and available options.
 _show_pr_help() {
 	cat <<'EOF'
-gh agent pr - Pull request commands with AI assistance
+gh assistant pr - Pull request commands with AI assistance
 
 USAGE:
-    gh agent pr create [GH_PR_CREATE_OPTIONS] [--model MODEL]
-    gh agent pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS] [--model MODEL]
+    gh assistant pr create [GH_PR_CREATE_OPTIONS] [--model MODEL]
+    gh assistant pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS] [--model MODEL]
 
 DESCRIPTION:
     Creates and reviews GitHub pull requests with AI-generated content.
@@ -384,8 +384,8 @@ COMMANDS:
     review      Review PRs with AI-generated feedback
 
 SEE ALSO:
-    gh agent pr create --help    # Full list of gh pr create options
-    gh agent pr review --help    # Full list of gh pr review options
+    gh assistant pr create --help    # Full list of gh pr create options
+    gh assistant pr review --help    # Full list of gh pr review options
 EOF
 }
 
@@ -413,7 +413,7 @@ _gh_pr() {
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
 		gum log --level info "Available commands: create, review"
-		gum log --level info "Run 'gh agent pr --help' for usage information"
+		gum log --level info "Run 'gh assistant pr --help' for usage information"
 		exit 1
 		;;
 	esac
