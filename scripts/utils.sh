@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
 
-# Shared utility functions for gh-opencode
-
-# Get prompt directory path
-#
-# Returns the path to the prompt directory relative to source_dir.
-# Requires $source_dir to be set by the main script.
-#
-# Usage: prompt_dir=$(_get_prompt_dir)
-_get_prompt_dir() {
-	# shellcheck disable=SC2154
-	echo "$_gh_assistant_source_dir/prompts"
-}
+# Shared utility functions for gh-assistant
 
 # Create a temporary file with consistent naming
 #
