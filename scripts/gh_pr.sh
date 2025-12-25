@@ -370,6 +370,229 @@ _gh_pr_review() {
 	gh pr review "$pr_number" --body-file "$review_file" "${clean_args[@]}"
 }
 
+# List tasks in a PR body
+#
+# Extracts and displays task items from the PR body.
+#
+# Usage: _gh_pr_task_list <pr_number> [--filter <regex>] [--json]
+_gh_pr_task_list() {
+	local pr_number="$1"
+	shift
+	local filter=""
+	local json_output=""
+
+	# Parse options
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--filter)
+			filter="$2"
+			shift 2
+			;;
+		--json)
+			json_output="--json"
+			shift
+			;;
+		*)
+			shift
+			;;
+		esac
+	done
+
+	if [[ -z "$pr_number" ]]; then
+		pr_number=$(_detect_pr_number)
+		if [[ -z "$pr_number" ]]; then
+			gum log --level error "PR number required"
+			gum log --level info "Usage: gh assistant pr task list <number> [--filter <regex>] [--json]"
+			return 1
+		fi
+	fi
+
+	local body
+	body=$(_gh_api_pr_view "$pr_number" | jq -r '.body')
+
+	if [[ -z "$body" || "$body" == "null" ]]; then
+		gum log --level error "PR #$pr_number has no body"
+		return 1
+	fi
+
+	echo "$body" | _parse_tasks | _filter_tasks "$filter" | _format_tasks $json_output
+}
+
+# View a specific task in a PR
+#
+# Displays details of a specific task item.
+#
+# Usage: _gh_pr_task_view <pr_number> <task_id> [--json]
+_gh_pr_task_view() {
+	local pr_number="$1"
+	local task_id="$2"
+	local json_output=""
+
+	if [[ "$3" == "--json" ]]; then
+		json_output="--json"
+	fi
+
+	if [[ -z "$pr_number" || -z "$task_id" ]]; then
+		gum log --level error "PR number and task ID required"
+		gum log --level info "Usage: gh assistant pr task view <number> <task_id> [--json]"
+		return 1
+	fi
+
+	local body
+	body=$(_gh_api_pr_view "$pr_number" | jq -r '.body')
+
+	if [[ -z "$body" || "$body" == "null" ]]; then
+		gum log --level error "PR #$pr_number has no body"
+		return 1
+	fi
+
+	local task
+	task=$(echo "$body" | _parse_tasks | jq --arg id "$task_id" '.[] | select(.id == $id)')
+
+	if [[ -z "$task" || "$task" == "null" ]]; then
+		gum log --level error "Task $task_id not found in PR #$pr_number"
+		return 1
+	fi
+
+	if [[ -n "$json_output" ]]; then
+		echo "$task"
+	else
+		local id status desc
+		id=$(echo "$task" | jq -r '.id')
+		status=$(echo "$task" | jq -r '.status')
+		desc=$(echo "$task" | jq -r '.description')
+		echo "$id — $desc"
+		echo "Status: $status"
+	fi
+}
+
+# Check a task in a PR
+#
+# Marks a task item as completed in the PR body.
+#
+# Usage: _gh_pr_task_check <pr_number> <task_id>
+_gh_pr_task_check() {
+	local pr_number="$1"
+	local task_id="$2"
+
+	if [[ -z "$pr_number" || -z "$task_id" ]]; then
+		gum log --level error "PR number and task ID required"
+		gum log --level info "Usage: gh assistant pr task check <number> <task_id>"
+		return 1
+	fi
+
+	local body
+	body=$(_gh_api_pr_view "$pr_number" | jq -r '.body')
+
+	if [[ -z "$body" || "$body" == "null" ]]; then
+		gum log --level error "PR #$pr_number has no body"
+		return 1
+	fi
+
+	local new_body
+	new_body=$(echo "$body" | _modify_task_status "$task_id" "check")
+
+	if [[ "$body" == "$new_body" ]]; then
+		gum log --level warn "Task $task_id not found or already checked"
+		return 1
+	fi
+
+	_gh_api_pr_update "$pr_number" "body=$new_body" >/dev/null
+	gum log --level info "Checked task $task_id in PR #$pr_number"
+}
+
+# Uncheck a task in a PR
+#
+# Marks a task item as pending in the PR body.
+#
+# Usage: _gh_pr_task_uncheck <pr_number> <task_id>
+_gh_pr_task_uncheck() {
+	local pr_number="$1"
+	local task_id="$2"
+
+	if [[ -z "$pr_number" || -z "$task_id" ]]; then
+		gum log --level error "PR number and task ID required"
+		gum log --level info "Usage: gh assistant pr task uncheck <number> <task_id>"
+		return 1
+	fi
+
+	local body
+	body=$(_gh_api_pr_view "$pr_number" | jq -r '.body')
+
+	if [[ -z "$body" || "$body" == "null" ]]; then
+		gum log --level error "PR #$pr_number has no body"
+		return 1
+	fi
+
+	local new_body
+	new_body=$(echo "$body" | _modify_task_status "$task_id" "uncheck")
+
+	if [[ "$body" == "$new_body" ]]; then
+		gum log --level warn "Task $task_id not found or already unchecked"
+		return 1
+	fi
+
+	_gh_api_pr_update "$pr_number" "body=$new_body" >/dev/null
+	gum log --level info "Unchecked task $task_id in PR #$pr_number"
+}
+
+# PR task help function
+_gh_pr_task_help() {
+	cat <<'EOF'
+gh assistant pr task - Manage tasks in PR body
+
+USAGE:
+    gh assistant pr task list <number> [--filter <regex>] [--json]
+    gh assistant pr task view <number> <task_id> [--json]
+    gh assistant pr task check <number> <task_id>
+    gh assistant pr task uncheck <number> <task_id>
+
+COMMANDS:
+    list        List all tasks in PR body
+    view        View a specific task
+    check       Mark a task as completed
+    uncheck     Mark a task as pending
+
+EXAMPLES:
+    gh assistant pr task list 123
+    gh assistant pr task list 123 --filter 'T00[1-3]'
+    gh assistant pr task list 123 --json
+    gh assistant pr task view 123 T001
+    gh assistant pr task check 123 T001
+    gh assistant pr task uncheck 123 T002
+EOF
+}
+
+# PR task subcommand router
+_gh_pr_task() {
+	local subcommand="$1"
+	shift
+
+	case $subcommand in
+	list)
+		_gh_pr_task_list "$@"
+		;;
+	view)
+		_gh_pr_task_view "$@"
+		;;
+	check)
+		_gh_pr_task_check "$@"
+		;;
+	uncheck)
+		_gh_pr_task_uncheck "$@"
+		;;
+	--help | -h | help | "")
+		_gh_pr_task_help
+		;;
+	*)
+		gum log --level error "Unknown task command '$subcommand'"
+		gum log --level info "Available commands: list, view, check, uncheck"
+		gum log --level info "Run 'gh assistant pr task --help' for usage information"
+		exit 1
+		;;
+	esac
+}
+
 # PR help function
 #
 # Displays comprehensive help information for all PR subcommands
@@ -381,27 +604,31 @@ gh assistant pr - Pull request commands with AI assistance
 USAGE:
     gh assistant pr create [GH_PR_CREATE_OPTIONS] [--model MODEL]
     gh assistant pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS] [--model MODEL]
+    gh assistant pr task <subcommand> [OPTIONS]
 
 DESCRIPTION:
     Creates and reviews GitHub pull requests with AI-generated content.
+    Manage task checklists in PR bodies.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
     review      Review PRs with AI-generated feedback
+    task        Manage tasks in PR body (list, view, check, uncheck)
 
 SEE ALSO:
     gh assistant pr create --help    # Full list of gh pr create options
     gh assistant pr review --help    # Full list of gh pr review options
+    gh assistant pr task --help      # Task management commands
 EOF
 }
 
 # PR subcommand handler
 #
-# Routes PR subcommands (create, review) to their appropriate
+# Routes PR subcommands (create, review, task) to their appropriate
 # handler functions. Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, review, help
+# Subcommands: create, review, task, help
 _gh_pr() {
 	local subcommand="$1"
 	shift
@@ -413,12 +640,15 @@ _gh_pr() {
 	review)
 		_gh_pr_review "$@"
 		;;
+	task)
+		_gh_pr_task "$@"
+		;;
 	--help | -h | help | "")
 		_show_pr_help
 		;;
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, review"
+		gum log --level info "Available commands: create, review, task"
 		gum log --level info "Run 'gh assistant pr --help' for usage information"
 		exit 1
 		;;
