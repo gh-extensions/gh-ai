@@ -42,8 +42,6 @@ Format` exactly as specified.
 - **MUST NOT** end with a period.
 - **MUST NOT** invent component or file names not present in the diff.
 
-### Structure
-
 ```text
 <type>[optional scope]: <description>
 ```
