@@ -2,30 +2,15 @@
 
 # Shared utility functions for gh-opencode
 
-# Get template directory path
+# Get prompt directory path
 #
-# Returns the path to the template directory relative to source_dir.
+# Returns the path to the prompt directory relative to source_dir.
 # Requires $source_dir to be set by the main script.
 #
-# Usage: template_dir=$(_get_template_dir)
-_get_template_dir() {
+# Usage: prompt_dir=$(_get_prompt_dir)
+_get_prompt_dir() {
 	# shellcheck disable=SC2154
-	echo "$source_dir/templates"
-}
-
-# Extract content between HTML comment delimiters
-#
-# Parses output and extracts content between <!-- NAME_START --> and <!-- NAME_END -->
-# This is used to extract generated content from AI responses.
-#
-# Usage: _extract_delimited_content "$output" "COMMIT_MESSAGE"
-# Usage: _extract_delimited_content "$output" "PR_CONTENT"
-# Usage: _extract_delimited_content "$output" "REVIEW_CONTENT"
-_extract_delimited_content() {
-	local output="$1"
-	local name="$2"
-
-	echo "$output" | sed -n "/<!-- ${name}_START -->/,/<!-- ${name}_END -->/p" | sed '1d;$d'
+	echo "$_gh_assistant_source_dir/prompts"
 }
 
 # Create a temporary file with consistent naming

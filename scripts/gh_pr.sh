@@ -177,13 +177,13 @@ _gh_pr_create() {
 	local model
 	local diff_file
 	local log_file
-	local template_dir
+	local prompt_dir
 	local base_branch
 	local head_branch
 
-	# Template directory (relative to source_dir from main script)
-	template_dir=$(_get_template_dir)
-	template_file="$template_dir/gh_pr_ready.md"
+	# Prompt directory (relative to source_dir from main script)
+	prompt_dir=$(_get_prompt_dir)
+	prompt_file="$prompt_dir/gh_pr_ready.md"
 
 	# Model for PR content generation
 	model="claude-3-5-haiku-20241022"
@@ -231,9 +231,9 @@ _gh_pr_create() {
 	git log --oneline "origin/$base_branch".."$head_branch" >"$log_file" 2>/dev/null ||
 		git log --oneline "$base_branch".."$head_branch" >"$log_file" 2>/dev/null || true
 
-	# Build the prompt from template
-	# prompt="The instructions are provided in the @$template_file file. The pr diff is the @$diff_file file."
-	prompt="You must obey the instructions in @$template_file. CRITICAL: Output
+	# Build the prompt from prompt file
+	# prompt="The instructions are provided in the @$prompt_file file. The pr diff is the @$diff_file file."
+	prompt="You must obey the instructions in @$prompt_file. CRITICAL: Output
 	ONLY the final markdown block exactly as specified under '## Output'. Do NOT
 	include any preamble, analysis, steps, code fences, or extra text. The PR
 	diff is @$diff_file. The commit log is @$log_file."
@@ -241,7 +241,10 @@ _gh_pr_create() {
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			claude --model "$model" -p "$prompt"
+			claude --model "$model" -p "$prompt" \
+			--add-dir "$(dirname "$prompt_file")" \
+			--add-dir "$(dirname "$diff_file")" \
+			--add-dir "$(pwd)"
 	)
 
 	# Check execution success
@@ -288,11 +291,11 @@ _gh_pr_review() {
 	local review_file
 	local model
 	local diff_file
-	local template_dir
+	local prompt_dir
 
-	# Template directory (relative to source_dir from main script)
-	template_dir=$(_get_template_dir)
-	template_file="$template_dir/gh_pr_review.md"
+	# Prompt directory (relative to source_dir from main script)
+	prompt_dir=$(_get_prompt_dir)
+	prompt_file="$prompt_dir/gh_pr_review.md"
 
 	# Model for PR content generation
 	model="claude-3-5-haiku-20241022"
@@ -328,8 +331,8 @@ _gh_pr_review() {
 	# Check if there's content
 	_require_file_not_empty "$diff_file" "No changes found in PR #$pr_number" || return 1
 
-	# Build the prompt from template
-	prompt="You must obey the instructions in @$template_file. CRITICAL: Output
+	# Build the prompt from prompt file
+	prompt="You must obey the instructions in @$prompt_file. CRITICAL: Output
 	ONLY the final markdown block exactly as specified under '## Output'. Do NOT
 	include any preamble, analysis, steps, code fences, or extra text. The PR
 	diff is @$diff_file. The commit log is @$log_file."
@@ -337,7 +340,10 @@ _gh_pr_review() {
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
-			claude --model "$model" -p "$prompt"
+			claude --model "$model" -p "$prompt" \
+			--add-dir "$(dirname "$prompt_file")" \
+			--add-dir "$(dirname "$diff_file")" \
+			--add-dir "$(pwd)"
 	)
 
 	# Check execution success

@@ -52,11 +52,11 @@ _gh_commit() {
 	local model
 	local prompt
 	local diff_file
-	local template_dir
+	local prompt_dir
 
-	# Template directory (relative to source_dir from main script)
-	template_dir=$(_get_template_dir)
-	template_file="$template_dir/gh_commit.md"
+	# Prompt directory (relative to source_dir from main script)
+	prompt_dir=$(_get_prompt_dir)
+	prompt_file="$prompt_dir/gh_commit.md"
 
 	# Model for commit message generation
 	model="claude-3-5-haiku-20241022"
@@ -80,17 +80,20 @@ _gh_commit() {
 	# Check if there are staged changes
 	_require_file_not_empty "$diff_file" "No staged changes found. Please stage your changes with 'git add' first." || return 1
 
-	# Build the prompt from template
-	prompt="NO_PREAMBLE. You must strictly obey the instructions in
-	@$template_file. Output ONLY the final commit message exactly as defined by
-	the template. Do NOT include explanations, analysis, headings, code fences,
-	or any extra text. Output must be valid for direct use by 'git commit'. The
-	staged diff is provided in @$diff_file."
+	# Build the prompt from prompt file
+	prompt="NO_PREAMBLE. MUST NOT include explanations, analysis, headings, code
+	fences, or any extra text. You must strictly obey the instructions in
+	@$prompt_file. Output ONLY the final commit message exactly as defined by the
+	prompt.  Output must be valid for direct use by 'git commit'. The staged diff
+	is provided in @$diff_file."
 
 	# Generate commit message using assistant run
 	output=$(
 		gum spin --title "Generating Git commit message..." -- \
-			claude --model "$model" -p "$prompt"
+			claude --model "$model" -p "$prompt" \
+			--add-dir "$(dirname "$prompt_file")" \
+			--add-dir "$(dirname "$diff_file")" \
+			--add-dir "$(pwd)"
 	)
 
 	# Check execution success
