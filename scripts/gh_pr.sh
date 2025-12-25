@@ -384,8 +384,8 @@ COMMANDS:
     review      Review PRs with AI-generated feedback
 
 SEE ALSO:
-    gh pr create --help    # Full list of gh pr create options
-    gh pr review --help    # Full list of gh pr review options
+    gh agent pr create --help    # Full list of gh pr create options
+    gh agent pr review --help    # Full list of gh pr review options
 EOF
 }
 

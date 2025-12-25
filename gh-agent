@@ -2,27 +2,34 @@
 
 [ -z "$DEBUG" ] || set -x
 
-source_dir=$(dirname "${BASH_SOURCE[0]}")
+_gh_agent_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Source command modules
-source "$source_dir/scripts/utils.sh"
-source "$source_dir/scripts/gh_pr.sh"
-source "$source_dir/scripts/gh_commit.sh"
+source "$_gh_agent_source_dir/scripts/utils.sh"
+source "$_gh_agent_source_dir/scripts/gh_pr.sh"
+source "$_gh_agent_source_dir/scripts/gh_api.sh"
+source "$_gh_agent_source_dir/scripts/gh_commit.sh"
 
-# Help functions
+# Help function
+#
+# Displays comprehensive help information for all commands
+# including usage examples and available options.
 _show_help() {
 	cat <<'EOF'
-gh-agent - AI-powered GitHub CLI extension
+gh agent - AI-powered GitHub CLI extension
 
 USAGE:
     gh agent <command> [subcommand] [options]
 
 COMMANDS:
-    pr          Pull request operations (create, review, explain)
     commit      Generate a commit message for staged changes
+    pr          Pull request operations (create, review)
+    api         Low-level GitHub API operations (pr, issue)
 
 SEE ALSO:
-    gh opencode commit --help       # Show commit command help
+    gh agent commit --help    # Commit command help
+    gh agent pr --help        # PR command help
+    gh agent api --help       # API command help
 EOF
 }
 
@@ -32,19 +39,22 @@ main() {
 	shift
 
 	case $command in
+	commit)
+		_gh_commit "$@"
+		;;
 	pr)
 		_gh_pr "$@"
 		;;
-	commit)
-		_gh_commit "$@"
+	api)
+		_gh_api "$@"
 		;;
 	--help | -h | help | "")
 		_show_help
 		;;
 	*)
 		gum log --level error "Unknown command '$command'"
-		gum log --level info "Available commands: pr, commit, install"
-		gum log --level info "Run 'gh opencode --help' for usage information"
+		gum log --level info "Available commands: commit, pr, api"
+		gum log --level info "Run 'gh agent --help' for usage information"
 		exit 1
 		;;
 	esac
