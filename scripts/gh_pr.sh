@@ -240,7 +240,7 @@ _gh_pr_create() {
 
 	# Generate PR content using agent run
 	output=$(
-		gum spin --title "Generating GitHub Pull Request..." -- \
+		gum spin --title "Generating GitHub pull request..." -- \
 			claude --model "$model" -p "$prompt"
 	)
 
@@ -336,7 +336,7 @@ _gh_pr_review() {
 
 	# Generate PR content using agent run
 	output=$(
-		gum spin --title "Generating GitHub Pull Request Review..." -- \
+		gum spin --title "Generating GitHub pull request review..." -- \
 			claude --model "$model" -p "$prompt"
 	)
 
