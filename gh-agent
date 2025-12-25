@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+
+[ -z "$DEBUG" ] || set -x
+
+source_dir=$(dirname "${BASH_SOURCE[0]}")
+
+# Source command modules
+source "$source_dir/scripts/utils.sh"
+source "$source_dir/scripts/gh_commit.sh"
+
+# Help functions
+_show_help() {
+	cat <<'EOF'
+gh-agent - AI-powered GitHub CLI extension
+
+USAGE:
+    gh agent <command> [subcommand] [options]
+
+COMMANDS:
+    commit      Generate a commit message for staged changes
+
+SEE ALSO:
+    gh opencode commit --help       # Show commit command help
+EOF
+}
+
+# Main entry point
+main() {
+	local command="$1"
+	shift
+
+	case $command in
+	commit)
+		_gh_commit "$@"
+		;;
+	--help | -h | help | "")
+		_show_help
+		;;
+	*)
+		gum log --level error "Unknown command '$command'"
+		gum log --level info "Available commands: pr, commit, install"
+		gum log --level info "Run 'gh opencode --help' for usage information"
+		exit 1
+		;;
+	esac
+}
+
+main "$@"
