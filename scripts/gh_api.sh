@@ -34,23 +34,22 @@ _gh_api_get_me() {
 
 # Convert key=value pairs to gh api --field arguments
 #
-# Transforms an array of key=value strings into --field arguments
-# for gh api. Special handling for "assignee=@me" to resolve
-# the current user's login.
+# Emits NUL-separated tokens for use with xargs -0:
+# --field\0<pair>\0--field\0<pair>\0...
+# Special handling for "assignee=@me" to resolve the current user's login.
 #
-# Usage: _gh_api_field_pairs output_array "title=My Title" "body=Content"
-# Example: _gh_api_field_pairs fields "title=Bug fix" "assignee=@me"
+# Usage: _gh_api_field_pairs "title=My Title" "body=Content" | xargs -0 gh api ...
+# Example: _gh_api_field_pairs "title=Bug fix" "assignee=@me" | xargs -0 gh api ...
 _gh_api_field_pairs() {
-	local -n _out=$1
-	shift
-
-	_out=()
 	for pair in "$@"; do
-		if [[ "$pair" == "assignee=@me" ]]; then
-			_out+=(--field "assignee=$(_gh_api_get_me)")
-		else
-			_out+=(--field "$pair")
-		fi
+		case "$pair" in
+		"assignee=@me")
+			printf '%s\0' --field "assignee=$(_gh_api_get_me)"
+			;;
+		*)
+			printf '%s\0' --field "$pair"
+			;;
+		esac
 	done
 }
 

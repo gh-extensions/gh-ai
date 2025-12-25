@@ -63,14 +63,12 @@ _gh_api_issue_link() {
 # Returns: JSON object with created issue details
 _gh_api_issue_create() {
 	local repo
-	local fields
-
-	_gh_api_field_pairs fields "$@"
 
 	repo=$(_gh_api_repo_view)
-	gh api \
-		--method POST "/repos/${repo}/issues" "${fields[@]}" \
-		--jq "$(_gh_api_issue_jq)"
+	_gh_api_field_pairs "$@" \
+		| xargs -0 gh api \
+			--method POST "/repos/${repo}/issues" \
+			--jq "$(_gh_api_issue_jq)"
 }
 
 # Update an existing issue
@@ -82,16 +80,14 @@ _gh_api_issue_create() {
 # Returns: JSON object with updated issue details
 _gh_api_issue_update() {
 	local repo
-	local fields
 	local number=$1
 	shift 1
 
-	_gh_api_field_pairs fields "$@"
-
 	repo=$(_gh_api_repo_view)
-	gh api \
-		--method PATCH "/repos/${repo}/issues/${number}" "${fields[@]}" \
-		--jq "$(_gh_api_issue_jq)"
+	_gh_api_field_pairs "$@" \
+		| xargs -0 gh api \
+			--method PATCH "/repos/${repo}/issues/${number}" \
+			--jq "$(_gh_api_issue_jq)"
 }
 
 # Start development on an issue
