@@ -1,7 +1,7 @@
 ---
 title: Draft Pull Request
 kind: github-pull-request
-version: 2.2.0
+version: 0.1.0
 status: active
 ---
 

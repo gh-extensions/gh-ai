@@ -1,7 +1,7 @@
 ---
 title: Pull Request Review
 kind: github-pull-request-review
-version: 2.2.0
+version: 0.1.0
 status: active
 ---
 
