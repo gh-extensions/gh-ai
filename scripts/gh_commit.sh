@@ -81,7 +81,11 @@ _gh_commit() {
 	_require_file_not_empty "$diff_file" "No staged changes found. Please stage your changes with 'git add' first." || return 1
 
 	# Build the prompt from template
-	prompt="The instructions are provided in the @$template_file file. The staged diff is the @$diff_file file."
+	prompt="NO_PREAMBLE. You must strictly obey the instructions in
+	@$template_file. Output ONLY the final commit message exactly as defined by
+	the template. Do NOT include explanations, analysis, headings, code fences,
+	or any extra text. Output must be valid for direct use by 'git commit'. The
+	staged diff is provided in @$diff_file."
 
 	# Generate commit message using agent run
 	output=$(
@@ -98,7 +102,6 @@ _gh_commit() {
 
 	# Extract commit message from output
 	commit_message=$output
-
 	# Validate we got a commit message
 	if [[ -z "$commit_message" ]]; then
 		gum log --level error "Failed to extract commit message from output"

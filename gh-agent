@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 [ -z "$DEBUG" ] || set -x
 
@@ -6,6 +6,7 @@ source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Source command modules
 source "$source_dir/scripts/utils.sh"
+source "$source_dir/scripts/gh_pr.sh"
 source "$source_dir/scripts/gh_commit.sh"
 
 # Help functions
@@ -17,6 +18,7 @@ USAGE:
     gh agent <command> [subcommand] [options]
 
 COMMANDS:
+    pr          Pull request operations (create, review, explain)
     commit      Generate a commit message for staged changes
 
 SEE ALSO:
@@ -30,6 +32,9 @@ main() {
 	shift
 
 	case $command in
+	pr)
+		_gh_pr "$@"
+		;;
 	commit)
 		_gh_commit "$@"
 		;;
