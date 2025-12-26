@@ -48,7 +48,7 @@ referenced Pull Request and repository state.
       # operation
       gh assistant pr task list \
       # parameters
-      '{current_pr_number}' --filter 'T\d{3}' --json
+      '{current_pr_number}' --filter 'T\d\d\d' --json
    )"
    ```
 
