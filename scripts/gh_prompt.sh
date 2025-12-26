@@ -67,6 +67,8 @@ _gh_prompt_view() {
 	fi
 
 	prompt_dir=$(_get_prompt_dir)
+	# Convert to lowercase for case-insensitive matching
+	name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 	prompt_file="$prompt_dir/${name}.md"
 
 	if [[ ! -f "$prompt_file" ]]; then
@@ -102,6 +104,8 @@ _gh_prompt_get() {
 	fi
 
 	prompt_dir=$(_get_prompt_dir)
+	# Convert to lowercase for case-insensitive matching
+	name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
 	prompt_file="$prompt_dir/${name}.md"
 
 	if [[ ! -f "$prompt_file" ]]; then
