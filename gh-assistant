@@ -11,6 +11,7 @@ source "$_gh_assistant_source_dir/scripts/gh_commit.sh"
 source "$_gh_assistant_source_dir/scripts/gh_api.sh"
 source "$_gh_assistant_source_dir/scripts/gh_issue.sh"
 source "$_gh_assistant_source_dir/scripts/gh_pr.sh"
+source "$_gh_assistant_source_dir/scripts/gh_install.sh"
 
 # Help function
 #
@@ -29,6 +30,7 @@ COMMANDS:
     api         Low-level GitHub API operations (pr, issue)
     commit      Generate a commit message for staged changes
     prompt      Manage prompt templates (list, view, get)
+    install     Install configuration files for AI providers
 
 SEE ALSO:
     gh assistant pr --help        # PR command help
@@ -36,6 +38,7 @@ SEE ALSO:
     gh assistant api --help       # API command help
     gh assistant commit --help    # Commit command help
     gh assistant prompt --help    # Prompt command help
+    gh assistant install --help   # Install command help
 EOF
 }
 
@@ -60,12 +63,15 @@ main() {
 	prompt)
 		_gh_prompt "$@"
 		;;
+	install)
+		_gh_install "$@"
+		;;
 	--help | -h | help | "")
 		_show_help
 		;;
 	*)
 		gum log --level error "Unknown command '$command'"
-		gum log --level info "Available commands: pr, issue, api, commit, prompt"
+		gum log --level info "Available commands: pr, issue, api, commit, prompt, install"
 		gum log --level info "Run 'gh assistant --help' for usage information"
 		exit 1
 		;;
