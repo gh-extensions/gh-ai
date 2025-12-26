@@ -48,7 +48,7 @@ _gh_install_claude() {
 
 		local target_dir="$target_base$dir_path"
 		mkdir -p "$target_dir"
-		cp "$file" "$target_dir/$filename"
+		cp -f "$file" "$target_dir/$filename"
 	done
 
 	local scope="local"
@@ -136,7 +136,7 @@ _gh_install_opencode() {
 	fi
 
 	mkdir -p "$target_dir"
-	cp -r "$source_dir"/* "$target_dir"/
+	cp -rf "$source_dir"/* "$target_dir"/
 
 	local scope="local"
 	[[ "$global" == true ]] && scope="global"
@@ -161,12 +161,13 @@ _gh_convert_md_to_toml() {
 	prompt=$(awk '/^---$/{if(++c==2){getline; p=1}} p' "$input_file")
 
 	# Write TOML file
+	# Use literal strings (''') to avoid escape sequence processing
 	{
 		echo "description = \"$description\""
 		echo ""
-		echo "prompt = \"\"\""
+		echo "prompt = '''"
 		echo "$prompt"
-		echo "\"\"\""
+		echo "'''"
 	} >"$output_file"
 }
 
