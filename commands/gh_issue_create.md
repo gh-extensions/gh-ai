@@ -8,19 +8,6 @@ allowed-tools:
 
 # Instructions
 
-All `gh assistant` commands refer to a **custom GitHub CLI extension** that must
-be installed and available in the current environment.
-
-- The assistant **MUST** execute `gh assistant …` commands exactly as written.
-- The assistant **MUST NOT** substitute or approximate these commands using
-  built-in GitHub CLI commands (e.g. `gh api`, `gh pr view`, etc.).
-- If the `gh assistant` extension is not available, the assistant **MUST abort**
-  and instruct the user to install it via:
-
-  ```bash
-  gh extension install gh-extensions/gh-assistant
-  ```
-
 ## Input
 
 1. Parse `$ARGUMENTS` as command-line arguments and validate:
