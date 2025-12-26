@@ -86,7 +86,8 @@ Format` exactly as specified.
 
 ## Footer Format
 
-- **MUST** be included **ONLY** if breaking changes or issue references apply.
+- Add the following block **ONLY** if the change introduces a breaking change
+  and/or references an issue. Omit the entire block otherwise.
 
 ```text
 BREAKING CHANGE: <description>
