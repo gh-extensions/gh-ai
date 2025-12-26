@@ -1,6 +1,6 @@
 ---
 description: Execute Pull Request checklist tasks interactively.
-argument-hint: "--number <number | url>"
+argument-hint: "--number <number | url> [--yes]"
 allowed-tools:
   - Bash(gh:*)
   - Bash(git:*)
@@ -18,6 +18,8 @@ referenced Pull Request and repository state.
      full URL, `#N`, or raw number `N`.
      - The value **MUST** be normalized to the raw PR number and stored as
        `current_pr_number`.
+   - **`--yes`** _(optional)_ — Skip all interactive prompts. Automatically work
+     on all pending tasks and mark them as completed.
 
 2. If required arguments are missing, empty, or invalid, abort and, return an
    error.
@@ -64,6 +66,10 @@ referenced Pull Request and repository state.
 
    For each task:
 
+   If `--yes` is set, proceed directly to implementation (step 4).
+
+   Otherwise, prompt:
+
    ```markdown
    **{task_id}:** {task_text}
 
@@ -89,6 +95,10 @@ referenced Pull Request and repository state.
 
    If blocked:
 
+   If `--yes` is set, mark as blocked and continue to next task.
+
+   Otherwise, prompt:
+
    ```markdown
    **Blocked:** {blocker}
 
@@ -104,6 +114,18 @@ referenced Pull Request and repository state.
    If blocked, append `{task_id}` to `blocked_tasks[]`.
 
 5. On successful implementation:
+
+   If `--yes` is set, show changes and proceed directly to marking (step 6):
+
+   ```markdown
+   **{task_id}:** {task_text}
+
+   **Changes made:**
+
+   - {summary}
+   ```
+
+   Otherwise, prompt:
 
    ```markdown
    **{task_id}:** {task_text}
