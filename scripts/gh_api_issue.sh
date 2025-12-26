@@ -65,8 +65,8 @@ _gh_api_issue_create() {
 	local repo
 
 	repo=$(_gh_api_repo_view)
-	_gh_api_field_pairs "$@" \
-		| xargs -0 gh api \
+	_gh_api_field_pairs "$@" |
+		xargs -0 gh api \
 			--method POST "/repos/${repo}/issues" \
 			--jq "$(_gh_api_issue_jq)"
 }
@@ -84,8 +84,8 @@ _gh_api_issue_update() {
 	shift 1
 
 	repo=$(_gh_api_repo_view)
-	_gh_api_field_pairs "$@" \
-		| xargs -0 gh api \
+	_gh_api_field_pairs "$@" |
+		xargs -0 gh api \
 			--method PATCH "/repos/${repo}/issues/${number}" \
 			--jq "$(_gh_api_issue_jq)"
 }
@@ -117,7 +117,7 @@ _gh_api_issue_develop() {
 	gh issue develop "$issue_number" --base main --name "$pr_branch" --checkout
 
 	# Create initial commit and push
-	git commit --allow-empty -m "Starts $issue_number"
+	git commit --allow-empty -m "Starts #$issue_number"
 	git push -u origin "$pr_branch"
 
 	echo "$pr_branch"

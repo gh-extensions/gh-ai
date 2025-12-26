@@ -44,8 +44,8 @@ _gh_api_pr_create() {
 	local repo
 
 	repo=$(_gh_api_repo_view)
-	_gh_api_field_pairs "$@" \
-		| xargs -0 gh api \
+	_gh_api_field_pairs "$@" |
+		xargs -0 gh api \
 			--method POST "/repos/${repo}/pulls" \
 			--jq "$(_gh_api_pr_jq)"
 }
@@ -63,8 +63,8 @@ _gh_api_pr_update() {
 	shift 1
 
 	repo=$(_gh_api_repo_view)
-	_gh_api_field_pairs "$@" \
-		| xargs -0 gh api \
+	_gh_api_field_pairs "$@" |
+		xargs -0 gh api \
 			--method PATCH "/repos/${repo}/pulls/${number}" \
 			--jq "$(_gh_api_pr_jq)"
 }
