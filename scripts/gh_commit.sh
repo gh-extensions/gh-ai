@@ -84,8 +84,7 @@ _gh_commit() {
 	prompt="NO_PREAMBLE. MUST NOT include explanations, analysis, headings, code
 	fences, or any extra text. You must strictly obey the instructions in
 	@$prompt_file. Output ONLY the final commit message exactly as defined by the
-	prompt.  Output must be valid for direct use by 'git commit'. The staged diff
-	is provided in @$diff_file."
+	prompt. The staged diff is provided in @$diff_file."
 
 	# Generate commit message using assistant run
 	output=$(

@@ -10,7 +10,8 @@
 # Usage: diff_file=$(_create_temp_file "gh-opencode-diff")
 _create_temp_file() {
 	local prefix="${1:-gh-assistant-temp}"
-	mktemp "${TMPDIR:-/tmp}/${prefix}.XXXXXX"
+	local tmpdir="${TMPDIR:-/tmp}"
+	mktemp "${tmpdir%/}/${prefix}.XXXXXX"
 }
 
 # Check if file has content, log error if empty
