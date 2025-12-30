@@ -69,7 +69,7 @@ _gh_commit() {
 	# Create temporary file for diff
 	diff_file=$(_create_temp_file "gh-assistant-diff")
 	# shellcheck disable=SC2064
-	trap "rm -f '$diff_file'" RETURN
+	# trap "rm -f '$diff_file'" RETURN
 
 	# Get staged diff
 	if ! git diff --staged >"$diff_file"; then
@@ -81,18 +81,17 @@ _gh_commit() {
 	_require_file_not_empty "$diff_file" "No staged changes found. Please stage your changes with 'git add' first." || return 1
 
 	# Build the prompt from prompt file
-	prompt="NO_PREAMBLE. MUST NOT include explanations, analysis, headings, code
-	fences, or any extra text. You must strictly obey the instructions in
-	@$prompt_file. Output ONLY the final commit message exactly as defined by the
-	prompt. The staged diff is provided in @$diff_file."
+	prompt="Follow @$prompt_file instructions for staged_diff @$diff_file"
 
 	# Generate commit message using assistant run
 	output=$(
 		gum spin --title "Generating Git commit message..." -- \
-			claude --model "$model" -p "$prompt" \
-			--add-dir "$(dirname "$prompt_file")" \
-			--add-dir "$(dirname "$diff_file")" \
-			--add-dir "$(pwd)"
+			claude \
+			--no-session-persistence \
+			--permission-mode "dontAsk" \
+			--allowed-tools "Read($diff_file)" \
+			--allowed-tools "Read($prompt_file)" \
+			--model "$model" --print "$prompt"
 	)
 
 	# Check execution success
@@ -102,8 +101,8 @@ _gh_commit() {
 		return 1
 	fi
 
-	# Extract commit message from output
-	commit_message=$output
+	# Extract commit message from output (between markers)
+	commit_message=$(echo "$output" | _extract_block "---COMMIT_START---" "---COMMIT_END---")
 	# Validate we got a commit message
 	if [[ -z "$commit_message" ]]; then
 		gum log --level error "Failed to extract commit message from output"

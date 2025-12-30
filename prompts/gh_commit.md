@@ -26,8 +26,8 @@ Analyze the `staged_diff` to understand what changed:
   `Subject Format` defined in this template.
 - **MUST** generate the `commit_body` by rendering the complete `Body Format`
   exactly as specified.
-- **MUST** generate the `commit_footer` by rendering the complete `Footer
-Format` exactly as specified.
+- **MAY** generate the `commit_footer` **ONLY** when applicable (breaking
+  changes or issue references). Omit entirely otherwise.
 - **MUST** follow the Conventional Commits specification.
 - **MUST** use `!` after type or scope for breaking changes.
 - **MUST NOT** output content outside of the sections defined in
@@ -86,8 +86,12 @@ Format` exactly as specified.
 
 ## Footer Format
 
-- Add the following block **ONLY** if the change introduces a breaking change
-  and/or references an issue. Omit the entire block otherwise.
+- **MUST** omit footer entirely if none of the conditions below apply.
+- Include `BREAKING CHANGE: <description>` only if the change breaks
+  backward compatibility.
+- Include `Fixes #<issue_number>` only if the change closes an issue.
+- Include `Refs #<issue_number>` only if the change relates to an issue
+  without closing it.
 
 ```text
 BREAKING CHANGE: <description>
@@ -100,9 +104,11 @@ Refs #<issue_number>
 The template **MUST** output the following as the **final output**:
 
 ```text
+---COMMIT_START---
 {commit_subject}
 
 {commit_body}
 
-{commit_footer}
+{commit_footer (ONLY if applicable, otherwise omit)}
+---COMMIT_END---
 ```

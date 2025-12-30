@@ -232,19 +232,18 @@ _gh_pr_create() {
 		git log --oneline "$base_branch".."$head_branch" >"$log_file" 2>/dev/null || true
 
 	# Build the prompt from prompt file
-	# prompt="The instructions are provided in the @$prompt_file file. The pr diff is the @$diff_file file."
-	prompt="You must obey the instructions in @$prompt_file. CRITICAL: Output
-	ONLY the final markdown block exactly as specified under '## Output'. Do NOT
-	include any preamble, analysis, steps, code fences, or extra text. The PR
-	diff is @$diff_file. The commit log is @$log_file."
+	prompt="Follow @$prompt_file instructions for pr_diff @$diff_file and pr_log @$log_file"
 
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			claude --model "$model" -p "$prompt" \
-			--add-dir "$(dirname "$prompt_file")" \
-			--add-dir "$(dirname "$diff_file")" \
-			--add-dir "$(pwd)"
+			claude \
+			--no-session-persistence \
+			--permission-mode "dontAsk" \
+			--allowed-tools "Read($log_file)" \
+			--allowed-tools "Read($diff_file)" \
+			--allowed-tools "Read($prompt_file)" \
+			--model "$model" --print "$prompt"
 	)
 
 	# Check execution success
@@ -254,8 +253,8 @@ _gh_pr_create() {
 		return 1
 	fi
 
-	# Extract PR content from output
-	pr_content=$output
+	# Extract PR content from output (between markers)
+	pr_content=$(echo "$output" | _extract_block "---PR_START---" "---PR_END---")
 	# Validate we got a pr content
 	if [[ -z "$pr_content" ]]; then
 		gum log --level warn "Failed to extract PR content. Aborting."
@@ -332,18 +331,17 @@ _gh_pr_review() {
 	_require_file_not_empty "$diff_file" "No changes found in PR #$pr_number" || return 1
 
 	# Build the prompt from prompt file
-	prompt="You must obey the instructions in @$prompt_file. CRITICAL: Output
-	ONLY the final markdown block exactly as specified under '## Output'. Do NOT
-	include any preamble, analysis, steps, code fences, or extra text. The PR
-	diff is @$diff_file. The commit log is @$log_file."
+	prompt="Follow @$prompt_file instructions for pr_diff @$diff_file"
 
-	# Generate PR content using assistant run
+	# Generate review content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
-			claude --model "$model" -p "$prompt" \
-			--add-dir "$(dirname "$prompt_file")" \
-			--add-dir "$(dirname "$diff_file")" \
-			--add-dir "$(pwd)"
+			claude \
+			--no-session-persistence \
+			--permission-mode "dontAsk" \
+			--allowed-tools "Read($diff_file)" \
+			--allowed-tools "Read($prompt_file)" \
+			--model "$model" --print "$prompt"
 	)
 
 	# Check execution success
@@ -353,8 +351,8 @@ _gh_pr_review() {
 		return 1
 	fi
 
-	# Extract review content from output
-	review_content=$output
+	# Extract review content from output (between markers)
+	review_content=$(echo "$output" | _extract_block "---REVIEW_START---" "---REVIEW_END---")
 	# Validate we got a commit message
 	if [[ -z "$review_content" ]]; then
 		gum log --level error "Failed to extract review content. Aborting."

@@ -186,7 +186,9 @@ Analyze the `pr_diff` to understand what changed:
 The template **MUST** output the following as the **final output**:
 
 ```markdown
+---PR_START---
 # {pr_title}
 
 {pr_body}
+---PR_END---
 ```

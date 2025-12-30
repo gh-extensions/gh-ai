@@ -2,6 +2,18 @@
 
 # Shared utility functions for gh-assistant
 
+# Extract content between markers (exclusive of markers)
+#
+# Extracts text between start and end marker lines.
+# Markers themselves are not included in output.
+#
+# Usage: echo "$output" | _extract_block "---START---" "---END---"
+_extract_block() {
+	local start="$1"
+	local end="$2"
+	sed -n "/${start}/,/${end}/p" | sed "1d;\$d"
+}
+
 # Create a temporary file with consistent naming
 #
 # Creates a temp file in $TMPDIR (or /tmp) with the given prefix.

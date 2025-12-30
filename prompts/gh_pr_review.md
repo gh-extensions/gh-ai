@@ -171,5 +171,7 @@ Analyze the `pr_diff` to understand what changed:
 The template **MUST** output the following as the **final output**:
 
 ```markdown
+---REVIEW_START---
 {review_body}
+---REVIEW_END---
 ```
