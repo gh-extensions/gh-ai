@@ -102,7 +102,7 @@ _gh_commit() {
 	fi
 
 	# Extract commit message from output (between markers)
-	commit_message=$(echo "$output" | _extract_block "---COMMIT_START---" "---COMMIT_END---")
+	commit_message=$(echo "$output" | _extract_block "<!-- COMMIT_START -->" "<!-- COMMIT_END -->")
 	# Validate we got a commit message
 	if [[ -z "$commit_message" ]]; then
 		gum log --level error "Failed to extract commit message from output"

@@ -22,6 +22,9 @@ Analyze the `staged_diff` to understand what changed:
 
 ## Rules
 
+- **MUST** output ONLY the formatted commit message between markers.
+- **MUST NOT** include preamble, explanation, thinking, or meta-commentary.
+- **MUST NOT** ask questions or request user input.
 - **MUST** generate the `commit_subject` strictly according to the
   `Subject Format` defined in this template.
 - **MUST** generate the `commit_body` by rendering the complete `Body Format`
@@ -30,9 +33,6 @@ Analyze the `staged_diff` to understand what changed:
   changes or issue references). Omit entirely otherwise.
 - **MUST** follow the Conventional Commits specification.
 - **MUST** use `!` after type or scope for breaking changes.
-- **MUST NOT** output content outside of the sections defined in
-  `Subject Format`, `Body Format` and `Footer Format`
-- **MUST NOT** include preamble, explanation, or meta-commentary.
 
 ## Subject Format
 
@@ -101,14 +101,15 @@ Refs #<issue_number>
 
 ## Output
 
-The template **MUST** output the following as the **final output**:
+The template **MUST** output the following as the **final output** immediately,
+without preamble, questions, or confirmation requests:
 
 ```text
----COMMIT_START---
+<!-- COMMIT_START -->
 {commit_subject}
 
 {commit_body}
 
 {commit_footer (ONLY if applicable, otherwise omit)}
----COMMIT_END---
+<!-- COMMIT_END -->
 ```

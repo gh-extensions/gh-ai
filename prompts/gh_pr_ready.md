@@ -23,15 +23,15 @@ Analyze the `pr_diff` to understand what changed:
 
 ## Rules
 
+- **MUST** output ONLY the formatted PR content between markers.
+- **MUST NOT** include preamble, explanation, thinking, or meta-commentary.
+- **MUST NOT** ask questions or request user input.
 - **MUST** generate the `pr_title` strictly according to the `Title Format`
   defined in this template.
 - **MUST** generate the `pr_body` by rendering the complete `Body Format`
   exactly as specified.
 - **MUST** generate the final `pr_title` and the complete `pr_body`
   **BEFORE** producing any output.
-- **MUST NOT** output content outside of the sections defined in
-  `Title Format` and `Body Format`.
-- **MUST NOT** include preamble, explanation, or meta-commentary.
 - **MUST** use valid GitHub-flavored Markdown (GFM).
 - **MUST** conform to `markdownlint` rules.
 - **MUST** reference code locations as `file.ext:line` or `file.ext:line1-line2`.
@@ -183,12 +183,13 @@ Analyze the `pr_diff` to understand what changed:
 
 ## Output
 
-The template **MUST** output the following as the **final output**:
+The template **MUST** output the following as the **final output** immediately,
+without preamble, questions, or confirmation requests:
 
 ```markdown
----PR_START---
+<!-- PR_START -->
 # {pr_title}
 
 {pr_body}
----PR_END---
+<!-- PR_END -->
 ```

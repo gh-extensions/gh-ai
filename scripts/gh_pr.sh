@@ -254,7 +254,7 @@ _gh_pr_create() {
 	fi
 
 	# Extract PR content from output (between markers)
-	pr_content=$(echo "$output" | _extract_block "---PR_START---" "---PR_END---")
+	pr_content=$(echo "$output" | _extract_block "<!-- PR_START -->" "<!-- PR_END -->")
 	# Validate we got a pr content
 	if [[ -z "$pr_content" ]]; then
 		gum log --level warn "Failed to extract PR content. Aborting."
@@ -352,7 +352,7 @@ _gh_pr_review() {
 	fi
 
 	# Extract review content from output (between markers)
-	review_content=$(echo "$output" | _extract_block "---REVIEW_START---" "---REVIEW_END---")
+	review_content=$(echo "$output" | _extract_block "<!-- REVIEW_START -->" "<!-- REVIEW_END -->")
 	# Validate we got a commit message
 	if [[ -z "$review_content" ]]; then
 		gum log --level error "Failed to extract review content. Aborting."

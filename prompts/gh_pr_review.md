@@ -33,11 +33,13 @@ Analyze the `pr_diff` to understand what changed:
 
 ## Rules
 
-- **MUST** generate the review by rendering the complete `Body Format`
-  exactly as specified.
-- **MUST NOT** include preamble, explanation, or meta-commentary.
+- **MUST** output ONLY the formatted review content between markers.
+- **MUST NOT** include preamble, explanation, thinking, or meta-commentary.
 - **MUST NOT** include sentences such as "Let me review…" or "Here is the
   analysis…".
+- **MUST NOT** ask questions or request user input.
+- **MUST** generate the review by rendering the complete `Body Format`
+  exactly as specified.
 - **MUST** use valid GitHub-flavored Markdown (GFM).
 - **MUST** conform to `markdownlint` rules.
 - **MUST** reference code locations as `file.ext:line` or `file.ext:line1-line2`.
@@ -168,10 +170,11 @@ Analyze the `pr_diff` to understand what changed:
 
 ## Output
 
-The template **MUST** output the following as the **final output**:
+The template **MUST** output the following as the **final output** immediately,
+without preamble, questions, or confirmation requests:
 
 ```markdown
----REVIEW_START---
+<!-- REVIEW_START -->
 {review_body}
----REVIEW_END---
+<!-- REVIEW_END -->
 ```
