@@ -69,7 +69,7 @@ _gh_commit() {
 	# Create temporary file for diff
 	diff_file=$(_create_temp_file "gh-assistant-diff")
 	# shellcheck disable=SC2064
-	# trap "rm -f '$diff_file'" RETURN
+	trap "rm -f '$diff_file'" RETURN
 
 	# Get staged diff
 	if ! git diff --staged >"$diff_file"; then
