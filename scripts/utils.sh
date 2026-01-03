@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[ -z "$DEBUG" ] || set -x
+
+set -eo pipefail
+
 # Shared utility functions for gh-assistant
 
 # Extract content between markers (exclusive of markers)

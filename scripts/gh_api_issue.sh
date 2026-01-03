@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[ -z "$DEBUG" ] || set -x
+
+set -eo pipefail
+
 # Issue API functions for gh-assistant
 #
 # Low-level GitHub API wrappers for issue operations.

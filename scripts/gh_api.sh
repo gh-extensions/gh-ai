@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[ -z "$DEBUG" ] || set -x
+
+set -eo pipefail
+
 # GitHub API functions for gh-assistant
 #
 # Unified entry point for GitHub API operations.

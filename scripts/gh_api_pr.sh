@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[ -z "$DEBUG" ] || set -x
+
+set -eo pipefail
+
 # PR API functions for gh-assistant
 #
 # Low-level GitHub API wrappers for pull request operations.

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+[ -z "$DEBUG" ] || set -x
+
+set -eo pipefail
+
 # Commit-related functions for gh-assistant
 
 # Filter out assistant-managed arguments for commit
