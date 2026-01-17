@@ -55,6 +55,7 @@ _gh_commit() {
 	local commit_message
 	local model
 	local prompt
+	local system
 	local diff_file
 	local prompt_dir
 
@@ -86,6 +87,7 @@ _gh_commit() {
 
 	# Build the prompt from prompt file
 	prompt="Follow @$prompt_file instructions for staged_diff @$diff_file"
+	system="You are a helpful assistant that generates git commit messages."
 
 	# Generate commit message using assistant run
 	output=$(
@@ -95,6 +97,7 @@ _gh_commit() {
 			--permission-mode "dontAsk" \
 			--allowed-tools "Read($diff_file)" \
 			--allowed-tools "Read($prompt_file)" \
+			--system-prompt "$system" \
 			--model "$model" --print "$prompt"
 	)
 
@@ -109,7 +112,7 @@ _gh_commit() {
 	commit_message=$(echo "$output" | _extract_block "<!-- COMMIT_START -->" "<!-- COMMIT_END -->")
 	# Validate we got a commit message
 	if [[ -z "$commit_message" ]]; then
-		gum log --level error "Failed to extract commit message from output"
+		gum log --level error "Failed to extract commit message from output: '$output'"
 		return 1
 	fi
 
