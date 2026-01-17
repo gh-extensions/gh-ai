@@ -87,7 +87,9 @@ _gh_commit() {
 
 	# Build the prompt from prompt file
 	prompt="Follow @$prompt_file instructions for staged_diff @$diff_file"
-	system="You are a helpful assistant that generates git commit messages."
+	system="You are a helpful assistant that generates accurate git commit
+	messages from code changes. Infer intent from the diff, prefer specificity
+	over brevity, and do not invent context."
 
 	# Generate commit message using assistant run
 	output=$(

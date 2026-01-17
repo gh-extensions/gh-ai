@@ -181,6 +181,8 @@ _gh_pr_create() {
 	local model
 	local diff_file
 	local log_file
+	local system
+	local prompt
 	local prompt_dir
 	local base_branch
 	local head_branch
@@ -237,6 +239,7 @@ _gh_pr_create() {
 
 	# Build the prompt from prompt file
 	prompt="Follow @$prompt_file instructions for pr_diff @$diff_file and pr_log @$log_file"
+	system="You are a helpful assistant that generates high-quality GitHub pull requests."
 
 	# Generate PR content using assistant run
 	output=$(
@@ -247,6 +250,7 @@ _gh_pr_create() {
 			--allowed-tools "Read($log_file)" \
 			--allowed-tools "Read($diff_file)" \
 			--allowed-tools "Read($prompt_file)" \
+			--system-prompt "$system" \
 			--model "$model" --print "$prompt"
 	)
 
@@ -294,6 +298,8 @@ _gh_pr_review() {
 	local review_file
 	local model
 	local diff_file
+	local system
+	local prompt
 	local prompt_dir
 
 	# Prompt directory (relative to source_dir from main script)
@@ -336,6 +342,7 @@ _gh_pr_review() {
 
 	# Build the prompt from prompt file
 	prompt="Follow @$prompt_file instructions for pr_diff @$diff_file"
+	system="You are a helpful assistant that performs thorough, constructive code reviews on GitHub pull requests."
 
 	# Generate review content using assistant run
 	output=$(
@@ -345,6 +352,7 @@ _gh_pr_review() {
 			--permission-mode "dontAsk" \
 			--allowed-tools "Read($diff_file)" \
 			--allowed-tools "Read($prompt_file)" \
+			--system-prompt "$system" \
 			--model "$model" --print "$prompt"
 	)
 
