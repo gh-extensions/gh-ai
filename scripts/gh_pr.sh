@@ -22,7 +22,7 @@ _get_pr_number() {
 			echo "${args[$i]}"
 			return 0
 		fi
-		((i++))
+		((++i))
 	done
 
 	# No PR number found - will let gh pr review handle this
@@ -111,7 +111,7 @@ _filter_gh_pr_create_args() {
 		--title | -t | --body | -b | --body-file | -F)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((i++)) # Skip the value too
+				((++i)) # Skip the value too
 			fi
 			;;
 		--fill | --fill-first | --fill-verbose)
@@ -122,7 +122,7 @@ _filter_gh_pr_create_args() {
 			filtered_args+=("${input_args[$i]}")
 			;;
 		esac
-		((i++))
+		((++i))
 	done
 
 	# Output the filtered arguments
@@ -148,7 +148,7 @@ _filter_gh_pr_review_args() {
 		--body | -b | --body-file | -F | --comment | -c)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((i++)) # Skip the value too
+				((++i)) # Skip the value too
 			fi
 			;;
 		*)
@@ -156,7 +156,7 @@ _filter_gh_pr_review_args() {
 			filtered_args+=("${input_args[$i]}")
 			;;
 		esac
-		((i++))
+		((++i))
 	done
 
 	# Output the filtered arguments
@@ -210,7 +210,7 @@ _gh_pr_create() {
 			base_branch="${args[$((i + 1))]}"
 			break
 		fi
-		((i++))
+		((++i))
 	done
 
 	# Create temporary files for diff and log

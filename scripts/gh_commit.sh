@@ -25,7 +25,7 @@ _filter_gh_commit_args() {
 		-m | --message | -F | --file)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((i++)) # Skip the value too
+				((++i)) # Skip the value too
 			fi
 			;;
 		*)
@@ -33,7 +33,7 @@ _filter_gh_commit_args() {
 			filtered_args+=("${input_args[$i]}")
 			;;
 		esac
-		((i++))
+		((++i))
 	done
 
 	# Output the filtered arguments
