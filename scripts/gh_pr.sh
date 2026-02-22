@@ -192,7 +192,7 @@ _gh_pr_create() {
 	prompt_file="$prompt_dir/gh_pr_ready.md"
 
 	# Model for PR content generation
-	model="claude-3-5-haiku-20241022"
+	model="claude-haiku-4-5-20251001"
 
 	# Filter out assistant-managed arguments
 	local filtered_output

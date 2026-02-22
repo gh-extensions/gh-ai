@@ -64,7 +64,7 @@ _gh_commit() {
 	prompt_file="$prompt_dir/gh_commit.md"
 
 	# Model for commit message generation
-	model="claude-3-5-haiku-20241022"
+	model="claude-haiku-4-5-20251001"
 
 	# Filter out assistant-managed arguments
 	local filtered_output
