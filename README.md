@@ -28,6 +28,7 @@ gh ai pr create [GH_PR_CREATE_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+gh ai run explain <RUN_ID>
 ```
 
 ### Commit
@@ -76,17 +77,26 @@ gh ai issue create -d "Login crash" --label bug --assignee @me
 some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
 ```
 
+### Run
+
+Analyzes a GitHub Actions workflow run and explains what happened.
+
+```bash
+gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
+```
+
 ## Configuration
 
 Override the AI provider and model via `gh config`.
 
-| Key                         | Default     | Description                           |
-| --------------------------- | ----------- | ------------------------------------- |
-| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)             |
-| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)     |
-| `gh-ai.commit.model` |             | Model override for `commit`           |
+| Key                  | Default     | Description                                   |
+| -------------------- | ----------- | --------------------------------------------- |
+| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                     |
+| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)             |
+| `gh-ai.commit.model` |             | Model override for `commit`                   |
 | `gh-ai.pr.model`     |             | Model override for `pr create/review/explain` |
-| `gh-ai.issue.model`  |             | Model override for `issue create`     |
+| `gh-ai.issue.model`  |             | Model override for `issue create`             |
+| `gh-ai.run.model`    |             | Model override for `run explain`              |
 
 Per-command keys take priority over `gh-ai.model`.
 

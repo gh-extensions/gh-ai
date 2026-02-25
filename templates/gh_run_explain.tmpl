@@ -1,0 +1,41 @@
+Analyze this GitHub Actions workflow run and explain what happened.
+
+<run>
+Title: {{ param "GH_RUN_TITLE" }}
+Conclusion: {{ param "GH_RUN_CONCLUSION" }}
+Event: {{ param "GH_RUN_EVENT" }}
+Branch: {{ param "GH_RUN_BRANCH" }}
+URL: {{ param "GH_RUN_URL" }}
+</run>
+
+<jobs>
+{{ param "GH_RUN_JOBS" }}
+</jobs>
+
+<log>
+{{ param "GH_RUN_LOG" }}
+</log>
+
+<format>
+- Focus on root cause and actionable fixes
+- Highlight error messages and stack traces
+- Reference specific job/step names
+- Body: GitHub-flavored Markdown
+- Omit sections that do not apply; do not write "N/A"
+- Output only the explanation, no preamble or commentary
+- Do NOT include a title line
+</format>
+
+<body>
+## Summary
+{1–2 sentence overview of what happened}
+
+## Root Cause
+{clear explanation of why the run failed}
+
+## Failed Steps
+{list of failed jobs/steps with key error messages}
+
+## How to Fix
+{actionable steps to resolve the failure}
+</body>
