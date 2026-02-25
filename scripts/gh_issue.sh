@@ -88,7 +88,10 @@ _gh_issue_create() {
 		if [[ -n "$consume" ]]; then
 			case "$consume" in
 			description) issue_description="$arg" ;;
-			label) gh_labels="${gh_labels:+$gh_labels, }$arg"; clean_args+=("$arg") ;;
+			label)
+				gh_labels="${gh_labels:+$gh_labels, }$arg"
+				clean_args+=("$arg")
+				;;
 			strip) ;;
 			*) clean_args+=("$arg") ;;
 			esac
@@ -99,11 +102,20 @@ _gh_issue_create() {
 		case "$arg" in
 		--description | -d) consume=description ;;
 		--description=*) issue_description="${arg#--description=}" ;;
-		--label | -l) consume=label; clean_args+=("$arg") ;;
-		--label=*) gh_labels="${gh_labels:+$gh_labels, }${arg#--label=}"; clean_args+=("$arg") ;;
+		--label | -l)
+			consume=label
+			clean_args+=("$arg")
+			;;
+		--label=*)
+			gh_labels="${gh_labels:+$gh_labels, }${arg#--label=}"
+			clean_args+=("$arg")
+			;;
 		--title | -t | --body | -b | --body-file | -F | --template | -T) consume=strip ;;
 		--title=* | --body=* | --body-file=* | --template=* | --description=*) ;;
-		--assignee | -a | --milestone | -m | --project | -p) consume=keep; clean_args+=("$arg") ;;
+		--assignee | -a | --milestone | -m | --project | -p)
+			consume=keep
+			clean_args+=("$arg")
+			;;
 		--*) clean_args+=("$arg") ;;
 		*)
 			# First positional is description fallback
