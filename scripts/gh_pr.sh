@@ -47,7 +47,6 @@ _get_pr_title() {
 
 	# Validate we got a title
 	if [[ -z "$title" ]]; then
-		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
@@ -224,12 +223,19 @@ _gh_pr_create() {
 	local pr_title
 	# Parse title from output
 	if ! pr_title=$(_get_pr_title "$output"); then
+		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local pr_body
 	# Parse body from output
 	pr_body=$(_get_pr_body "$output")
+
+	# Validate we got body content
+	if [[ -z "$pr_body" ]]; then
+		gum log --level error "Failed to extract body from AI content"
+		return 1
+	fi
 
 	# Create PR with AI-generated content
 	gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
