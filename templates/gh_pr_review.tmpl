@@ -1,0 +1,65 @@
+Review the pull request diff below. Assess the overall approach and design first, then examine individual changes.
+
+<diffstat>
+{{ param "GIT_DIFF_STAT" }}
+</diffstat>
+
+<diff>
+{{ param "GIT_DIFF" }}
+</diff>
+
+<context>
+Branch: {{ param "GIT_BRANCH" }}
+<recent_commits>
+{{ param "GIT_COMMITS" }}
+</recent_commits>
+</context>
+
+<priorities>
+Flag: bugs, security/data-loss issues, guideline violations, performance bottlenecks, missing error handling
+Skip: style preferences not enforced by project rules, linter-catchable issues, pre-existing issues, speculative findings
+</priorities>
+
+<severity>
+High   — bugs, security, data loss (blocks approval)
+Medium — logic issues, missing edge cases, poor error handling (blocks approval)
+Low    — minor improvements, style suggestions (advisory only)
+</severity>
+
+<format>
+- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
+- Omit sections with no findings
+- Always include Summary & Outcome
+- Output only the review content, no preamble or commentary
+</format>
+
+<body>
+## Summary & Outcome
+
+{2–3 sentence summary of what the PR does and overall assessment}
+
+**Outcome:** {Approve | Request Changes | Comment}
+
+---
+
+## Findings
+
+**[{High|Medium|Low}] {issue}**
+
+- Location: `file.ext:line`
+- Details: {explanation}
+- Suggestion: {fix}
+
+---
+
+## Action Items
+
+**Required Changes:**
+
+- [ ] [{severity}] {issue} (`file.ext:line`)
+
+**Advisory:**
+
+- {optional improvement}
+
+</body>

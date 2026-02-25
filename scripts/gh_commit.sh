@@ -28,6 +28,7 @@ _filter_gh_commit_args() {
 				((++i)) # Skip the value too
 			fi
 			;;
+		--message=* | --file=*) ;;
 		*)
 			# Pass through all other arguments
 			filtered_args+=("${input_args[$i]}")
@@ -51,73 +52,54 @@ _filter_gh_commit_args() {
 _gh_commit() {
 	local args=("$@")
 	local clean_args
-	local output
-	local commit_message
-	local model
-	local prompt
-	local system
-	local diff_file
-	local prompt_dir
 
-	# Prompt directory (relative to source_dir from main script)
-	prompt_dir=$(_get_prompt_dir)
-	prompt_file="$prompt_dir/gh_commit.md"
-
-	# Model for commit message generation
-	model="claude-haiku-4-5-20251001"
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_assistant_source_dir/templates/gh_commit.tmpl"
 
 	# Filter out assistant-managed arguments
 	local filtered_output
 	filtered_output=$(_filter_gh_commit_args "${args[@]}")
 	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
 
-	# Create temporary file for diff
-	diff_file=$(_create_temp_file "gh-assistant-diff")
-	# shellcheck disable=SC2064
-	trap "rm -f '$diff_file'" RETURN
+	# Gather git context
+	local git_diff_staged
+	git_diff_staged=$(git diff --staged)
 
-	# Get staged diff
-	if ! git diff --staged >"$diff_file"; then
-		gum log --level error "Failed to get staged changes"
+	local git_diff_staged_stat
+	git_diff_staged_stat=$(git diff --staged --stat)
+
+	local git_branch
+	git_branch=$(git rev-parse --abbrev-ref HEAD)
+
+	local git_commits
+	git_commits=$(git log --oneline -5 2>/dev/null | sed 's/^[a-f0-9]* /- /')
+
+	# Check if there are staged changes
+	if [[ -z "$git_diff_staged" ]]; then
+		gum log --level error "No staged changes found. Please stage your changes with 'git add' first."
 		return 1
 	fi
 
-	# Check if there are staged changes
-	_require_file_not_empty "$diff_file" "No staged changes found. Please stage your changes with 'git add' first." || return 1
+	local agent_model
+	agent_model=$(gh config get gh-assistant.commit.model 2>/dev/null || true)
 
-	# Build the prompt from prompt file
-	prompt="Follow @$prompt_file instructions for staged_diff @$diff_file"
-	system="You are a helpful assistant that generates accurate git commit
-	messages from code changes. Infer intent from the diff, prefer specificity
-	over brevity, and do not invent context."
-
+	local git_message
 	# Generate commit message using assistant run
-	output=$(
+	git_message=$(
 		gum spin --title "Generating Git commit message..." -- \
-			claude \
-			--no-session-persistence \
-			--permission-mode "dontAsk" \
-			--allowed-tools "Read($diff_file)" \
-			--allowed-tools "Read($prompt_file)" \
-			--system-prompt "$system" \
-			--model "$model" --print "$prompt"
+			"$_gh_assistant_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_commits" \
+					"$_gh_assistant_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
 	)
 
-	# Check execution success
-	# shellcheck disable=SC2181
-	if [[ $? -ne 0 ]]; then
+	# Validate we got a commit message
+	if [[ -z "$git_message" ]]; then
 		gum log --level error "Failed to generate commit message"
 		return 1
 	fi
 
-	# Extract commit message from output (between markers)
-	commit_message=$(echo "$output" | _extract_block "<!-- COMMIT_START -->" "<!-- COMMIT_END -->")
-	# Validate we got a commit message
-	if [[ -z "$commit_message" ]]; then
-		gum log --level error "Failed to extract commit message from output: '$output'"
-		return 1
-	fi
-
 	# Commit with the generated message and pass through any extra args
-	git commit -m "$commit_message" "${clean_args[@]}"
+	git commit -m "$git_message" "${clean_args[@]}"
 }

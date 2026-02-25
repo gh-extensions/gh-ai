@@ -1,0 +1,33 @@
+Write a conventional commit message for the staged changes below.
+
+<diffstat>
+{{ param "GIT_DIFF_STAGED_STAT" }}
+</diffstat>
+
+<diff>
+{{ param "GIT_DIFF_STAGED" }}
+</diff>
+
+<context>
+Branch: {{ param "GIT_BRANCH" }}
+<recent_commits>
+{{ param "GIT_COMMITS" }}
+</recent_commits>
+</context>
+
+<format>
+- Subject: `<type>[optional scope]: <description>` under 72 chars
+- For material changes, add a blank line then a body paragraph wrapped at 80 chars
+- Output only the commit message, no quotes or code blocks
+</format>
+
+<types>
+feat, fix, docs, style, refactor, perf, test, build, ci, chore
+</types>
+
+<style>
+- Imperative mood: "add feature" not "added feature"
+- Lowercase subject; no trailing period
+- Match recent commit style from context
+- Describe the change, not the intent or benefit
+</style>

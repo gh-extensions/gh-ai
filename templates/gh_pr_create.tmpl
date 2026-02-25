@@ -1,0 +1,65 @@
+Write a GitHub pull request title and body for the changes below.
+
+<diffstat>
+{{ param "GIT_DIFF_STAT" }}
+</diffstat>
+
+<diff>
+{{ param "GIT_DIFF" }}
+</diff>
+
+<log>
+{{ param "GIT_LOG" }}
+</log>
+
+<context>
+<recent_commits>
+{{ param "GIT_COMMITS" }}
+</recent_commits>
+</context>
+
+<format>
+- First line: PR title — imperative mood, under 72 chars, no trailing period
+- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
+- Omit sections that do not apply; do not write "N/A"
+- Output only the PR content, no preamble or commentary
+</format>
+
+<body>
+# {title}
+
+## Summary
+
+{what changed and why — 2–3 sentences}
+
+## Risk Level
+
+- [ ] Low (docs, tests, internal refactor)
+- [ ] Medium (behavior change, non-critical path)
+- [ ] High (core logic, data integrity, security, perf-critical)
+
+## Changes
+
+### Behavior & Execution Flow
+
+{how code behaves after the change}
+
+### Design Decisions
+
+{key tradeoffs and patterns used}
+
+### Edge Cases
+
+{boundary conditions and how they are handled}
+
+## Testing
+
+{how to verify these changes — manual steps, relevant test files, commands to run}
+
+## Impact
+
+- **Breaking Changes:** {yes/no with details}
+- **Performance:** {improved / regressed / no change}
+- **Security:** {auth, data handling, trust boundaries}
+
+</body>
