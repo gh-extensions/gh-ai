@@ -10,7 +10,7 @@ set -euo pipefail
 #
 # First looks for a numeric argument in the provided args.
 # Falls back to auto-detecting the PR for the current branch via gh pr view.
-# Returns the PR number or exits with code 1 if none found.
+# Returns the PR number or empty string if none found.
 #
 # Example: _get_pr_number review 123 --body "test"  # Returns: 123
 # Example: _get_pr_number --approve                 # Returns: detected PR number
@@ -142,7 +142,6 @@ _gh_pr_create() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-
 			)
 	)
 

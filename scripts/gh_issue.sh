@@ -28,31 +28,6 @@ SEE ALSO:
 EOF
 }
 
-# Issue create help function
-_show_issue_create_help() {
-	cat <<'EOF'
-gh ai issue create - Create issues with AI-generated content
-
-USAGE:
-    gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
-
-DESCRIPTION:
-    Generates a structured GitHub issue from a brief description using AI.
-    Any extra options are passed to gh issue create.
-
-OPTIONS:
-    -d, --description    Brief description of the issue
-
-EXAMPLES:
-    gh ai issue create -d "Login page crashes with special chars"
-    gh ai issue create -d "Login crash" --label bug --assignee @me
-    some_command 2>&1 | gh ai issue create -d "Command X fails"
-
-SEE ALSO:
-    gh issue create --help    # Full list of gh issue create options
-EOF
-}
-
 # Extract issue description from arguments
 #
 # Looks for -d/--description flag value.
@@ -164,7 +139,7 @@ _gh_issue_create() {
 	local gh_issue_labels
 	gh_issue_labels=$(_get_issue_labels "${args[@]}")
 
-	# If no description, try interactive or error
+	# If no description, error out
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
 		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [OPTIONS]"
