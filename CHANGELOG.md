@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/gh-extensions/gh-ai/compare/v0.3.0...v0.4.0) (2026-02-25)
+
+
+### Features
+
+* add gh ai issue develop command and improve CLI consistency ([345b612](https://github.com/gh-extensions/gh-ai/commit/345b61279c25be141015d3baf83ae319bf430baf)), closes [#9](https://github.com/gh-extensions/gh-ai/issues/9)
+* add gh ai issue edit command for AI-assisted issue updates ([768d472](https://github.com/gh-extensions/gh-ai/commit/768d47240a73c7fc066ad0c9bc7cb4914d6ae276))
+* add gh ai pr edit command and optional description for pr create ([4b0cb15](https://github.com/gh-extensions/gh-ai/commit/4b0cb15814665e82021d35d4dbe846caafeeaa77))
+* add gh ai run explain command for GitHub Actions diagnostics ([4262832](https://github.com/gh-extensions/gh-ai/commit/42628328bbbd62d5f9e8859aa862dcaa500614be)), closes [#5](https://github.com/gh-extensions/gh-ai/issues/5)
+* append markdownlint-disable directive to AI-generated bodies ([2b6207e](https://github.com/gh-extensions/gh-ai/commit/2b6207ec52e9676cd8c73d8f58cd14ae70f080cb))
+
 ## [0.3.0](https://github.com/gh-extensions/gh-ai/compare/v0.2.1...v0.3.0) (2026-02-25)
 
 
