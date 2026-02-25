@@ -109,7 +109,7 @@ _filter_gh_pr_create_args() {
 # Removes review arguments that assistant handles (body, comment flags)
 # while preserving other options like PR number and --approve.
 #
-# Filters out: --body/-b, --body-file/-F, --comment/-c
+# Filters out: --body/-b, --body-file/-F
 # Example: _filter_gh_pr_review_args 123 --body "test" --approve
 # Returns: 123 --approve
 _filter_gh_pr_review_args() {
@@ -120,13 +120,13 @@ _filter_gh_pr_review_args() {
 	while [[ $i -lt ${#input_args[@]} ]]; do
 		case "${input_args[$i]}" in
 		# Arguments to filter out (assistant manages these)
-		--body | -b | --body-file | -F | --comment | -c)
+		--body | -b | --body-file | -F)
 			# Skip this argument and its value
 			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
 				((++i)) # Skip the value too
 			fi
 			;;
-		--body=* | --body-file=* | --comment=*) ;;
+		--body=* | --body-file=*) ;;
 		*)
 			# Pass through all other arguments (including PR number)
 			filtered_args+=("${input_args[$i]}")
