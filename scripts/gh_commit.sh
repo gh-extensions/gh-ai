@@ -29,33 +29,38 @@ SEE ALSO:
 EOF
 }
 
-# Filter out flags managed by gh-ai from git commit arguments
+# Parse commit arguments in a single pass
 #
-# Removes -m/--message and -F/--file flags (and their values) since
-# the commit message is AI-generated. All other flags pass through.
-_filter_commit_args() {
-	local filtered=()
-	local skip_next=false
-	local arg
+# Strips AI-managed flags (-m/--message, -F/--file) and collects
+# passthrough args for git commit via nameref.
+#
+# Example: _parse_commit_args args --signoff -m "ignored"
+_parse_commit_args() {
+	local -n git_commit_args_ref="$1"
+	shift
 
-	for arg in "$@"; do
+	local args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
+			((++i))
 			continue
 		fi
 
-		case "$arg" in
+		case "${args[$i]}" in
 		-m | --message | -F | --file)
 			skip_next=true
 			;;
 		--message=* | --file=*) ;;
 		*)
-			filtered+=("$arg")
+			git_commit_args_ref+=("${args[$i]}")
 			;;
 		esac
+		((++i))
 	done
-
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
 }
 
 # Main commit command implementation
@@ -74,19 +79,13 @@ _gh_commit() {
 	esac
 
 	local args=("$@")
-	local clean_args
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_commit.tmpl"
 
-	local filtered_args
-	filtered_args=$(_filter_commit_args "${args[@]}")
-	if [[ -n "$filtered_args" ]]; then
-		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
-	else
-		clean_args=()
-	fi
+	local git_commit_args=()
+	_parse_commit_args git_commit_args "${args[@]}"
 
 	# Gather git context
 	local git_diff_staged
@@ -129,5 +128,5 @@ _gh_commit() {
 	fi
 
 	# Commit with the generated message and pass through any extra args
-	git commit -m "$git_commit_message" "${clean_args[@]}"
+	git commit -m "$git_commit_message" "${git_commit_args[@]}"
 }
