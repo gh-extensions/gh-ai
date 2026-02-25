@@ -86,3 +86,7 @@ gh config set gh-assistant.model haiku
 # Use a stronger model for PRs
 gh config set gh-assistant.pr.model sonnet
 ```
+
+> **Note:** `gh config set` will print a warning for keys it doesn't
+> recognize (e.g. `'gh-assistant.pr.model' is not a known configuration key`).
+> This is expected — the values are still saved and used by the extension.
