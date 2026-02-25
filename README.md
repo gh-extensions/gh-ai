@@ -11,10 +11,10 @@ issue edits, and implementation plans.
 
 ## Prerequisites
 
+- [Gum](https://github.com/charmbracelet/gum)
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`) — macOS: `brew install bash`
 - [GitHub CLI](https://cli.github.com/) (`gh`)
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
-- [gum](https://github.com/charmbracelet/gum)
 
 ## Installation
 
@@ -122,14 +122,14 @@ gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 
 Override the AI provider and model via `gh config`.
 
-| Key                  | Default     | Description                                   |
-| -------------------- | ----------- | --------------------------------------------- |
-| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                     |
-| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)             |
-| `gh-ai.commit.model` |             | Model override for `commit`                   |
+| Key                  | Default     | Description                                        |
+| -------------------- | ----------- | -------------------------------------------------- |
+| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                          |
+| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)                  |
+| `gh-ai.commit.model` |             | Model override for `commit`                        |
 | `gh-ai.pr.model`     |             | Model override for `pr create/edit/review/explain` |
-| `gh-ai.issue.model`  |             | Model override for `issue create/edit/develop` |
-| `gh-ai.run.model`    |             | Model override for `run explain`              |
+| `gh-ai.issue.model`  |             | Model override for `issue create/edit/develop`     |
+| `gh-ai.run.model`    |             | Model override for `run explain`                   |
 
 Per-command keys take priority over `gh-ai.model`.
 
