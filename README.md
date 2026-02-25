@@ -3,7 +3,7 @@
 # gh-ai
 
 A GitHub CLI extension that uses AI to generate commit messages, pull request
-descriptions, and code reviews.
+descriptions, code reviews, PR explanations, and structured issues.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
@@ -26,6 +26,8 @@ gh extension install gh-extensions/gh-ai
 gh ai commit [GIT_COMMIT_OPTIONS]
 gh ai pr create [GH_PR_CREATE_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+gh ai pr explain [PR_NUMBER] [--comment | --edit]
+gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
 ```
 
 ### Commit
@@ -55,6 +57,26 @@ gh ai pr review 42 --approve
 gh ai pr review # auto-detects PR for the current branch
 ```
 
+Explains a pull request in plain language.
+
+```bash
+gh ai pr explain 42              # print explanation to stdout
+gh ai pr explain                 # auto-detect PR from current branch
+gh ai pr explain 42 --comment    # post as PR comment
+gh ai pr explain 42 --edit       # replace PR description
+```
+
+### Issue
+
+Creates a structured GitHub issue from a brief description.
+
+```bash
+gh ai issue create -d "Login page crashes with special chars"
+gh ai issue create --label bug --assignee @me "Login crash"
+gh ai issue create                                          # interactive prompt
+some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
+```
+
 ## Configuration
 
 Override the AI provider and model via `gh config`.
@@ -64,7 +86,8 @@ Override the AI provider and model via `gh config`.
 | `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)             |
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)     |
 | `gh-ai.commit.model` |             | Model override for `commit`           |
-| `gh-ai.pr.model`     |             | Model override for `pr create/review` |
+| `gh-ai.pr.model`     |             | Model override for `pr create/review/explain` |
+| `gh-ai.issue.model`  |             | Model override for `issue create`     |
 
 Per-command keys take priority over `gh-ai.model`.
 

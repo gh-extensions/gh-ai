@@ -1,0 +1,55 @@
+Write a GitHub issue title and structured body from the description below.
+
+<description>
+{{ param "GH_ISSUE_DESCRIPTION" }}
+</description>
+
+<labels>
+{{ param "GH_LABELS" }}
+</labels>
+
+<context>
+<recent_issues>
+{{ param "GH_ISSUES" }}
+</recent_issues>
+<additional_context>
+{{ param "EXTRA_CONTEXT" }}
+</additional_context>
+</context>
+
+<format>
+- First line: issue title — `# {title}`, clear and specific, under 72 chars
+- Body: GitHub-flavored Markdown
+- Adapt structure to bug vs feature based on the description
+- Omit sections that do not apply; do not write "N/A"
+- Output only the issue content, no preamble or commentary
+</format>
+
+<body>
+# {title}
+
+## Description
+
+{clear explanation of the issue or feature request — 2–3 sentences}
+
+## Steps to Reproduce
+
+{numbered steps if this is a bug report}
+
+## Expected Behavior
+
+{what should happen}
+
+## Actual Behavior
+
+{what actually happens, including error messages if available}
+
+## Acceptance Criteria
+
+{checkboxes for feature requests — what "done" looks like}
+
+## Additional Context
+
+{any extra information, logs, or environment details}
+
+</body>

@@ -1,0 +1,272 @@
+#!/usr/bin/env bash
+
+[ -z "${DEBUG:-}" ] || set -x
+
+set -euo pipefail
+
+# Issue-related functions for gh-ai
+
+# Issue help function
+#
+# Displays comprehensive help information for all issue subcommands
+# including usage examples and available options.
+_show_issue_help() {
+	cat <<'EOF'
+gh ai issue - Issue commands with AI assistance
+
+USAGE:
+    gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+
+DESCRIPTION:
+    Creates GitHub issues with AI-generated titles and structured bodies.
+
+COMMANDS:
+    create      Create issues with AI-generated content
+
+SEE ALSO:
+    gh ai issue create --help    # Issue create usage
+EOF
+}
+
+# Issue create help function
+_show_issue_create_help() {
+	cat <<'EOF'
+gh ai issue create - Create issues with AI-generated content
+
+USAGE:
+    gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+
+DESCRIPTION:
+    Generates a structured GitHub issue from a brief description using AI.
+    Any extra options are passed to gh issue create.
+
+OPTIONS:
+    -d, --description    Brief description of the issue (also accepted as positional arg)
+
+EXAMPLES:
+    gh ai issue create -d "Login page crashes with special chars"
+    gh ai issue create --label bug --assignee @me "Login crash"
+    gh ai issue create                     # interactive prompt
+    some_command 2>&1 | gh ai issue create -d "Command X fails"
+
+SEE ALSO:
+    gh issue create --help    # Full list of gh issue create options
+EOF
+}
+
+# Extract description from arguments
+#
+# Checks for --description/-d flag first, then falls back to the first
+# non-flag positional argument.
+_get_issue_description() {
+	local skip_next=false
+	local arg
+
+	# First pass: look for --description/-d flag
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			printf '%s' "$arg"
+			return 0
+		fi
+
+		case "$arg" in
+		--description | -d)
+			skip_next=true
+			;;
+		--description=*)
+			printf '%s' "${arg#--description=}"
+			return 0
+			;;
+		esac
+	done
+
+	# Second pass: fall back to first non-flag positional arg
+	skip_next=false
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		--title | -t | --body | -b | --body-file | -F | --label | -l | --assignee | -a | --milestone | -m | --project | -p)
+			skip_next=true
+			;;
+		--title=* | --body=* | --body-file=* | --label=* | --assignee=* | --milestone=* | --project=*) ;;
+		--*) ;;
+		*)
+			printf '%s' "$arg"
+			return 0
+			;;
+		esac
+	done
+}
+
+# Filter out flags managed by gh-ai from issue create arguments
+#
+# Removes --title, --body, --body-file, --template, --description/-d flags
+# (and their values) and the description positional arg since the issue
+# content is AI-generated. All other flags pass through.
+_filter_issue_create_args() {
+	local description="$1"
+	shift
+
+	local filtered=()
+	local skip_next=false
+	local arg
+
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		--title | -t | --body | -b | --body-file | -F | --template | -T | --description | -d)
+			skip_next=true
+			;;
+		--title=* | --body=* | --body-file=* | --template=* | --description=*) ;;
+		*)
+			if [[ -n "$description" ]] && [[ "$arg" == "$description" ]]; then
+				# Skip the description positional arg (first match only)
+				description=""
+			else
+				filtered+=("$arg")
+			fi
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
+# Issue Create implementation
+#
+# Creates a GitHub issue with an AI-generated title and structured body.
+# Uses assistant run with the template content directly injected into the prompt.
+# Supports interactive mode (no args) and piped stdin context.
+#
+# Usage: _gh_issue_create [DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+_gh_issue_create() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_issue_create_help
+		return 0
+		;;
+	esac
+
+	local args=("$@")
+	local clean_args
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
+
+	# Extract description from positional args
+	local issue_description
+	issue_description=$(_get_issue_description "${args[@]}")
+
+	# If no description, try interactive or error
+	if [[ -z "${issue_description:-}" ]]; then
+		if [[ -t 0 ]]; then
+			# Interactive mode: prompt with gum
+			issue_description=$(gum write --placeholder "Describe the issue..." --header "Issue Description")
+			if [[ -z "$issue_description" ]]; then
+				gum log --level error "No description provided"
+				return 1
+			fi
+		else
+			gum log --level error "No description provided"
+			gum log --level info "Usage: gh ai issue create <DESCRIPTION> [OPTIONS]"
+			return 1
+		fi
+	fi
+
+	# Read piped stdin context if available
+	local extra_context=""
+	if [[ ! -t 0 ]]; then
+		extra_context=$(cat)
+	fi
+
+	local filtered_args
+	filtered_args=$(_filter_issue_create_args "$issue_description" "${args[@]}")
+	if [[ -n "$filtered_args" ]]; then
+		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
+	else
+		clean_args=()
+	fi
+
+	# Gather context
+	local gh_labels
+	gh_labels=$(gh label list --limit 50 --json name -q '.[].name' 2>/dev/null || true)
+
+	local gh_issues
+	gh_issues=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
+
+	local agent_model
+	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
+
+	local output
+	# Generate issue content using assistant run
+	output=$(
+		gum spin --title "Generating GitHub issue..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$gh_labels" GH_ISSUES="$gh_issues" EXTRA_CONTEXT="$extra_context" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Validate we got issue content
+	if [[ -z "$output" ]]; then
+		gum log --level error "Failed to generate issue content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	local issue_title
+	# Parse title from output
+	if ! issue_title=$(_get_title "$output"); then
+		gum log --level error "Failed to extract title from AI content"
+		return 1
+	fi
+
+	local issue_body
+	# Parse body from output
+	issue_body=$(_get_body "$output")
+
+	# Validate we got body content
+	if [[ -z "$issue_body" ]]; then
+		gum log --level error "Failed to extract body from AI content"
+		return 1
+	fi
+
+	# Create issue with AI-generated content
+	gh issue create --title "$issue_title" --body "$issue_body" "${clean_args[@]}"
+}
+
+# Issue subcommand handler
+#
+# Routes issue subcommands to their appropriate handler functions.
+# Shows help for unknown commands.
+#
+# Usage: _gh_issue <subcommand> [OPTIONS]
+# Subcommands: create, help
+_gh_issue() {
+	local subcommand="${1:-}"
+	shift || true
+
+	case $subcommand in
+	create)
+		_gh_issue_create "$@"
+		;;
+	--help | -h | help | "")
+		_show_issue_help
+		;;
+	*)
+		gum log --level error "Unknown issue command '$subcommand'"
+		gum log --level info "Available commands: create"
+		gum log --level info "Run 'gh ai issue --help' for usage information"
+		exit 1
+		;;
+	esac
+}

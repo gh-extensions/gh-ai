@@ -38,6 +38,7 @@ _check_dependencies
 source "$_gh_ai_source_dir/scripts/gh_cmd.sh"
 source "$_gh_ai_source_dir/scripts/gh_commit.sh"
 source "$_gh_ai_source_dir/scripts/gh_pr.sh"
+source "$_gh_ai_source_dir/scripts/gh_issue.sh"
 
 # Help function
 #
@@ -51,12 +52,14 @@ USAGE:
     gh ai <command> [subcommand] [options]
 
 COMMANDS:
-    pr          Pull request operations (create, review)
+    pr          Pull request operations (create, review, explain)
     commit      Generate a commit message for staged changes
+    issue       Issue operations (create)
 
 SEE ALSO:
     gh ai pr --help        # PR command help
     gh ai commit --help    # Commit command help
+    gh ai issue --help     # Issue command help
 EOF
 }
 
@@ -72,12 +75,15 @@ main() {
 	commit)
 		_gh_commit "$@"
 		;;
+	issue)
+		_gh_issue "$@"
+		;;
 	--help | -h | help | "")
 		_show_help
 		;;
 	*)
 		gum log --level error "Unknown command '$command'"
-		gum log --level info "Available commands: pr, commit"
+		gum log --level info "Available commands: pr, commit, issue"
 		gum log --level info "Run 'gh ai --help' for usage information"
 		exit 1
 		;;
