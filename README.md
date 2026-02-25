@@ -72,7 +72,7 @@ Creates a structured GitHub issue from a brief description.
 
 ```bash
 gh ai issue create -d "Login page crashes with special chars"
-gh ai issue create --label bug --assignee @me "Login crash"
+gh ai issue create -d "Login crash" --label bug --assignee @me
 gh ai issue create                                          # interactive prompt
 some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
 ```

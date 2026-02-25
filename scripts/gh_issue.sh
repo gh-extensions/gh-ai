@@ -41,7 +41,7 @@ DESCRIPTION:
     Any extra options are passed to gh issue create.
 
 OPTIONS:
-    -d, --description    Brief description of the issue (also accepted as positional arg)
+    -d, --description    Brief description of the issue
 
 EXAMPLES:
     gh ai issue create -d "Login page crashes with special chars"
@@ -174,18 +174,9 @@ _gh_issue_create() {
 
 	# If no description, try interactive or error
 	if [[ -z "$issue_description" ]]; then
-		if [[ -t 0 ]]; then
-			# Interactive mode: prompt with gum
-			issue_description=$(gum write --placeholder "Describe the issue..." --header "Issue Description")
-			if [[ -z "$issue_description" ]]; then
-				gum log --level error "No description provided"
-				return 1
-			fi
-		else
-			gum log --level error "No description provided"
-			gum log --level info "Usage: gh ai issue create <DESCRIPTION> [OPTIONS]"
-			return 1
-		fi
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [OPTIONS]"
+		return 1
 	fi
 
 	# Read piped stdin context if available
@@ -194,8 +185,8 @@ _gh_issue_create() {
 		extra_context=$(cat)
 	fi
 
-	local gh_issues
-	gh_issues=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
+	local gh_issue_list
+	gh_issue_list=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
@@ -205,7 +196,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$issue_labels" GH_ISSUES="$gh_issues" EXTRA_CONTEXT="$extra_context" \
+				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$issue_labels" GH_ISSUES="$gh_issue_list" EXTRA_CONTEXT="$extra_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -217,25 +208,25 @@ _gh_issue_create() {
 		return 1
 	fi
 
-	local issue_title
+	local gh_issue_title
 	# Parse title from output
-	if ! issue_title=$(_get_title "$output"); then
+	if ! gh_issue_title=$(_get_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
-	local issue_body
+	local gh_issue_body
 	# Parse body from output
-	issue_body=$(_get_body "$output")
+	gh_issue_body=$(_get_body "$output")
 
 	# Validate we got body content
-	if [[ -z "$issue_body" ]]; then
+	if [[ -z "$gh_issue_body" ]]; then
 		gum log --level error "Failed to extract body from AI content"
 		return 1
 	fi
 
 	# Create issue with AI-generated content
-	gh issue create --title "$issue_title" --body "$issue_body" "${clean_args[@]}"
+	gh issue create --title "$gh_issue_title" --body "$gh_issue_body" "${clean_args[@]}"
 }
 
 # Issue subcommand handler
