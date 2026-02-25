@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.1](https://github.com/gh-extensions/gh-assistant/compare/v0.2.0...v0.2.1) (2026-02-25)
+
+
+### Bug Fixes
+
+* remove --comment flag from gh_pr_review filter ([7746d5e](https://github.com/gh-extensions/gh-assistant/commit/7746d5e95a9f6aabd151c568771b1aa958ab086f))
+* remove PR number from clean_args in gh_pr_review ([2788bb4](https://github.com/gh-extensions/gh-assistant/commit/2788bb48b290e98ba97e9c4fabffe01690360aff))
+* use git apply instead of gh pr diff for statistics ([5b22327](https://github.com/gh-extensions/gh-assistant/commit/5b22327285942f2c00f3c3f89f6de3890df5197a))
+
 ## [0.2.0](https://github.com/gh-extensions/gh-assistant/compare/v0.1.0...v0.2.0) (2026-02-25)
 
 
