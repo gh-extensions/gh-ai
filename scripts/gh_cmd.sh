@@ -115,7 +115,7 @@ _get_body() {
 
 	# Suppress MD013 (line length) since AI output often exceeds 80 chars
 	local footer
-	footer="<!-- markdownlint-disable-file MD013 -->"
+	footer="<!-- markdownlint-disable-file MD013 MD022 MD041 MD047 -->"
 
 	printf '%s\n\n%s\n' "$body" "$footer"
 }
