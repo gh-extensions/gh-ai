@@ -16,19 +16,22 @@ gh ai issue - Issue commands with AI assistance
 
 USAGE:
     gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
     gh ai issue develop <ISSUE_NUMBER> [GH_ISSUE_DEVELOP_OPTIONS]
 
 DESCRIPTION:
-    Creates GitHub issues with AI-generated titles and structured bodies.
-    Develops issues by creating a branch, generating an implementation plan,
-    and opening a pull request.
+    Creates and edits GitHub issues with AI-generated titles and structured
+    bodies. Develops issues by creating a branch, generating an implementation
+    plan, and opening a pull request.
 
 COMMANDS:
     create      Create issues with AI-generated content
+    edit        Edit an existing issue with AI-generated content
     develop     Create a branch and PR with an AI implementation plan
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
+    gh ai issue edit --help       # Issue edit usage
     gh ai issue develop --help    # Issue develop usage
 EOF
 }
@@ -85,6 +88,193 @@ _parse_issue_create_args() {
 		esac
 		((++i))
 	done
+}
+
+# Parse issue edit arguments in a single pass
+#
+# Extracts the issue number (first numeric arg), description, and
+# passthrough args for gh issue edit via namerefs.
+# AI-managed flags (--title, --body, --body-file) are stripped.
+#
+# Example: _parse_issue_edit_args num desc args 42 -d "add acceptance criteria" --add-label bug
+_parse_issue_edit_args() {
+	local -n gh_issue_number_ref="$1"
+	local -n gh_issue_description_ref="$2"
+	local -n gh_issue_args_ref="$3"
+	shift 3
+
+	local args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${args[$i]}" in
+		--description | -d)
+			gh_issue_description_ref="${args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			gh_issue_description_ref="${args[$i]#--description=}"
+			;;
+		--title | -t | --body | -b | --body-file | -F)
+			skip_next=true
+			;;
+		--title=* | --body=* | --body-file=*) ;;
+		*)
+			if [[ -z "$gh_issue_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="${args[$i]}"
+			else
+				gh_issue_args_ref+=("${args[$i]}")
+			fi
+			;;
+		esac
+		((++i))
+	done
+}
+
+# Issue edit help function
+#
+# Displays help information for the issue edit command
+# including usage examples and available options.
+_show_issue_edit_help() {
+	cat <<'EOF'
+gh ai issue edit - Edit an existing issue with AI-generated content
+
+USAGE:
+    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]
+
+DESCRIPTION:
+    Edits an existing GitHub issue using AI. Fetches the current issue
+    content, applies the requested changes via AI, and updates the issue
+    title and body. Supports piped stdin as additional context.
+
+FLAGS:
+    -d, --description string   Description of the changes to make (required)
+
+PASSTHROUGH FLAGS:
+    All other flags are passed directly to gh issue edit.
+    See gh issue edit --help for the full list.
+
+EXAMPLES:
+    gh ai issue edit 42 -d "add acceptance criteria"
+    gh ai issue edit 42 -d "fix typos and improve clarity"
+    gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
+    some_command 2>&1 | gh ai issue edit 42 -d "add error output"
+EOF
+}
+
+# Issue Edit implementation
+#
+# Edits an existing GitHub issue with AI-generated content.
+# Fetches the current issue, renders a prompt template with the
+# description and issue context, sends it to the AI provider,
+# and updates the issue with the parsed response.
+# Supports piped stdin as additional context.
+#
+# Usage: _gh_issue_edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+_gh_issue_edit() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_issue_edit_help
+		return 0
+		;;
+	esac
+
+	local args=("$@")
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_issue_edit.tmpl"
+
+	local gh_issue_number=""
+	local gh_issue_description=""
+	local gh_issue_args=()
+	_parse_issue_edit_args gh_issue_number gh_issue_description gh_issue_args "${args[@]}"
+
+	if [[ -z "$gh_issue_number" ]]; then
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
+		return 1
+	fi
+
+	if [[ -z "$gh_issue_description" ]]; then
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
+		return 1
+	fi
+
+	# Read piped stdin context if available
+	local gh_issue_context=""
+	if [[ ! -t 0 ]]; then
+		gh_issue_context=$(cat)
+	fi
+
+	# Fetch issue metadata
+	local gh_issue_meta
+	gh_issue_meta=$(gum spin --title "Fetching GitHub issue metadata..." -- \
+		gh issue view "$gh_issue_number" --json title,body,labels,comments || true)
+	if [[ -z "$gh_issue_meta" ]]; then
+		gum log --level error "Failed to fetch issue #$gh_issue_number"
+		return 1
+	fi
+
+	local gh_issue_title
+	gh_issue_title=$(echo "$gh_issue_meta" | jq -r '.title // ""')
+
+	local gh_issue_body
+	gh_issue_body=$(echo "$gh_issue_meta" | jq -r '.body // ""')
+
+	local gh_issue_labels
+	gh_issue_labels=$(echo "$gh_issue_meta" | jq -r '[.labels[].name] | join(", ")')
+
+	local gh_issue_comments
+	gh_issue_comments=$(echo "$gh_issue_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+
+	local agent_model
+	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
+
+	local output
+	# Generate updated issue content using assistant
+	output=$(
+		gum spin --title "Generating updated GitHub issue..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_CONTEXT="$gh_issue_context" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Validate we got issue content
+	if [[ -z "$output" ]]; then
+		gum log --level error "Failed to generate updated issue content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	local gh_issue_new_title
+	# Parse title from output
+	if ! gh_issue_new_title=$(_get_title "$output"); then
+		gum log --level error "Failed to extract title from AI content"
+		return 1
+	fi
+
+	local gh_issue_new_body
+	# Parse body from output
+	gh_issue_new_body=$(_get_body "$output")
+
+	# Validate we got body content
+	if [[ -z "$gh_issue_new_body" ]]; then
+		gum log --level error "Failed to extract body from AI content"
+		return 1
+	fi
+
+	# Edit issue with AI-generated content
+	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${gh_issue_args[@]}"
 }
 
 # Parse issue develop arguments in a single pass
@@ -402,7 +592,7 @@ _gh_issue_create() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_issue <subcommand> [OPTIONS]
-# Subcommands: create, develop, help
+# Subcommands: create, edit, develop, help
 _gh_issue() {
 	local subcommand="${1:-}"
 	shift || true
@@ -410,6 +600,9 @@ _gh_issue() {
 	case $subcommand in
 	create)
 		_gh_issue_create "$@"
+		;;
+	edit)
+		_gh_issue_edit "$@"
 		;;
 	develop)
 		_gh_issue_develop "$@"
@@ -419,7 +612,7 @@ _gh_issue() {
 		;;
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, develop"
+		gum log --level info "Available commands: create, edit, develop"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		exit 1
 		;;
