@@ -54,6 +54,111 @@ SEE ALSO:
 EOF
 }
 
+# Extract issue description from arguments
+#
+# Looks for -d/--description flag or first positional argument.
+# Flag takes priority over positional.
+#
+# Example: _get_issue_description -d "Login crash" --label bug  # Returns: Login crash
+# Example: _get_issue_description "Login crash" --label bug     # Returns: Login crash
+_get_issue_description() {
+	local description=""
+	local positional=""
+	local consume=""
+
+	local arg
+	for arg in "$@"; do
+		if [[ -n "$consume" ]]; then
+			description="$arg"
+			consume=""
+			continue
+		fi
+
+		case "$arg" in
+		--description | -d) consume=yes ;;
+		--description=*) description="${arg#--description=}" ;;
+		--*) ;;
+		*)
+			if [[ -z "$positional" ]]; then
+				positional="$arg"
+			fi
+			;;
+		esac
+	done
+
+	# Flag takes priority over positional
+	if [[ -n "$description" ]]; then
+		echo "$description"
+	elif [[ -n "$positional" ]]; then
+		echo "$positional"
+	fi
+}
+
+# Extract labels from arguments
+#
+# Collects values from -l/--label flags into a comma-separated string
+# for use in the prompt template context.
+#
+# Example: _get_issue_labels --label bug -l "high priority"  # Returns: bug, high priority
+_get_issue_labels() {
+	local labels=""
+	local consume=false
+
+	local arg
+	for arg in "$@"; do
+		if [ "$consume" = true ]; then
+			labels="${labels:+$labels, }$arg"
+			consume=false
+			continue
+		fi
+
+		case "$arg" in
+		--label | -l) consume=true ;;
+		--label=*) labels="${labels:+$labels, }${arg#--label=}" ;;
+		esac
+	done
+
+	[[ -n "$labels" ]] && echo "$labels" || true
+}
+
+# Filter out flags managed by gh-ai from issue create arguments
+#
+# Removes description, title, body, and template flags (and their values)
+# since the issue content is AI-generated. All other flags pass through.
+_filter_issue_create_args() {
+	local filtered=()
+	local skip_next=false
+	local first_positional=true
+	local arg
+
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		--description | -d | --title | -t | --body | -b | --body-file | -F | --template | -T)
+			skip_next=true
+			;;
+		--description=* | --title=* | --body=* | --body-file=* | --template=*) ;;
+		--*)
+			filtered+=("$arg")
+			;;
+		*)
+			# Skip first positional (description fallback)
+			if [ "$first_positional" = true ]; then
+				first_positional=false
+			else
+				filtered+=("$arg")
+			fi
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
 # Issue Create implementation
 #
 # Creates a GitHub issue with an AI-generated title and structured body.
@@ -71,69 +176,25 @@ _gh_issue_create() {
 	esac
 
 	local args=("$@")
+	local clean_args
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
 
-	# Single pass: extract description, labels, and build clean args
-	local issue_description=""
-	local gh_labels=""
-	local clean_args=()
-	local positional_desc=""
-	local consume=""
-
-	local arg
-	for arg in "${args[@]}"; do
-		if [[ -n "$consume" ]]; then
-			case "$consume" in
-			description) issue_description="$arg" ;;
-			label)
-				gh_labels="${gh_labels:+$gh_labels, }$arg"
-				clean_args+=("$arg")
-				;;
-			strip) ;;
-			*) clean_args+=("$arg") ;;
-			esac
-			consume=""
-			continue
-		fi
-
-		case "$arg" in
-		--description | -d) consume=description ;;
-		--description=*) issue_description="${arg#--description=}" ;;
-		--label | -l)
-			consume=label
-			clean_args+=("$arg")
-			;;
-		--label=*)
-			gh_labels="${gh_labels:+$gh_labels, }${arg#--label=}"
-			clean_args+=("$arg")
-			;;
-		--title | -t | --body | -b | --body-file | -F | --template | -T) consume=strip ;;
-		--title=* | --body=* | --body-file=* | --template=* | --description=*) ;;
-		--assignee | -a | --milestone | -m | --project | -p)
-			consume=keep
-			clean_args+=("$arg")
-			;;
-		--*) clean_args+=("$arg") ;;
-		*)
-			# First positional is description fallback
-			if [[ -z "$positional_desc" ]]; then
-				positional_desc="$arg"
-			else
-				clean_args+=("$arg")
-			fi
-			;;
-		esac
-	done
-
-	# --description/-d flag takes priority over positional arg
-	if [[ -z "$issue_description" ]]; then
-		issue_description="$positional_desc"
-	elif [[ -n "$positional_desc" ]]; then
-		clean_args+=("$positional_desc")
+	local filtered_args
+	filtered_args=$(_filter_issue_create_args "${args[@]}")
+	if [[ -n "$filtered_args" ]]; then
+		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
+	else
+		clean_args=()
 	fi
+
+	local issue_description
+	issue_description=$(_get_issue_description "${args[@]}")
+
+	local gh_labels
+	gh_labels=$(_get_issue_labels "${args[@]}")
 
 	# If no description, try interactive or error
 	if [[ -z "$issue_description" ]]; then
