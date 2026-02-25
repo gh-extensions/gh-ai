@@ -66,6 +66,12 @@ _gh_commit() {
 	local git_diff_staged
 	git_diff_staged=$(git diff --staged)
 
+	# Check if there are staged changes
+	if [[ -z "$git_diff_staged" ]]; then
+		gum log --level error "No staged changes found. Please stage your changes with 'git add' first."
+		return 1
+	fi
+
 	local git_diff_staged_stat
 	git_diff_staged_stat=$(git diff --staged --stat)
 
@@ -74,12 +80,6 @@ _gh_commit() {
 
 	local git_commits
 	git_commits=$(git log --oneline -5 2>/dev/null | sed 's/^[a-f0-9]* /- /')
-
-	# Check if there are staged changes
-	if [[ -z "$git_diff_staged" ]]; then
-		gum log --level error "No staged changes found. Please stage your changes with 'git add' first."
-		return 1
-	fi
 
 	local agent_model
 	agent_model=$(gh config get gh-assistant.commit.model 2>/dev/null || true)
