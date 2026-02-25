@@ -13,19 +13,19 @@ set -euo pipefail
 # Example: _filter_args "--title -t --body -b" "--fill --fill-first" -- --title "test" --draft --fill
 # Returns: --draft
 _filter_args() {
-	local vf=" $1 "
-	local sf=" ${2:-} "
+	local args=" $1 "
+	local flags=" ${2:-} "
 	shift 2
 	shift # consume value_flags, standalone_flags, --
 
 	local filtered=()
 	while [[ $# -gt 0 ]]; do
-		if [[ "$sf" == *" $1 "* ]]; then
+		if [[ "$flags" == *" $1 "* ]]; then
 			shift
-		elif [[ "$vf" == *" $1 "* ]]; then
+		elif [[ "$args" == *" $1 "* ]]; then
 			shift
 			[[ $# -gt 0 && "$1" != -* ]] && shift
-		elif [[ "$1" == --*=* ]] && [[ "$vf" == *" ${1%%=*} "* ]]; then
+		elif [[ "$1" == --*=* ]] && [[ "$args" == *" ${1%%=*} "* ]]; then
 			shift
 		else
 			filtered+=("$1")
