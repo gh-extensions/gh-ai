@@ -232,8 +232,7 @@ _gh_pr_create() {
 	pr_body=$(_get_pr_body "$output")
 
 	# Create PR with AI-generated content
-	gum spin --title "Creating GitHub pull request..." --show-output -- \
-		gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
+	gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
 }
 
 # PR Review implementation
@@ -312,8 +311,7 @@ _gh_pr_review() {
 	fi
 
 	# Submit review with AI-generated content
-	gum spin --title "Creating GitHub pull request review..." --show-output -- \
-		gh pr review "$gh_pr_number" --body "$pr_body" "${clean_args[@]}"
+	gh pr review "$gh_pr_number" --body "$pr_body" "${clean_args[@]}"
 }
 
 # PR help function

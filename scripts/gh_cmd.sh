@@ -44,10 +44,10 @@ _cmd_assist() {
 	anthropic)
 		MAX_THINKING_TOKENS=0 claude -p \
 			--model="$agent_model" \
-			--tools='' \
 			--disable-slash-commands \
 			--setting-sources='' \
 			--system-prompt='' \
+			--tools='' \
 			"$(cat)"
 		;;
 	*)

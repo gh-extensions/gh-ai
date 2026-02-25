@@ -101,6 +101,5 @@ _gh_commit() {
 	fi
 
 	# Commit with the generated message and pass through any extra args
-	gum spin --title "Creating Git commit..." --show-output -- \
-		git commit -m "$git_message" "${clean_args[@]}"
+	git commit -m "$git_message" "${clean_args[@]}"
 }
