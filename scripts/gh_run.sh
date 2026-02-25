@@ -53,7 +53,7 @@ EOF
 # of what happened, focusing on root cause and actionable fixes.
 # Prints the explanation to stdout.
 #
-# Usage: _gh_run_explain <RUN_ID> [--log] [--log-failed]
+# Usage: _gh_run_explain <RUN_ID>
 _gh_run_explain() {
 	local args=("$@")
 

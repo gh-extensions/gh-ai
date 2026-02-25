@@ -147,9 +147,9 @@ _gh_issue_create() {
 	fi
 
 	# Read piped stdin context if available
-	local extra_context=""
+	local gh_issue_context=""
 	if [[ ! -t 0 ]]; then
-		extra_context=$(cat)
+		gh_issue_context=$(cat)
 	fi
 
 	local agent_model
@@ -160,7 +160,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_LABELS="$gh_issue_labels" EXTRA_CONTEXT="$extra_context" \
+				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
