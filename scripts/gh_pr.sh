@@ -260,10 +260,17 @@ _gh_pr_review() {
 		return 1
 	fi
 
-	# Filter out assistant-managed arguments
+	# Filter out assistant-managed arguments and the PR number
 	local filtered_output
 	filtered_output=$(_filter_gh_pr_review_args "${args[@]}")
 	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
+
+	# Remove PR number from clean_args (already passed explicitly)
+	local tmp_args=()
+	for arg in "${clean_args[@]}"; do
+		[[ "$arg" == "$gh_pr_number" ]] || tmp_args+=("$arg")
+	done
+	clean_args=("${tmp_args[@]}")
 
 	# Get PR diff using gh cli (--patch for full patch format)
 	local git_diff
