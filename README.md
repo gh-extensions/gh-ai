@@ -3,8 +3,8 @@
 # gh-ai
 
 A GitHub CLI extension that uses AI to generate commit messages, pull request
-descriptions, code reviews, PR explanations, structured issues, issue edits,
-and implementation plans.
+descriptions and edits, code reviews, PR explanations, structured issues,
+issue edits, and implementation plans.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
@@ -26,7 +26,8 @@ gh extension install gh-extensions/gh-ai
 
 ```bash
 gh ai commit [GIT_COMMIT_OPTIONS]
-gh ai pr create [GH_PR_CREATE_OPTIONS]
+gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
+gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
@@ -52,6 +53,16 @@ Creates a pull request with an AI-generated title and description.
 ```bash
 gh ai pr create
 gh ai pr create --draft --base develop
+gh ai pr create -d "focus on the security changes"
+```
+
+Edits an existing pull request with AI-generated updates based on a description
+of what to change.
+
+```bash
+gh ai pr edit 42 -d "add testing section"
+gh ai pr edit 42 -d "fix summary" --add-label bug
+gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 ```
 
 Reviews a pull request with AI-generated feedback.
@@ -116,7 +127,7 @@ Override the AI provider and model via `gh config`.
 | `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                     |
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)             |
 | `gh-ai.commit.model` |             | Model override for `commit`                   |
-| `gh-ai.pr.model`     |             | Model override for `pr create/review/explain` |
+| `gh-ai.pr.model`     |             | Model override for `pr create/edit/review/explain` |
 | `gh-ai.issue.model`  |             | Model override for `issue create/edit/develop` |
 | `gh-ai.run.model`    |             | Model override for `run explain`              |
 

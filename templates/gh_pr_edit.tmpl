@@ -1,0 +1,37 @@
+Edit the following GitHub pull request based on the requested changes.
+
+<pull_request>
+Number: {{ param "GH_PR_NUMBER" }}
+Title: {{ param "GH_PR_TITLE" }}
+Body: {{ param "GH_PR_BODY" }}
+</pull_request>
+
+<diffstat>
+{{ param "GIT_DIFF_STAT" }}
+</diffstat>
+
+<diff>
+{{ param "GIT_DIFF" }}
+</diff>
+
+<commits>
+{{ param "GIT_COMMITS" }}
+</commits>
+
+<requested_changes>
+{{ param "GH_PR_DESCRIPTION" }}
+</requested_changes>
+
+<format>
+- First line: PR title — `# {title}`, imperative mood, under 72 chars, no trailing period
+- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
+- Apply only the requested changes; preserve everything else
+- Omit sections that do not apply; do not write "N/A"
+- Output only the PR content, no preamble or commentary
+</format>
+
+<body>
+# {title}
+
+{updated PR body incorporating the requested changes}
+</body>
