@@ -54,92 +54,6 @@ SEE ALSO:
 EOF
 }
 
-# Extract description from arguments
-#
-# Checks for --description/-d flag first, then falls back to the first
-# non-flag positional argument.
-_get_issue_description() {
-	local skip_next=false
-	local arg
-
-	# First pass: look for --description/-d flag
-	for arg in "$@"; do
-		if [ "$skip_next" = true ]; then
-			printf '%s' "$arg"
-			return 0
-		fi
-
-		case "$arg" in
-		--description | -d)
-			skip_next=true
-			;;
-		--description=*)
-			printf '%s' "${arg#--description=}"
-			return 0
-			;;
-		esac
-	done
-
-	# Second pass: fall back to first non-flag positional arg
-	skip_next=false
-	for arg in "$@"; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			continue
-		fi
-
-		case "$arg" in
-		--title | -t | --body | -b | --body-file | -F | --label | -l | --assignee | -a | --milestone | -m | --project | -p)
-			skip_next=true
-			;;
-		--title=* | --body=* | --body-file=* | --label=* | --assignee=* | --milestone=* | --project=*) ;;
-		--*) ;;
-		*)
-			printf '%s' "$arg"
-			return 0
-			;;
-		esac
-	done
-}
-
-# Filter out flags managed by gh-ai from issue create arguments
-#
-# Removes --title, --body, --body-file, --template, --description/-d flags
-# (and their values) and the description positional arg since the issue
-# content is AI-generated. All other flags pass through.
-_filter_issue_create_args() {
-	local description="$1"
-	shift
-
-	local filtered=()
-	local skip_next=false
-	local arg
-
-	for arg in "$@"; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			continue
-		fi
-
-		case "$arg" in
-		--title | -t | --body | -b | --body-file | -F | --template | -T | --description | -d)
-			skip_next=true
-			;;
-		--title=* | --body=* | --body-file=* | --template=* | --description=*) ;;
-		*)
-			if [[ -n "$description" ]] && [[ "$arg" == "$description" ]]; then
-				# Skip the description positional arg (first match only)
-				description=""
-			else
-				filtered+=("$arg")
-			fi
-			;;
-		esac
-	done
-
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
-}
-
 # Issue Create implementation
 #
 # Creates a GitHub issue with an AI-generated title and structured body.
@@ -157,18 +71,60 @@ _gh_issue_create() {
 	esac
 
 	local args=("$@")
-	local clean_args
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
 
-	# Extract description from --description/-d flag or positional args
-	local issue_description
-	issue_description=$(_get_issue_description "${args[@]}")
+	# Single pass: extract description, labels, and build clean args
+	local issue_description=""
+	local gh_labels=""
+	local clean_args=()
+	local positional_desc=""
+	local consume=""
+
+	local arg
+	for arg in "${args[@]}"; do
+		if [[ -n "$consume" ]]; then
+			case "$consume" in
+			description) issue_description="$arg" ;;
+			label) gh_labels="${gh_labels:+$gh_labels, }$arg"; clean_args+=("$arg") ;;
+			strip) ;;
+			*) clean_args+=("$arg") ;;
+			esac
+			consume=""
+			continue
+		fi
+
+		case "$arg" in
+		--description | -d) consume=description ;;
+		--description=*) issue_description="${arg#--description=}" ;;
+		--label | -l) consume=label; clean_args+=("$arg") ;;
+		--label=*) gh_labels="${gh_labels:+$gh_labels, }${arg#--label=}"; clean_args+=("$arg") ;;
+		--title | -t | --body | -b | --body-file | -F | --template | -T) consume=strip ;;
+		--title=* | --body=* | --body-file=* | --template=* | --description=*) ;;
+		--assignee | -a | --milestone | -m | --project | -p) consume=keep; clean_args+=("$arg") ;;
+		--*) clean_args+=("$arg") ;;
+		*)
+			# First positional is description fallback
+			if [[ -z "$positional_desc" ]]; then
+				positional_desc="$arg"
+			else
+				clean_args+=("$arg")
+			fi
+			;;
+		esac
+	done
+
+	# --description/-d flag takes priority over positional arg
+	if [[ -z "$issue_description" ]]; then
+		issue_description="$positional_desc"
+	elif [[ -n "$positional_desc" ]]; then
+		clean_args+=("$positional_desc")
+	fi
 
 	# If no description, try interactive or error
-	if [[ -z "${issue_description:-}" ]]; then
+	if [[ -z "$issue_description" ]]; then
 		if [[ -t 0 ]]; then
 			# Interactive mode: prompt with gum
 			issue_description=$(gum write --placeholder "Describe the issue..." --header "Issue Description")
@@ -188,30 +144,6 @@ _gh_issue_create() {
 	if [[ ! -t 0 ]]; then
 		extra_context=$(cat)
 	fi
-
-	local filtered_args
-	filtered_args=$(_filter_issue_create_args "$issue_description" "${args[@]}")
-	if [[ -n "$filtered_args" ]]; then
-		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
-	else
-		clean_args=()
-	fi
-
-	# Extract labels from args
-	local gh_labels=""
-	local i=0
-	while [[ $i -lt ${#args[@]} ]]; do
-		case "${args[$i]}" in
-		--label | -l)
-			[[ $((i + 1)) -lt ${#args[@]} ]] && gh_labels="${gh_labels:+$gh_labels, }${args[$((i + 1))]}"
-			((++i))
-			;;
-		--label=*)
-			gh_labels="${gh_labels:+$gh_labels, }${args[$i]#--label=}"
-			;;
-		esac
-		((++i))
-	done
 
 	local gh_issues
 	gh_issues=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
