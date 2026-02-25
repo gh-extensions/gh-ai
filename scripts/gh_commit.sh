@@ -68,7 +68,8 @@ _gh_commit() {
 
 	# Check if there are staged changes
 	if [[ -z "$git_diff_staged" ]]; then
-		gum log --level error "No staged changes found. Please stage your changes with 'git add' first."
+		gum log --level error "No staged changes found"
+		gum log --level info "Stage your changes with 'git add' first"
 		return 1
 	fi
 

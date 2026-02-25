@@ -216,7 +216,7 @@ _gh_pr_create() {
 
 	# Validate we got PR content
 	if [[ -z "$output" ]]; then
-		gum log --level warn "AI generation failed. Aborting."
+		gum log --level error "Failed to generate pull request content"
 		return 1
 	fi
 
@@ -312,7 +312,7 @@ _gh_pr_review() {
 
 	# Validate we got review content
 	if [[ -z "$pr_body" ]]; then
-		gum log --level error "Failed to generate review. Aborting."
+		gum log --level error "Failed to generate review content"
 		return 1
 	fi
 
