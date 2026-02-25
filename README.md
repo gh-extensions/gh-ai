@@ -5,6 +5,9 @@
 A GitHub CLI extension that uses AI to generate commit messages, pull request
 descriptions, and code reviews.
 
+![License](https://img.shields.io/github/license/gh-extensions/gh-assistant)
+![Version](https://img.shields.io/github/v/release/gh-extensions/gh-assistant)
+
 ## Prerequisites
 
 - [GitHub CLI](https://cli.github.com/) (`gh`)
