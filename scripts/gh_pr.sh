@@ -274,7 +274,8 @@ _gh_pr_review() {
 
 	# Get PR diff using gh cli (--patch for full patch format)
 	local git_diff
-	if ! git_diff=$(gh pr diff "$gh_pr_number" --patch 2>/dev/null) || [[ -z "$git_diff" ]]; then
+	if ! git_diff=$(gum spin --title "Fetching GitHub pull request diff..." -- \
+		gh pr diff "$gh_pr_number" --patch 2>/dev/null) || [[ -z "$git_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
@@ -283,10 +284,12 @@ _gh_pr_review() {
 	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
 
 	local git_commits
-	git_commits=$(gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' 2>/dev/null || true)
+	git_commits=$(gum spin --title "Fetching GitHub pull request commits..." -- \
+		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline')
 
 	local git_branch
-	git_branch=$(gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' 2>/dev/null || true)
+	git_branch=$(gum spin --title "Fetching GitHub pull request branch..." -- \
+		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName')
 
 	local agent_model
 	agent_model=$(gh config get gh-assistant.pr.model 2>/dev/null || true)
