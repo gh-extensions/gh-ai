@@ -17,6 +17,7 @@ set -euo pipefail
 _parse_pr_create_args() {
 	local -n git_base_branch_ref="$1"
 	local -n gh_pr_description_ref="$2"
+	# shellcheck disable=SC2178
 	local -n gh_pr_args_ref="$3"
 	shift 3
 
@@ -37,6 +38,7 @@ _parse_pr_create_args() {
 			skip_next=true
 			;;
 		--description=*)
+			# shellcheck disable=SC2034
 			gh_pr_description_ref="${args[$i]#--description=}"
 			;;
 		--base | -B)
@@ -204,6 +206,7 @@ _gh_pr_create() {
 _parse_pr_edit_args() {
 	local -n gh_pr_number_ref="$1"
 	local -n gh_pr_description_ref="$2"
+	# shellcheck disable=SC2178
 	local -n gh_pr_args_ref="$3"
 	shift 3
 
@@ -224,6 +227,7 @@ _parse_pr_edit_args() {
 			skip_next=true
 			;;
 		--description=*)
+			# shellcheck disable=SC2034
 			gh_pr_description_ref="${args[$i]#--description=}"
 			;;
 		--title | -t | --body | -b | --body-file | -F)
@@ -435,6 +439,7 @@ _parse_pr_explain_args() {
 # Example: _parse_pr_review_args num args 42 --approve
 _parse_pr_review_args() {
 	local -n gh_pr_number_ref="$1"
+	# shellcheck disable=SC2178
 	local -n gh_pr_args_ref="$2"
 	shift 2
 

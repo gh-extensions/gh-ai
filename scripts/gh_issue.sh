@@ -47,6 +47,7 @@ EOF
 _parse_issue_create_args() {
 	local -n gh_issue_description_ref="$1"
 	local -n gh_issue_labels_ref="$2"
+	# shellcheck disable=SC2178
 	local -n gh_issue_args_ref="$3"
 	shift 3
 
