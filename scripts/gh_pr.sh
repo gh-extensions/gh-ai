@@ -37,7 +37,7 @@ _get_pr_number() {
 
 # Filter out flags managed by gh-ai from pr create arguments
 #
-# Removes title, body, and fill flags (and their values) since
+# Removes title, body, template, and fill flags (and their values) since
 # the PR content is AI-generated. All other flags pass through.
 _filter_pr_create_args() {
 	local filtered=()
@@ -51,10 +51,10 @@ _filter_pr_create_args() {
 		fi
 
 		case "$arg" in
-		--title | -t | --body | -b | --body-file | -F)
+		--title | -t | --body | -b | --body-file | -F | --template | -T)
 			skip_next=true
 			;;
-		--title=* | --body=* | --body-file=*) ;;
+		--title=* | --body=* | --body-file=* | --template=*) ;;
 		--fill | --fill-first | --fill-verbose) ;;
 		*)
 			filtered+=("$arg")
@@ -282,30 +282,6 @@ _gh_pr_review() {
 
 	# Submit review with AI-generated content
 	gh pr review "$gh_pr_number" --body "$pr_body" "${clean_args[@]}"
-}
-
-# Filter out flags managed by gh-ai from pr explain arguments
-#
-# Removes --comment, --edit, and the PR number since
-# these are handled by _gh_pr_explain. All other flags pass through.
-_filter_pr_explain_args() {
-	local pr_number="$1"
-	shift
-
-	local filtered=()
-	local arg
-
-	for arg in "$@"; do
-		case "$arg" in
-		--comment | --edit) ;;
-		"$pr_number") ;;
-		*)
-			filtered+=("$arg")
-			;;
-		esac
-	done
-
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
 }
 
 # PR Explain implementation
