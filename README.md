@@ -3,8 +3,8 @@
 # gh-ai
 
 A GitHub CLI extension that uses AI to generate commit messages, pull request
-descriptions, code reviews, PR explanations, structured issues, and
-implementation plans.
+descriptions, code reviews, PR explanations, structured issues, issue edits,
+and implementation plans.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
@@ -30,6 +30,7 @@ gh ai pr create [GH_PR_CREATE_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
 gh ai issue develop <ISSUE_NUMBER> [GH_ISSUE_DEVELOP_OPTIONS]
 gh ai run explain <RUN_ID>
 ```
@@ -80,6 +81,15 @@ gh ai issue create -d "Login crash" --label bug --assignee @me
 some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
 ```
 
+Edits an existing issue with AI-generated updates based on a description of
+what to change.
+
+```bash
+gh ai issue edit 42 -d "add acceptance criteria"
+gh ai issue edit 42 -d "fix typos and improve clarity"
+gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
+```
+
 Develops an issue by creating a branch, generating an AI implementation plan,
 and opening a pull request.
 
@@ -107,7 +117,7 @@ Override the AI provider and model via `gh config`.
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)             |
 | `gh-ai.commit.model` |             | Model override for `commit`                   |
 | `gh-ai.pr.model`     |             | Model override for `pr create/review/explain` |
-| `gh-ai.issue.model`  |             | Model override for `issue create/develop`     |
+| `gh-ai.issue.model`  |             | Model override for `issue create/edit/develop` |
 | `gh-ai.run.model`    |             | Model override for `run explain`              |
 
 Per-command keys take priority over `gh-ai.model`.

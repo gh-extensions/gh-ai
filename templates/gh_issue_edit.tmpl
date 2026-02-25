@@ -1,0 +1,35 @@
+Edit the following GitHub issue based on the requested changes.
+
+<issue>
+Number: {{ param "GH_ISSUE_NUMBER" }}
+Title: {{ param "GH_ISSUE_TITLE" }}
+Body: {{ param "GH_ISSUE_BODY" }}
+Labels: {{ param "GH_ISSUE_LABELS" }}
+</issue>
+
+<comments>
+{{ param "GH_ISSUE_COMMENTS" }}
+</comments>
+
+<requested_changes>
+{{ param "GH_ISSUE_DESCRIPTION" }}
+</requested_changes>
+
+<additional_context>
+{{ param "GH_ISSUE_CONTEXT" }}
+</additional_context>
+
+<format>
+- First line: issue title — `# {title}`, clear and specific, under 72 chars
+- Body: GitHub-flavored Markdown
+- Apply only the requested changes; preserve everything else
+- Adapt structure to bug vs feature based on the content
+- Omit sections that do not apply; do not write "N/A"
+- Output only the issue content, no preamble or commentary
+</format>
+
+<body>
+# {title}
+
+{updated issue body incorporating the requested changes}
+</body>
