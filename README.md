@@ -29,7 +29,7 @@ gh ai commit [GIT_COMMIT_OPTIONS]
 gh ai pr create [GH_PR_CREATE_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
-gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
 gh ai issue develop <ISSUE_NUMBER> [GH_ISSUE_DEVELOP_OPTIONS]
 gh ai run explain <RUN_ID>
