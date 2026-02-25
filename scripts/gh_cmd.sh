@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-# Core utility functions for gh-assistant
+# Core utility functions for gh-ai
 
 # Render a template file by substituting {{ param "NAME" }} with env var values
 #
@@ -48,12 +48,12 @@ _cmd_render() {
 
 _cmd_assist() {
 	local agent_provider
-	agent_provider=$(gh config get gh-assistant.provider 2>/dev/null || true)
+	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)
 	agent_provider="${agent_provider:-anthropic}"
 
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get gh-assistant.model 2>/dev/null || true)
+		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 		agent_model="${agent_model:-haiku}"
 	fi
 

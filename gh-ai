@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-_gh_assistant_source_dir=$(dirname "${BASH_SOURCE[0]}")
+_gh_ai_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Verify required dependencies are installed
 #
@@ -24,7 +24,7 @@ _check_dependencies() {
 	fi
 
 	if [[ ${#missing[@]} -gt 0 ]]; then
-		echo "gh-assistant: missing required dependencies:" >&2
+		echo "gh-ai: missing required dependencies:" >&2
 		for dep in "${missing[@]}"; do
 			echo "  $dep" >&2
 		done
@@ -35,9 +35,9 @@ _check_dependencies() {
 _check_dependencies
 
 # Source command modules
-source "$_gh_assistant_source_dir/scripts/gh_cmd.sh"
-source "$_gh_assistant_source_dir/scripts/gh_commit.sh"
-source "$_gh_assistant_source_dir/scripts/gh_pr.sh"
+source "$_gh_ai_source_dir/scripts/gh_cmd.sh"
+source "$_gh_ai_source_dir/scripts/gh_commit.sh"
+source "$_gh_ai_source_dir/scripts/gh_pr.sh"
 
 # Help function
 #
@@ -45,18 +45,18 @@ source "$_gh_assistant_source_dir/scripts/gh_pr.sh"
 # including usage examples and available options.
 _show_help() {
 	cat <<'EOF'
-gh assistant - AI-powered GitHub CLI extension
+gh ai - AI-powered GitHub CLI extension
 
 USAGE:
-    gh assistant <command> [subcommand] [options]
+    gh ai <command> [subcommand] [options]
 
 COMMANDS:
     pr          Pull request operations (create, review)
     commit      Generate a commit message for staged changes
 
 SEE ALSO:
-    gh assistant pr --help        # PR command help
-    gh assistant commit --help    # Commit command help
+    gh ai pr --help        # PR command help
+    gh ai commit --help    # Commit command help
 EOF
 }
 
@@ -78,7 +78,7 @@ main() {
 	*)
 		gum log --level error "Unknown command '$command'"
 		gum log --level info "Available commands: pr, commit"
-		gum log --level info "Run 'gh assistant --help' for usage information"
+		gum log --level info "Run 'gh ai --help' for usage information"
 		exit 1
 		;;
 	esac

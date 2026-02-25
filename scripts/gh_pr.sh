@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-# PR-related functions for gh-assistant
+# PR-related functions for gh-ai
 
 # Resolve PR number from arguments or current branch
 #
@@ -69,7 +69,7 @@ _get_pr_body() {
 	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
 }
 
-# Filter out flags managed by gh-assistant from pr create arguments
+# Filter out flags managed by gh-ai from pr create arguments
 #
 # Removes title, body, and fill flags (and their values) since
 # the PR content is AI-generated. All other flags pass through.
@@ -113,7 +113,7 @@ _gh_pr_create() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_assistant_source_dir/templates/gh_pr_create.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_create.tmpl"
 
 	local filtered_args
 	filtered_args=$(_filter_pr_create_args "${args[@]}")
@@ -168,15 +168,15 @@ _gh_pr_create() {
 	git_commits=$(echo "$git_log" | sed 's/^[a-f0-9]* /- /')
 
 	local agent_model
-	agent_model=$(gh config get gh-assistant.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
 
 	local output
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			"$_gh_assistant_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_commits" \
-					"$_gh_assistant_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 
 			)
 	)
@@ -209,7 +209,7 @@ _gh_pr_create() {
 	gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
 }
 
-# Filter out flags managed by gh-assistant from pr review arguments
+# Filter out flags managed by gh-ai from pr review arguments
 #
 # Removes body flags (and their values) and the PR number since
 # the review content is AI-generated. All other flags pass through.
@@ -256,14 +256,14 @@ _gh_pr_review() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_assistant_source_dir/templates/gh_pr_review.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_review.tmpl"
 
 	local gh_pr_number
 	# Resolve PR number from arguments or auto-detect from current branch
 	gh_pr_number=$(_get_pr_number "${args[@]}")
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh assistant pr review <PR_NUMBER> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr review <PR_NUMBER> [OPTIONS]"
 		return 1
 	fi
 
@@ -296,15 +296,15 @@ _gh_pr_review() {
 		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
 
 	local agent_model
-	agent_model=$(gh config get gh-assistant.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
 
 	local pr_body
 	# Generate review content using assistant run
 	pr_body=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
-			"$_gh_assistant_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commits" GIT_BRANCH="$git_branch" \
-					"$_gh_assistant_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -325,11 +325,11 @@ _gh_pr_review() {
 # including usage examples and available options.
 _show_pr_help() {
 	cat <<'EOF'
-gh assistant pr - Pull request commands with AI assistance
+gh ai pr - Pull request commands with AI assistance
 
 USAGE:
-    gh assistant pr create [GH_PR_CREATE_OPTIONS]
-    gh assistant pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+    gh ai pr create [GH_PR_CREATE_OPTIONS]
+    gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 
 DESCRIPTION:
     Creates and reviews GitHub pull requests with AI-generated content.
@@ -339,8 +339,8 @@ COMMANDS:
     review      Review PRs with AI-generated feedback
 
 SEE ALSO:
-    gh assistant pr create --help    # Full list of gh pr create options
-    gh assistant pr review --help    # Full list of gh pr review options
+    gh ai pr create --help    # Full list of gh pr create options
+    gh ai pr review --help    # Full list of gh pr review options
 EOF
 }
 
@@ -368,7 +368,7 @@ _gh_pr() {
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
 		gum log --level info "Available commands: create, review"
-		gum log --level info "Run 'gh assistant pr --help' for usage information"
+		gum log --level info "Run 'gh ai pr --help' for usage information"
 		exit 1
 		;;
 	esac
