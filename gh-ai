@@ -59,7 +59,7 @@ USAGE:
     gh ai <command> [subcommand] [options]
 
 COMMANDS:
-    pr          Pull request operations (create, review, explain)
+    pr          Pull request operations (create, edit, review, explain)
     commit      Generate a commit message for staged changes
     issue       Issue operations (create, edit, develop)
     run         Workflow run operations (explain)

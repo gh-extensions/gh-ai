@@ -8,15 +8,17 @@ set -euo pipefail
 
 # Parse PR create arguments in a single pass
 #
-# Extracts the --base branch value and passthrough args for gh pr create
-# via namerefs. --base passes through AND is captured for git diff.
-# AI-managed flags (--title, --body, --body-file, --template, --fill*) are stripped.
+# Extracts the --base branch value, optional description, and passthrough
+# args for gh pr create via namerefs. --base passes through AND is captured
+# for git diff. AI-managed flags (--title, --body, --body-file, --template,
+# --fill*) are stripped.
 #
-# Example: _parse_pr_create_args base args --base develop --draft
+# Example: _parse_pr_create_args base desc args --base develop --draft
 _parse_pr_create_args() {
 	local -n git_base_branch_ref="$1"
-	local -n gh_pr_args_ref="$2"
-	shift 2
+	local -n gh_pr_description_ref="$2"
+	local -n gh_pr_args_ref="$3"
+	shift 3
 
 	local args=("$@")
 	local skip_next=false
@@ -30,6 +32,13 @@ _parse_pr_create_args() {
 		fi
 
 		case "${args[$i]}" in
+		--description | -d)
+			gh_pr_description_ref="${args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			gh_pr_description_ref="${args[$i]#--description=}"
+			;;
 		--base | -B)
 			git_base_branch_ref="${args[$((i + 1))]}"
 			gh_pr_args_ref+=("${args[$i]}" "${args[$((i + 1))]}")
@@ -61,20 +70,24 @@ _show_pr_create_help() {
 gh ai pr create - Create PRs with AI-generated titles and descriptions
 
 USAGE:
-    gh ai pr create [OPTIONS]
+    gh ai pr create [-d <DESCRIPTION>] [OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub pull request with an AI-generated title and description
     based on the diff and commit history between the current and base branch.
 
+FLAGS:
+    -d, --description string   Optional guidance for the AI (e.g. focus area)
+
 PASSTHROUGH FLAGS:
-    All flags are passed directly to gh pr create.
+    All other flags are passed directly to gh pr create.
     See gh pr create --help for the full list.
 
 EXAMPLES:
     gh ai pr create
     gh ai pr create --draft
     gh ai pr create --draft --base develop
+    gh ai pr create -d "focus on the security changes"
 EOF
 }
 
@@ -100,8 +113,9 @@ _gh_pr_create() {
 	template_file="$_gh_ai_source_dir/templates/gh_pr_create.tmpl"
 
 	local git_base_branch=""
+	local gh_pr_description=""
 	local gh_pr_args=()
-	_parse_pr_create_args git_base_branch gh_pr_args "${args[@]}"
+	_parse_pr_create_args git_base_branch gh_pr_description gh_pr_args "${args[@]}"
 
 	local git_head_branch
 	git_head_branch=$(git rev-parse --abbrev-ref HEAD)
@@ -147,7 +161,7 @@ _gh_pr_create() {
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" \
+				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -178,6 +192,201 @@ _gh_pr_create() {
 
 	# Create PR with AI-generated content
 	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
+}
+
+# Parse PR edit arguments in a single pass
+#
+# Extracts the PR number (first numeric arg, with auto-detect fallback),
+# description, and passthrough args for gh pr edit via namerefs.
+# AI-managed flags (--title, --body, --body-file) are stripped.
+#
+# Example: _parse_pr_edit_args num desc args 42 -d "add testing section" --add-label bug
+_parse_pr_edit_args() {
+	local -n gh_pr_number_ref="$1"
+	local -n gh_pr_description_ref="$2"
+	local -n gh_pr_args_ref="$3"
+	shift 3
+
+	local args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${args[$i]}" in
+		--description | -d)
+			gh_pr_description_ref="${args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			gh_pr_description_ref="${args[$i]#--description=}"
+			;;
+		--title | -t | --body | -b | --body-file | -F)
+			skip_next=true
+			;;
+		--title=* | --body=* | --body-file=*) ;;
+		*)
+			if [[ -z "$gh_pr_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="${args[$i]}"
+			else
+				gh_pr_args_ref+=("${args[$i]}")
+			fi
+			;;
+		esac
+		((++i))
+	done
+
+	# Auto-detect PR number from current branch if not found in args
+	if [[ -z "$gh_pr_number_ref" ]]; then
+		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+	fi
+}
+
+# PR edit help function
+#
+# Displays help information for the PR edit command
+# including usage examples and available options.
+_show_pr_edit_help() {
+	cat <<'EOF'
+gh ai pr edit - Edit an existing PR with AI-generated content
+
+USAGE:
+    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]
+
+DESCRIPTION:
+    Edits an existing GitHub pull request using AI. Fetches the current PR
+    content and diff, applies the requested changes via AI, and updates the
+    PR title and body. Auto-detects PR from the current branch if no number
+    is provided.
+
+FLAGS:
+    -d, --description string   Description of the changes to make (required)
+
+PASSTHROUGH FLAGS:
+    All other flags are passed directly to gh pr edit.
+    See gh pr edit --help for the full list.
+
+EXAMPLES:
+    gh ai pr edit 42 -d "add testing section"
+    gh ai pr edit 42 -d "fix summary" --add-label bug
+    gh ai pr edit -d "improve description"   # auto-detect PR from current branch
+EOF
+}
+
+# PR Edit implementation
+#
+# Edits an existing GitHub PR with AI-generated content.
+# Fetches the current PR content and diff, renders a prompt template
+# with the description and PR context, sends it to the AI provider,
+# and updates the PR with the parsed response.
+#
+# Usage: _gh_pr_edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+_gh_pr_edit() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_edit_help
+		return 0
+		;;
+	esac
+
+	local args=("$@")
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_pr_edit.tmpl"
+
+	local gh_pr_number=""
+	local gh_pr_description=""
+	local gh_pr_args=()
+	_parse_pr_edit_args gh_pr_number gh_pr_description gh_pr_args "${args[@]}"
+
+	if [[ -z "$gh_pr_number" ]]; then
+		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		return 1
+	fi
+
+	if [[ -z "$gh_pr_description" ]]; then
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		return 1
+	fi
+
+	# Fetch PR metadata
+	local gh_pr_meta
+	gh_pr_meta=$(gum spin --title "Fetching GitHub pull request metadata..." -- \
+		gh pr view "$gh_pr_number" --json title,body || true)
+	if [[ -z "$gh_pr_meta" ]]; then
+		gum log --level error "Failed to fetch PR #$gh_pr_number"
+		return 1
+	fi
+
+	local gh_pr_title
+	gh_pr_title=$(echo "$gh_pr_meta" | jq -r '.title // ""')
+
+	local gh_pr_body
+	gh_pr_body=$(echo "$gh_pr_meta" | jq -r '.body // ""')
+
+	# Get PR diff using gh cli (--patch for full patch format)
+	local git_diff
+	git_diff=$(gum spin --title "Fetching GitHub pull request diff..." -- \
+		gh pr diff "$gh_pr_number" --patch || true)
+	if [[ -z "$git_diff" ]]; then
+		gum log --level error "Failed to get diff for PR #$gh_pr_number"
+		return 1
+	fi
+
+	local git_diff_stat
+	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
+
+	local git_commit_list
+	git_commit_list=$(gum spin --title "Fetching GitHub pull request commits..." -- \
+		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
+
+	local agent_model
+	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+
+	local output
+	# Generate updated PR content using assistant
+	output=$(
+		gum spin --title "Generating updated GitHub pull request..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+				GH_PR_NUMBER="$gh_pr_number" GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GH_PR_DESCRIPTION="$gh_pr_description" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Validate we got PR content
+	if [[ -z "$output" ]]; then
+		gum log --level error "Failed to generate updated pull request content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	local gh_pr_new_title
+	# Parse title from output
+	if ! gh_pr_new_title=$(_get_title "$output"); then
+		gum log --level error "Failed to extract title from AI content"
+		return 1
+	fi
+
+	local gh_pr_new_body
+	# Parse body from output
+	gh_pr_new_body=$(_get_body "$output")
+
+	# Validate we got body content
+	if [[ -z "$gh_pr_new_body" ]]; then
+		gum log --level error "Failed to extract body from AI content"
+		return 1
+	fi
+
+	# Edit PR with AI-generated content
+	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${gh_pr_args[@]}"
 }
 
 # Parse PR explain arguments in a single pass
@@ -494,20 +703,23 @@ _show_pr_help() {
 gh ai pr - Pull request commands with AI assistance
 
 USAGE:
-    gh ai pr create [GH_PR_CREATE_OPTIONS]
+    gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
+    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER] [--comment | --edit]
 
 DESCRIPTION:
-    Creates, reviews, and explains GitHub pull requests with AI-generated content.
+    Creates, edits, reviews, and explains GitHub pull requests with AI-generated content.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
+    edit        Edit an existing PR with AI-generated content
     review      Review PRs with AI-generated feedback
     explain     Generate a plain-language explanation of a PR
 
 SEE ALSO:
     gh ai pr create --help     # Full list of gh pr create options
+    gh ai pr edit --help       # Full list of gh pr edit options
     gh ai pr review --help     # Full list of gh pr review options
     gh ai pr explain --help    # PR explain usage
 EOF
@@ -519,7 +731,7 @@ EOF
 # Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, review, explain, help
+# Subcommands: create, edit, review, explain, help
 _gh_pr() {
 	local subcommand="${1:-}"
 	shift || true
@@ -527,6 +739,9 @@ _gh_pr() {
 	case $subcommand in
 	create)
 		_gh_pr_create "$@"
+		;;
+	edit)
+		_gh_pr_edit "$@"
 		;;
 	review)
 		_gh_pr_review "$@"
@@ -539,7 +754,7 @@ _gh_pr() {
 		;;
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, review, explain"
+		gum log --level info "Available commands: create, edit, review, explain"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		exit 1
 		;;
