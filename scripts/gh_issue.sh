@@ -143,13 +143,6 @@ _filter_issue_create_args() {
 #
 # Usage: _gh_issue_create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
 _gh_issue_create() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_issue_create_help
-		return 0
-		;;
-	esac
-
 	local args=("$@")
 	local clean_args
 
