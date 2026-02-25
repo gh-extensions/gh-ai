@@ -62,21 +62,21 @@ EOF
 # Example: _get_issue_description -d "Login crash" --label bug  # Returns: Login crash
 # Example: _get_issue_description "Login crash" --label bug     # Returns: Login crash
 _get_issue_description() {
-	local description=""
+	local issue_description=""
 	local positional=""
 	local consume=""
 
 	local arg
 	for arg in "$@"; do
 		if [[ -n "$consume" ]]; then
-			description="$arg"
+			issue_description="$arg"
 			consume=""
 			continue
 		fi
 
 		case "$arg" in
 		--description | -d) consume=yes ;;
-		--description=*) description="${arg#--description=}" ;;
+		--description=*) issue_description="${arg#--description=}" ;;
 		--*) ;;
 		*)
 			if [[ -z "$positional" ]]; then
@@ -87,8 +87,8 @@ _get_issue_description() {
 	done
 
 	# Flag takes priority over positional
-	if [[ -n "$description" ]]; then
-		echo "$description"
+	if [[ -n "$issue_description" ]]; then
+		echo "$issue_description"
 	elif [[ -n "$positional" ]]; then
 		echo "$positional"
 	fi
@@ -101,33 +101,36 @@ _get_issue_description() {
 #
 # Example: _get_issue_labels --label bug -l "high priority"  # Returns: bug, high priority
 _get_issue_labels() {
-	local labels=""
+	local issue_labels=""
 	local consume=false
 
 	local arg
 	for arg in "$@"; do
 		if [ "$consume" = true ]; then
-			labels="${labels:+$labels, }$arg"
+			issue_labels="${issue_labels:+$issue_labels, }$arg"
 			consume=false
 			continue
 		fi
 
 		case "$arg" in
 		--label | -l) consume=true ;;
-		--label=*) labels="${labels:+$labels, }${arg#--label=}" ;;
+		--label=*) issue_labels="${issue_labels:+$issue_labels, }${arg#--label=}" ;;
 		esac
 	done
 
-	[[ -n "$labels" ]] && echo "$labels" || true
+	[[ -n "$issue_labels" ]] && echo "$issue_labels" || true
 }
 
 # Filter out flags managed by gh-ai from issue create arguments
 #
-# Removes description, title, body, and template flags (and their values)
-# since the issue content is AI-generated. All other flags pass through.
+# Removes description, title, body, template flags (and their values),
+# and the first positional argument (description fallback).
+# Flags that take values (--label, --assignee, etc.) are preserved
+# along with their values.
 _filter_issue_create_args() {
 	local filtered=()
 	local skip_next=false
+	local pass_next=false
 	local first_positional=true
 	local arg
 
@@ -137,11 +140,21 @@ _filter_issue_create_args() {
 			continue
 		fi
 
+		if [ "$pass_next" = true ]; then
+			filtered+=("$arg")
+			pass_next=false
+			continue
+		fi
+
 		case "$arg" in
 		--description | -d | --title | -t | --body | -b | --body-file | -F | --template | -T)
 			skip_next=true
 			;;
 		--description=* | --title=* | --body=* | --body-file=* | --template=*) ;;
+		--assignee | -a | --label | -l | --milestone | -m | --project | -p)
+			filtered+=("$arg")
+			pass_next=true
+			;;
 		--*)
 			filtered+=("$arg")
 			;;
@@ -193,8 +206,8 @@ _gh_issue_create() {
 	local issue_description
 	issue_description=$(_get_issue_description "${args[@]}")
 
-	local gh_labels
-	gh_labels=$(_get_issue_labels "${args[@]}")
+	local issue_labels
+	issue_labels=$(_get_issue_labels "${args[@]}")
 
 	# If no description, try interactive or error
 	if [[ -z "$issue_description" ]]; then
@@ -229,7 +242,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$gh_labels" GH_ISSUES="$gh_issues" EXTRA_CONTEXT="$extra_context" \
+				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$issue_labels" GH_ISSUES="$gh_issues" EXTRA_CONTEXT="$extra_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
