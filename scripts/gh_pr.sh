@@ -273,7 +273,7 @@ _gh_pr_review() {
 	fi
 
 	local git_diff_stat
-	git_diff_stat=$(gh pr diff "$gh_pr_number" --stat 2>/dev/null || true)
+	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
 
 	local git_commits
 	git_commits=$(gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' 2>/dev/null || true)
