@@ -113,68 +113,6 @@ _get_body() {
 	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
 }
 
-# Filter arguments by stripping specified flags, values, and standalone options
-#
-# Specs before -- define what to strip from the args after --:
-#   -x / --flag    Strip flag and its next argument (also strips --flag=*)
-#   !--flag        Strip standalone flag (no value consumed)
-#   VALUE          Strip exact value match (e.g. a PR number)
-#
-# Usage: _filter_args SPEC... -- ARGS...
-# Example: _filter_args --title -t "!--fill" "$pr_number" -- "${args[@]}"
-_filter_args() {
-	local specs=()
-	while [[ $# -gt 0 ]] && [[ "$1" != "--" ]]; do
-		specs+=("$1")
-		shift
-	done
-	[[ "${1:-}" == "--" ]] && shift
-
-	local filtered=()
-	local skip_next=false
-
-	local arg
-	for arg in "$@"; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			continue
-		fi
-
-		local matched=false
-		local spec
-		for spec in "${specs[@]}"; do
-			if [[ "$spec" == "!"* ]]; then
-				# Standalone flag: strip without consuming next arg
-				if [[ "$arg" == "${spec#!}" ]]; then
-					matched=true
-					break
-				fi
-			elif [[ "$spec" == -* ]]; then
-				# Flag with value: strip flag + next arg, and --flag=* form
-				if [[ "$arg" == "$spec" ]]; then
-					skip_next=true
-					matched=true
-					break
-				fi
-				if [[ "$spec" == --* ]] && [[ "$arg" == "${spec}="* ]]; then
-					matched=true
-					break
-				fi
-			else
-				# Exact value match
-				if [[ "$arg" == "$spec" ]]; then
-					matched=true
-					break
-				fi
-			fi
-		done
-
-		[ "$matched" = false ] && filtered+=("$arg")
-	done
-
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
-}
-
 main() {
 	local command
 	command="${1:-}"
