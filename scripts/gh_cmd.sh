@@ -46,6 +46,12 @@ _cmd_render() {
 	printf '%s' "$template_content"
 }
 
+# Send a prompt to the AI provider and print the response
+#
+# Reads a prompt from stdin and sends it to the configured AI provider.
+# Uses the given model or falls back to gh-ai.model / haiku.
+#
+# Usage: echo "prompt" | _cmd_assist [MODEL]
 _cmd_assist() {
 	local agent_provider
 	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)

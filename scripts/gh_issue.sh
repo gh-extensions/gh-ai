@@ -143,10 +143,11 @@ _filter_issue_create_args() {
 # Issue Create implementation
 #
 # Creates a GitHub issue with an AI-generated title and structured body.
-# Uses assistant run with the template content directly injected into the prompt.
+# Renders a prompt template with the description and repo context,
+# sends it to the AI provider, and parses the response.
 # Supports interactive mode (no args) and piped stdin context.
 #
-# Usage: _gh_issue_create [DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+# Usage: _gh_issue_create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
 _gh_issue_create() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -162,7 +163,7 @@ _gh_issue_create() {
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
 
-	# Extract description from positional args
+	# Extract description from --description/-d flag or positional args
 	local issue_description
 	issue_description=$(_get_issue_description "${args[@]}")
 

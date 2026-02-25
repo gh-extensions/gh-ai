@@ -67,10 +67,9 @@ _filter_pr_create_args() {
 
 # PR Create implementation
 #
-# Creates a GitHub PR with AI-generated title and description.
-# Uses assistant run with the template content directly injected into the prompt,
-# and passes the git diff and commit log as file attachments.
-# Falls back to manual PR creation if AI generation fails.
+# Creates a GitHub PR with an AI-generated title and description.
+# Renders a prompt template with git diff and commit context,
+# sends it to the AI provider, and parses the response.
 #
 # Usage: _gh_pr_create [GH_PR_CREATE_OPTIONS]
 _gh_pr_create() {
@@ -211,11 +210,11 @@ _filter_pr_review_args() {
 # PR Review implementation
 #
 # Submits a GitHub PR review with AI-generated feedback.
-# Uses assistant run with the template content directly injected into the prompt,
-# and passes the PR diff as a file attachment.
+# Renders a prompt template with the PR diff and commit context,
+# sends it to the AI provider, and submits the response as a review.
 # Auto-detects PR number from current branch if not provided.
 #
-# Usage: _gh_pr_review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS] [--model MODEL]
+# Usage: _gh_pr_review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 _gh_pr_review() {
 	local args=("$@")
 	local clean_args
@@ -427,11 +426,11 @@ EOF
 
 # PR subcommand handler
 #
-# Routes PR subcommands (create, review) to their appropriate
-# handler functions. Shows help for unknown commands.
+# Routes PR subcommands to their appropriate handler functions.
+# Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, review, help
+# Subcommands: create, review, explain, help
 _gh_pr() {
 	local subcommand="${1:-}"
 	shift || true

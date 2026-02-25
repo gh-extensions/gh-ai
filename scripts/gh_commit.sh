@@ -62,11 +62,10 @@ _filter_commit_args() {
 # Main commit command implementation
 #
 # Creates a git commit with an AI-generated message based on staged changes.
-# Uses assistant run with the template content directly injected into the prompt,
-# and passes the staged diff as a file attachment.
+# Renders a prompt template with the staged diff and branch context,
+# sends it to the AI provider, and commits with the response.
 #
 # Usage: _gh_commit [GIT_COMMIT_OPTIONS]
-# Example: _gh_commit --signoff --no-verify
 _gh_commit() {
 	case "${1:-}" in
 	--help | -h | help)
