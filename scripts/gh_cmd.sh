@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-[ -z "$DEBUG" ] || set -x
+[ -z "${DEBUG:-}" ] || set -x
 
-set -eo pipefail
+set -euo pipefail
 
 # Core utility functions for gh-assistant
 
@@ -13,19 +13,67 @@ set -eo pipefail
 #
 # Usage: MY_VAR="value" _cmd_render template.tmpl
 _cmd_render() {
+	if [[ ! -f "$1" ]]; then
+		gum log --level error "Template not found: $1"
+		return 1
+	fi
+
 	local content
 	content=$(cat <"$1")
 
+	# Sentinel used to escape {{ in substituted values, preventing template injection
+	# when git content contains literal {{ param "..." }} strings.
+	local sentinel=$'\x01\x02'
+
 	local match
 	local name
+	local value
 	while IFS= read -r match; do
 		[[ -z "$match" ]] && continue
 		# shellcheck disable=SC2001
 		name=$(echo "$match" | sed 's/.*"\([^"]*\)".*/\1/')
-		content="${content//$match/${!name}}"
+		value="${!name}"
+		# Escape {{ in substituted values so they aren't treated as template directives
+		value="${value//\{\{/${sentinel}}"
+		content="${content//$match/$value}"
 	done < <(grep -oE '\{\{[[:space:]]*param[[:space:]]+"[^"]+"[[:space:]]*\}\}' <<<"$content" | sort -u)
 
+	# Restore escaped braces
+	content="${content//${sentinel}/\{\{}"
+
 	printf '%s' "$content"
+}
+
+# Filter out specified flags and their values from an argument list
+#
+# Takes two space-separated lists of flags to remove (value flags and standalone
+# flags), then -- followed by the arguments to filter.
+#
+# Usage: _filter_args "VALUE_FLAGS" "STANDALONE_FLAGS" -- "$@"
+# Example: _filter_args "--title -t --body -b" "--fill --fill-first" -- --title "test" --draft --fill
+# Returns: --draft
+_filter_args() {
+	local vf=" $1 "
+	local sf=" ${2:-} "
+	shift 2
+	shift # consume value_flags, standalone_flags, --
+
+	local filtered=()
+	while [[ $# -gt 0 ]]; do
+		if [[ "$sf" == *" $1 "* ]]; then
+			shift
+		elif [[ "$vf" == *" $1 "* ]]; then
+			shift
+			[[ $# -gt 0 && "$1" != -* ]] && shift
+		elif [[ "$1" == --*=* ]] && [[ "$vf" == *" ${1%%=*} "* ]]; then
+			shift
+		else
+			filtered+=("$1")
+			shift
+		fi
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
 }
 
 _cmd_assist() {
@@ -47,10 +95,10 @@ _cmd_assist() {
 			--setting-sources='' \
 			--system-prompt='' \
 			--tools='' \
-			"$(cat)"
+			- || true
 		;;
 	*)
-		echo "gh-assistant: unsupported provider '$agent_provider' (supported: anthropic)" >&2
+		gum log --level error "Unsupported provider '$agent_provider' (supported: anthropic)"
 		exit 1
 		;;
 	esac
@@ -62,13 +110,13 @@ main() {
 
 	case "$command" in
 	render)
-		_cmd_render "$2"
+		_cmd_render "${2:-}"
 		;;
 	assist)
-		_cmd_assist "$2"
+		_cmd_assist "${2:-}"
 		;;
 	*)
-		echo "Usage: gh_cmd.sh <render|assist> [args]" >&2
+		gum log --level error "Usage: gh_cmd.sh <render|assist> [args]"
 		exit 1
 		;;
 	esac

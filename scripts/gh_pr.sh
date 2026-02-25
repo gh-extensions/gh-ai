@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-[ -z "$DEBUG" ] || set -x
+[ -z "${DEBUG:-}" ] || set -x
 
-set -eo pipefail
+set -euo pipefail
 
 # PR-related functions for gh-assistant
 
@@ -27,8 +27,12 @@ _get_pr_number() {
 		((++i))
 	done
 
+	local pr_number
+	pr_number=$(gh pr view --json number -q '.number' 2>/dev/null || true)
 	# Fall back to auto-detecting PR for current branch
-	gh pr view --json number -q '.number' 2>/dev/null || true
+	if [[ -n "$pr_number" ]]; then
+		echo "$pr_number"
+	fi
 }
 
 # Extract title from AI response
@@ -65,79 +69,6 @@ _get_pr_body() {
 	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
 }
 
-# Filter out assistant-managed arguments for PR create
-#
-# Removes PR create arguments that assistant handles (title, body, fill flags)
-# so users can still pass other options like --draft, --base, etc.
-#
-# Filters out: --title/-t, --body/-b, --body-file/-F, --fill variants
-# Example: _filter_gh_pr_create_args --title "test" --draft --base main
-# Returns: --draft --base main
-_filter_gh_pr_create_args() {
-	local input_args=("$@")
-	local filtered_args=()
-	local i=0
-
-	while [[ $i -lt ${#input_args[@]} ]]; do
-		case "${input_args[$i]}" in
-		# Arguments to filter out (assistant manages these)
-		--title | -t | --body | -b | --body-file | -F)
-			# Skip this argument and its value
-			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((++i)) # Skip the value too
-			fi
-			;;
-		--title=* | --body=* | --body-file=*) ;;
-		--fill | --fill-first | --fill-verbose)
-			# These flags don't have values, just skip
-			;;
-		*)
-			# Pass through all other arguments
-			filtered_args+=("${input_args[$i]}")
-			;;
-		esac
-		((++i))
-	done
-
-	# Output the filtered arguments
-	printf '%s\n' "${filtered_args[@]}"
-}
-
-# Filter arguments for PR review (remove assistant-managed ones)
-#
-# Removes review arguments that assistant handles (body, comment flags)
-# while preserving other options like PR number and --approve.
-#
-# Filters out: --body/-b, --body-file/-F
-# Example: _filter_gh_pr_review_args 123 --body "test" --approve
-# Returns: 123 --approve
-_filter_gh_pr_review_args() {
-	local input_args=("$@")
-	local filtered_args=()
-	local i=0
-
-	while [[ $i -lt ${#input_args[@]} ]]; do
-		case "${input_args[$i]}" in
-		# Arguments to filter out (assistant manages these)
-		--body | -b | --body-file | -F)
-			# Skip this argument and its value
-			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((++i)) # Skip the value too
-			fi
-			;;
-		--body=* | --body-file=*) ;;
-		*)
-			# Pass through all other arguments (including PR number)
-			filtered_args+=("${input_args[$i]}")
-			;;
-		esac
-		((++i))
-	done
-
-	# Output the filtered arguments
-	printf '%s\n' "${filtered_args[@]}"
-}
-
 # PR Create implementation
 #
 # Creates a GitHub PR with AI-generated title and description.
@@ -154,16 +85,22 @@ _gh_pr_create() {
 	# shellcheck disable=SC2154
 	template_file="$_gh_assistant_source_dir/templates/gh_pr_create.tmpl"
 
+	local filtered_args
+	filtered_args=$(_filter_args \
+		"--title -t --body -b --body-file -F" "--fill --fill-first --fill-verbose" -- "${args[@]}")
 	# Filter out assistant-managed arguments
-	local filtered_output
-	filtered_output=$(_filter_gh_pr_create_args "${args[@]}")
-	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
+	if [[ -n "$filtered_args" ]]; then
+		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
+	else
+		clean_args=()
+	fi
 
 	local git_head_branch
 	git_head_branch=$(git rev-parse --abbrev-ref HEAD)
 
 	local git_base_branch
-	git_base_branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' || echo "main")
+	git_base_branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+		gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
 
 	# Check for --base flag in args to override default
 	local i=0
@@ -178,12 +115,14 @@ _gh_pr_create() {
 	# Get diff between base and head
 	local git_diff
 	# shellcheck disable=SC2140
-	if ! git_diff=$(git diff "origin/$git_base_branch"..."$git_head_branch" 2>/dev/null) || [[ -z "$git_diff" ]]; then
+	git_diff=$(git diff "origin/$git_base_branch"..."$git_head_branch" 2>/dev/null || true)
+	if [[ -z "$git_diff" ]]; then
 		# Fallback: try without origin prefix
-		if ! git_diff=$(git diff "$git_base_branch"..."$git_head_branch" 2>/dev/null) || [[ -z "$git_diff" ]]; then
-			gum log --level error "Failed to get diff between $git_base_branch and $git_head_branch"
-			return 1
-		fi
+		git_diff=$(git diff "$git_base_branch"..."$git_head_branch" 2>/dev/null || true)
+	fi
+	if [[ -z "$git_diff" ]]; then
+		gum log --level error "Failed to get diff between $git_base_branch and $git_head_branch"
+		return 1
 	fi
 
 	local git_diff_stat
@@ -217,6 +156,7 @@ _gh_pr_create() {
 	# Validate we got PR content
 	if [[ -z "$output" ]]; then
 		gum log --level error "Failed to generate pull request content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -266,22 +206,20 @@ _gh_pr_review() {
 		return 1
 	fi
 
+	local filtered_args
+	filtered_args=$(_filter_args "--body -b --body-file -F" "$gh_pr_number" -- "${args[@]}")
 	# Filter out assistant-managed arguments and the PR number
-	local filtered_output
-	filtered_output=$(_filter_gh_pr_review_args "${args[@]}")
-	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
-
-	# Remove PR number from clean_args (already passed explicitly)
-	local tmp_args=()
-	for arg in "${clean_args[@]}"; do
-		[[ "$arg" == "$gh_pr_number" ]] || tmp_args+=("$arg")
-	done
-	clean_args=("${tmp_args[@]}")
+	if [[ -n "$filtered_args" ]]; then
+		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
+	else
+		clean_args=()
+	fi
 
 	# Get PR diff using gh cli (--patch for full patch format)
 	local git_diff
-	if ! git_diff=$(gum spin --title "Fetching GitHub pull request diff..." -- \
-		gh pr diff "$gh_pr_number" --patch 2>/dev/null) || [[ -z "$git_diff" ]]; then
+	git_diff=$(gum spin --title "Fetching GitHub pull request diff..." -- \
+		gh pr diff "$gh_pr_number" --patch || true)
+	if [[ -z "$git_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
@@ -291,11 +229,11 @@ _gh_pr_review() {
 
 	local git_commits
 	git_commits=$(gum spin --title "Fetching GitHub pull request commits..." -- \
-		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline')
+		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
 
 	local git_branch
 	git_branch=$(gum spin --title "Fetching GitHub pull request branch..." -- \
-		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName')
+		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
 
 	local agent_model
 	agent_model=$(gh config get gh-assistant.pr.model 2>/dev/null || true)
@@ -313,6 +251,7 @@ _gh_pr_review() {
 	# Validate we got review content
 	if [[ -z "$pr_body" ]]; then
 		gum log --level error "Failed to generate review content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 

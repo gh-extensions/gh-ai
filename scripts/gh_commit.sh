@@ -1,44 +1,32 @@
 #!/usr/bin/env bash
 
-[ -z "$DEBUG" ] || set -x
+[ -z "${DEBUG:-}" ] || set -x
 
-set -eo pipefail
+set -euo pipefail
 
-# Commit-related functions for gh-assistant
-
-# Filter out assistant-managed arguments for commit
+# Commit help function
 #
-# Removes arguments that assistant manages internally (-m, --message, -F, --file)
-# and returns the remaining arguments. This allows users to pass other git commit
-# flags while assistant handles the commit message.
-#
-# Example: _filter_gh_commit_args --all -m "message" --signoff
-# Returns: --all --signoff
-_filter_gh_commit_args() {
-	local input_args=("$@")
-	local filtered_args=()
-	local i=0
+# Displays help information for the commit command
+# including usage examples and available options.
+_show_commit_help() {
+	cat <<'EOF'
+gh assistant commit - Create commits with AI-generated messages
 
-	while [[ $i -lt ${#input_args[@]} ]]; do
-		case "${input_args[$i]}" in
-		# Arguments to filter out (assistant manages these)
-		-m | --message | -F | --file)
-			# Skip this argument and its value
-			if [[ $((i + 1)) -lt ${#input_args[@]} ]] && [[ "${input_args[$((i + 1))]}" != -* ]]; then
-				((++i)) # Skip the value too
-			fi
-			;;
-		--message=* | --file=*) ;;
-		*)
-			# Pass through all other arguments
-			filtered_args+=("${input_args[$i]}")
-			;;
-		esac
-		((++i))
-	done
+USAGE:
+    gh assistant commit [GIT_COMMIT_OPTIONS]
 
-	# Output the filtered arguments
-	printf '%s\n' "${filtered_args[@]}"
+DESCRIPTION:
+    Generates a conventional commit message from staged changes using AI,
+    then creates the commit. Any extra options are passed to git commit.
+
+EXAMPLES:
+    gh assistant commit                # Generate message and commit
+    gh assistant commit --signoff      # Commit with sign-off
+    gh assistant commit --no-verify    # Skip pre-commit hooks
+
+SEE ALSO:
+    git commit --help    # Full list of git commit options
+EOF
 }
 
 # Main commit command implementation
@@ -50,6 +38,13 @@ _filter_gh_commit_args() {
 # Usage: _gh_commit [GIT_COMMIT_OPTIONS]
 # Example: _gh_commit --signoff --no-verify
 _gh_commit() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_commit_help
+		return 0
+		;;
+	esac
+
 	local args=("$@")
 	local clean_args
 
@@ -57,10 +52,14 @@ _gh_commit() {
 	# shellcheck disable=SC2154
 	template_file="$_gh_assistant_source_dir/templates/gh_commit.tmpl"
 
+	local filtered_args
+	filtered_args=$(_filter_args "-m --message -F --file" "" -- "${args[@]}")
 	# Filter out assistant-managed arguments
-	local filtered_output
-	filtered_output=$(_filter_gh_commit_args "${args[@]}")
-	IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_output" || true
+	if [[ -n "$filtered_args" ]]; then
+		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
+	else
+		clean_args=()
+	fi
 
 	# Gather git context
 	local git_diff_staged
@@ -98,6 +97,7 @@ _gh_commit() {
 	# Validate we got a commit message
 	if [[ -z "$git_message" ]]; then
 		gum log --level error "Failed to generate commit message"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
