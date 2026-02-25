@@ -100,6 +100,7 @@ _parse_issue_create_args() {
 _parse_issue_edit_args() {
 	local -n gh_issue_number_ref="$1"
 	local -n gh_issue_description_ref="$2"
+	# shellcheck disable=SC2178
 	local -n gh_issue_args_ref="$3"
 	shift 3
 
@@ -120,6 +121,7 @@ _parse_issue_edit_args() {
 			skip_next=true
 			;;
 		--description=*)
+			# shellcheck disable=SC2034
 			gh_issue_description_ref="${args[$i]#--description=}"
 			;;
 		--title | -t | --body | -b | --body-file | -F)
@@ -287,6 +289,7 @@ _gh_issue_edit() {
 # Example: _parse_issue_develop_args num devargs prargs 42 --name my-branch --draft
 _parse_issue_develop_args() {
 	local -n gh_issue_number_ref="$1"
+	# shellcheck disable=SC2178
 	local -n gh_issue_args_ref="$2"
 	local -n gh_pr_args_ref="$3"
 	shift 3
