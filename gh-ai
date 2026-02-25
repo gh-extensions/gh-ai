@@ -28,6 +28,9 @@ _check_dependencies() {
 	if ! command -v gum &>/dev/null; then
 		missing+=("gum     — https://github.com/charmbracelet/gum")
 	fi
+	if ! command -v jq &>/dev/null; then
+		missing+=("jq      — https://jqlang.org")
+	fi
 
 	if [[ ${#missing[@]} -gt 0 ]]; then
 		echo "gh-ai: missing required dependencies:" >&2
@@ -72,6 +75,13 @@ SEE ALSO:
 EOF
 }
 
+# Version function
+#
+# Reads and displays the current version from version.txt.
+_show_version() {
+	cat "$_gh_ai_source_dir/version.txt"
+}
+
 # Main entry point
 main() {
 	local command="${1:-}"
@@ -89,6 +99,9 @@ main() {
 		;;
 	run)
 		_gh_run "$@"
+		;;
+	--version | -V)
+		_show_version
 		;;
 	--help | -h | help | "")
 		_show_help
