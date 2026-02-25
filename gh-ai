@@ -8,9 +8,15 @@ _gh_ai_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Verify required dependencies are installed
 #
-# Checks that gh, claude, and gum are available on PATH.
+# Checks that Bash 4.4+, gh, claude, and gum are available.
 # Prints installation instructions and exits if any are missing.
 _check_dependencies() {
+	if [[ "${BASH_VERSINFO[0]}" -lt 4 || ("${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -lt 4) ]]; then
+		echo "gh-ai: requires Bash 4.4+ (found ${BASH_VERSION})" >&2
+		echo "  macOS: brew install bash" >&2
+		exit 1
+	fi
+
 	local missing=()
 
 	if ! command -v gh &>/dev/null; then
@@ -55,7 +61,7 @@ USAGE:
 COMMANDS:
     pr          Pull request operations (create, review, explain)
     commit      Generate a commit message for staged changes
-    issue       Issue operations (create)
+    issue       Issue operations (create, develop)
     run         Workflow run operations (explain)
 
 SEE ALSO:

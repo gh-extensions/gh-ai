@@ -6,19 +6,21 @@ set -euo pipefail
 
 # Run-related functions for gh-ai
 
-# Extract run ID from arguments
+# Parse run explain arguments in a single pass
 #
-# Looks for the first numeric argument in the provided args.
-# Returns the run ID or empty string if none found.
+# Extracts the run ID (first numeric arg) via nameref.
 #
-# Example: _get_run_id explain 123456  # Returns: 123456
-_get_run_id() {
+# Example: _parse_run_explain_args id 123456
+_parse_run_explain_args() {
+	local -n gh_run_id_ref="$1"
+	shift
+
 	local args=("$@")
 	local i=0
 
 	while [[ $i -lt ${#args[@]} ]]; do
-		if [[ "${args[$i]}" =~ ^[0-9]+$ ]]; then
-			echo "${args[$i]}"
+		if [[ -z "$gh_run_id_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
+			gh_run_id_ref="${args[$i]}"
 			return 0
 		fi
 		((++i))
@@ -47,6 +49,27 @@ SEE ALSO:
 EOF
 }
 
+# Run explain help function
+#
+# Displays help information for the run explain command
+# including usage examples and available options.
+_show_run_explain_help() {
+	cat <<'EOF'
+gh ai run explain - Analyze a workflow run and explain failures
+
+USAGE:
+    gh ai run explain <RUN_ID>
+
+DESCRIPTION:
+    Analyzes a GitHub Actions workflow run and generates an AI explanation
+    of what happened, focusing on root cause and actionable fixes.
+    Uses --log-failed for failed runs and --log otherwise.
+
+EXAMPLES:
+    gh ai run explain 123456
+EOF
+}
+
 # Run Explain implementation
 #
 # Analyzes a GitHub Actions workflow run and generates an AI explanation
@@ -55,14 +78,21 @@ EOF
 #
 # Usage: _gh_run_explain <RUN_ID>
 _gh_run_explain() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_run_explain_help
+		return 0
+		;;
+	esac
+
 	local args=("$@")
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_run_explain.tmpl"
 
-	local gh_run_id
-	gh_run_id=$(_get_run_id "${args[@]}")
+	local gh_run_id=""
+	_parse_run_explain_args gh_run_id "${args[@]}"
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
 		gum log --level info "Usage: gh ai run explain <RUN_ID>"
@@ -70,34 +100,34 @@ _gh_run_explain() {
 	fi
 
 	# Fetch run metadata
-	local gh_run_json
-	gh_run_json=$(gum spin --title "Fetching GitHub workflow run metadata..." -- \
+	local gh_run_meta
+	gh_run_meta=$(gum spin --title "Fetching GitHub workflow run metadata..." -- \
 		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs || true)
-	if [[ -z "$gh_run_json" ]]; then
+	if [[ -z "$gh_run_meta" ]]; then
 		gum log --level error "Failed to fetch run $gh_run_id"
 		return 1
 	fi
 
 	local gh_run_title
-	gh_run_title=$(echo "$gh_run_json" | jq -r '.displayTitle // ""')
+	gh_run_title=$(echo "$gh_run_meta" | jq -r '.displayTitle // ""')
 
 	local gh_run_conclusion
-	gh_run_conclusion=$(echo "$gh_run_json" | jq -r '.conclusion // ""')
+	gh_run_conclusion=$(echo "$gh_run_meta" | jq -r '.conclusion // ""')
 
 	local gh_run_url
-	gh_run_url=$(echo "$gh_run_json" | jq -r '.url // ""')
+	gh_run_url=$(echo "$gh_run_meta" | jq -r '.url // ""')
 
 	local gh_run_event
-	gh_run_event=$(echo "$gh_run_json" | jq -r '.event // ""')
+	gh_run_event=$(echo "$gh_run_meta" | jq -r '.event // ""')
 
 	local gh_run_branch
-	gh_run_branch=$(echo "$gh_run_json" | jq -r '.headBranch // ""')
+	gh_run_branch=$(echo "$gh_run_meta" | jq -r '.headBranch // ""')
 
 	local gh_run_jq_file
 	gh_run_jq_file="$_gh_ai_source_dir/scripts/gh_run_explain.jq"
 
 	local gh_run_jobs
-	gh_run_jobs=$(echo "$gh_run_json" | jq -r -f "$gh_run_jq_file")
+	gh_run_jobs=$(echo "$gh_run_meta" | jq -r -f "$gh_run_jq_file")
 
 	# Fetch logs: use --log-failed for failed runs, --log otherwise
 	local gh_run_log

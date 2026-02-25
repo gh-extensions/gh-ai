@@ -6,63 +6,76 @@ set -euo pipefail
 
 # PR-related functions for gh-ai
 
-# Resolve PR number from arguments or current branch
+# Parse PR create arguments in a single pass
 #
-# First looks for a numeric argument in the provided args.
-# Falls back to auto-detecting the PR for the current branch via gh pr view.
-# Returns the PR number or empty string if none found.
+# Extracts the --base branch value and passthrough args for gh pr create
+# via namerefs. --base passes through AND is captured for git diff.
+# AI-managed flags (--title, --body, --body-file, --template, --fill*) are stripped.
 #
-# Example: _get_pr_number review 123 --body "test"  # Returns: 123
-# Example: _get_pr_number --approve                 # Returns: detected PR number
-_get_pr_number() {
+# Example: _parse_pr_create_args base args --base develop --draft
+_parse_pr_create_args() {
+	local -n git_base_branch_ref="$1"
+	local -n gh_pr_args_ref="$2"
+	shift 2
+
 	local args=("$@")
+	local skip_next=false
 	local i=0
 
-	# Look for a numeric argument (PR number)
 	while [[ $i -lt ${#args[@]} ]]; do
-		if [[ "${args[$i]}" =~ ^[0-9]+$ ]]; then
-			echo "${args[$i]}"
-			return 0
-		fi
-		((++i))
-	done
-
-	local pr_number
-	pr_number=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-	# Fall back to auto-detecting PR for current branch
-	if [[ -n "$pr_number" ]]; then
-		echo "$pr_number"
-	fi
-}
-
-# Filter out flags managed by gh-ai from pr create arguments
-#
-# Removes title, body, template, and fill flags (and their values) since
-# the PR content is AI-generated. All other flags pass through.
-_filter_pr_create_args() {
-	local filtered=()
-	local skip_next=false
-	local arg
-
-	for arg in "$@"; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
+			((++i))
 			continue
 		fi
 
-		case "$arg" in
+		case "${args[$i]}" in
+		--base | -B)
+			git_base_branch_ref="${args[$((i + 1))]}"
+			gh_pr_args_ref+=("${args[$i]}" "${args[$((i + 1))]}")
+			skip_next=true
+			;;
+		--base=*)
+			git_base_branch_ref="${args[$i]#--base=}"
+			gh_pr_args_ref+=("${args[$i]}")
+			;;
 		--title | -t | --body | -b | --body-file | -F | --template | -T)
 			skip_next=true
 			;;
 		--title=* | --body=* | --body-file=* | --template=*) ;;
 		--fill | --fill-first | --fill-verbose) ;;
 		*)
-			filtered+=("$arg")
+			gh_pr_args_ref+=("${args[$i]}")
 			;;
 		esac
+		((++i))
 	done
+}
 
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+# PR create help function
+#
+# Displays help information for the PR create command
+# including usage examples and available options.
+_show_pr_create_help() {
+	cat <<'EOF'
+gh ai pr create - Create PRs with AI-generated titles and descriptions
+
+USAGE:
+    gh ai pr create [OPTIONS]
+
+DESCRIPTION:
+    Creates a GitHub pull request with an AI-generated title and description
+    based on the diff and commit history between the current and base branch.
+
+PASSTHROUGH FLAGS:
+    All flags are passed directly to gh pr create.
+    See gh pr create --help for the full list.
+
+EXAMPLES:
+    gh ai pr create
+    gh ai pr create --draft
+    gh ai pr create --draft --base develop
+EOF
 }
 
 # PR Create implementation
@@ -73,37 +86,31 @@ _filter_pr_create_args() {
 #
 # Usage: _gh_pr_create [GH_PR_CREATE_OPTIONS]
 _gh_pr_create() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_create_help
+		return 0
+		;;
+	esac
+
 	local args=("$@")
-	local clean_args
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_create.tmpl"
 
-	local filtered_args
-	filtered_args=$(_filter_pr_create_args "${args[@]}")
-	if [[ -n "$filtered_args" ]]; then
-		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
-	else
-		clean_args=()
-	fi
+	local git_base_branch=""
+	local gh_pr_args=()
+	_parse_pr_create_args git_base_branch gh_pr_args "${args[@]}"
 
 	local git_head_branch
 	git_head_branch=$(git rev-parse --abbrev-ref HEAD)
 
-	local git_base_branch
-	git_base_branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
-		gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
-
-	# Check for --base flag in args to override default
-	local i=0
-	while [[ $i -lt ${#args[@]} ]]; do
-		if [[ "${args[$i]}" == "--base" ]] && [[ $((i + 1)) -lt ${#args[@]} ]]; then
-			git_base_branch="${args[$((i + 1))]}"
-			break
-		fi
-		((++i))
-	done
+	# Fall back to default base branch if --base not provided
+	if [[ -z "$git_base_branch" ]]; then
+		git_base_branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+	fi
 
 	# Get diff between base and head
 	local git_diff
@@ -170,40 +177,116 @@ _gh_pr_create() {
 	fi
 
 	# Create PR with AI-generated content
-	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${clean_args[@]}"
+	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
 }
 
-# Filter out flags managed by gh-ai from pr review arguments
+# Parse PR explain arguments in a single pass
 #
-# Removes body flags (and their values) and the PR number since
-# the review content is AI-generated. All other flags pass through.
-_filter_pr_review_args() {
-	local pr_number="$1"
-	shift
+# Extracts the PR number (first numeric arg, with auto-detect fallback),
+# output mode (--comment or --edit), and passthrough args via namerefs.
+#
+# Example: _parse_pr_explain_args num mode 42 --comment
+_parse_pr_explain_args() {
+	local -n gh_pr_number_ref="$1"
+	local -n gh_pr_output_mode_ref="$2"
+	shift 2
 
-	local filtered=()
+	local args=("$@")
+	local i=0
+
+	while [[ $i -lt ${#args[@]} ]]; do
+		case "${args[$i]}" in
+		--comment)
+			gh_pr_output_mode_ref="comment"
+			;;
+		--edit)
+			gh_pr_output_mode_ref="edit"
+			;;
+		*)
+			if [[ -z "$gh_pr_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="${args[$i]}"
+			fi
+			;;
+		esac
+		((++i))
+	done
+
+	# Auto-detect PR number from current branch if not found in args
+	if [[ -z "$gh_pr_number_ref" ]]; then
+		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+	fi
+}
+
+# Parse PR review arguments in a single pass
+#
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and passthrough args for gh pr review via namerefs.
+# AI-managed flags (--body, --body-file) and the PR number are stripped.
+#
+# Example: _parse_pr_review_args num args 42 --approve
+_parse_pr_review_args() {
+	local -n gh_pr_number_ref="$1"
+	local -n gh_pr_args_ref="$2"
+	shift 2
+
+	local args=("$@")
 	local skip_next=false
-	local arg
+	local i=0
 
-	for arg in "$@"; do
+	while [[ $i -lt ${#args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
+			((++i))
 			continue
 		fi
 
-		case "$arg" in
+		case "${args[$i]}" in
 		--body | -b | --body-file | -F)
 			skip_next=true
 			;;
 		--body=* | --body-file=*) ;;
-		"$pr_number") ;;
 		*)
-			filtered+=("$arg")
+			if [[ -z "$gh_pr_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="${args[$i]}"
+			else
+				gh_pr_args_ref+=("${args[$i]}")
+			fi
 			;;
 		esac
+		((++i))
 	done
 
-	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+	# Auto-detect PR number from current branch if not found in args
+	if [[ -z "$gh_pr_number_ref" ]]; then
+		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+	fi
+}
+
+# PR review help function
+#
+# Displays help information for the PR review command
+# including usage examples and available options.
+_show_pr_review_help() {
+	cat <<'EOF'
+gh ai pr review - Review PRs with AI-generated feedback
+
+USAGE:
+    gh ai pr review [PR_NUMBER] [OPTIONS]
+
+DESCRIPTION:
+    Submits a GitHub PR review with AI-generated feedback based on the
+    diff and commit history. Auto-detects PR from the current branch
+    if no number is provided.
+
+PASSTHROUGH FLAGS:
+    All flags are passed directly to gh pr review.
+    See gh pr review --help for the full list.
+
+EXAMPLES:
+    gh ai pr review 42
+    gh ai pr review 42 --approve
+    gh ai pr review              # auto-detect PR from current branch
+EOF
 }
 
 # PR Review implementation
@@ -215,28 +298,27 @@ _filter_pr_review_args() {
 #
 # Usage: _gh_pr_review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 _gh_pr_review() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_review_help
+		return 0
+		;;
+	esac
+
 	local args=("$@")
-	local clean_args
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_review.tmpl"
 
-	local gh_pr_number
-	# Resolve PR number from arguments or auto-detect from current branch
-	gh_pr_number=$(_get_pr_number "${args[@]}")
+	local gh_pr_number=""
+	local gh_pr_args=()
+	_parse_pr_review_args gh_pr_number gh_pr_args "${args[@]}"
+
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
 		gum log --level info "Usage: gh ai pr review <PR_NUMBER> [OPTIONS]"
 		return 1
-	fi
-
-	local filtered_args
-	filtered_args=$(_filter_pr_review_args "$gh_pr_number" "${args[@]}")
-	if [[ -n "$filtered_args" ]]; then
-		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
-	else
-		clean_args=()
 	fi
 
 	# Get PR diff using gh cli (--patch for full patch format)
@@ -280,7 +362,35 @@ _gh_pr_review() {
 	fi
 
 	# Submit review with AI-generated content
-	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${clean_args[@]}"
+	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${gh_pr_args[@]}"
+}
+
+# PR explain help function
+#
+# Displays help information for the PR explain command
+# including usage examples and available options.
+_show_pr_explain_help() {
+	cat <<'EOF'
+gh ai pr explain - Generate a plain-language explanation of a PR
+
+USAGE:
+    gh ai pr explain [PR_NUMBER] [--comment | --edit]
+
+DESCRIPTION:
+    Generates a plain-language explanation of what a pull request does.
+    By default prints to stdout. Auto-detects PR from the current branch
+    if no number is provided.
+
+FLAGS:
+        --comment   Post the explanation as a PR comment
+        --edit      Replace the PR description with the explanation
+
+EXAMPLES:
+    gh ai pr explain 42              # print to stdout
+    gh ai pr explain                 # auto-detect PR from current branch
+    gh ai pr explain 42 --comment    # post as PR comment
+    gh ai pr explain 42 --edit       # replace PR description
+EOF
 }
 
 # PR Explain implementation
@@ -290,15 +400,23 @@ _gh_pr_review() {
 #
 # Usage: _gh_pr_explain [PR_NUMBER] [--comment | --edit]
 _gh_pr_explain() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_explain_help
+		return 0
+		;;
+	esac
+
 	local args=("$@")
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
 
-	local gh_pr_number
-	# Resolve PR number from arguments or auto-detect from current branch
-	gh_pr_number=$(_get_pr_number "${args[@]}")
+	local gh_pr_number=""
+	local gh_pr_output_mode=""
+	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "${args[@]}"
+
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
 		gum log --level info "Usage: gh ai pr explain [PR_NUMBER] [--comment | --edit]"
@@ -353,22 +471,18 @@ _gh_pr_explain() {
 		return 1
 	fi
 
-	# Output based on flags
-	local arg
-	for arg in "${args[@]}"; do
-		case "$arg" in
-		--comment)
-			gh pr comment "$gh_pr_number" --body "$output"
-			return 0
-			;;
-		--edit)
-			gh pr edit "$gh_pr_number" --body "$output"
-			return 0
-			;;
-		esac
-	done
-
-	printf '%s\n' "$output"
+	# Output based on mode
+	case "$gh_pr_output_mode" in
+	comment)
+		gh pr comment "$gh_pr_number" --body "$output"
+		;;
+	edit)
+		gh pr edit "$gh_pr_number" --body "$output"
+		;;
+	*)
+		printf '%s\n' "$output"
+		;;
+	esac
 }
 
 # PR help function

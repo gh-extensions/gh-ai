@@ -1,0 +1,43 @@
+Create an implementation plan for the following GitHub issue.
+
+<issue>
+Number: {{ param "GH_ISSUE_NUMBER" }}
+Title: {{ param "GH_ISSUE_TITLE" }}
+Body: {{ param "GH_ISSUE_BODY" }}
+Labels: {{ param "GH_ISSUE_LABELS" }}
+</issue>
+
+<comments>
+{{ param "GH_ISSUE_COMMENTS" }}
+</comments>
+
+<format>
+- First line: PR title — `# {title}`, clear and specific, under 72 chars
+- Body: GitHub-flavored Markdown
+- Include `Closes #N` reference to the issue
+- Implementation plan as a TODO checklist with concrete steps, each prefixed with a sequential ID: `T001 - {step}`
+- Acceptance criteria as checkboxes
+- Omit sections that do not apply; do not write "N/A"
+- Output only the PR content, no preamble or commentary
+</format>
+
+<body>
+# {title}
+
+Closes #{{ param "GH_ISSUE_NUMBER" }}
+
+## Summary
+
+{1–2 sentence overview of what this PR will implement}
+
+## Implementation Plan
+
+- [ ] T001 - {concrete implementation step}
+- [ ] T002 - {concrete implementation step}
+- [ ] T003 - {concrete implementation step}
+
+## Acceptance Criteria
+
+- [ ] {criterion that defines "done"}
+- [ ] {criterion that defines "done"}
+</body>
