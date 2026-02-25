@@ -197,9 +197,21 @@ _gh_issue_create() {
 		clean_args=()
 	fi
 
-	# Gather context
-	local gh_labels
-	gh_labels=$(gh label list --limit 50 --json name -q '.[].name' 2>/dev/null || true)
+	# Extract labels from args
+	local gh_labels=""
+	local i=0
+	while [[ $i -lt ${#args[@]} ]]; do
+		case "${args[$i]}" in
+		--label | -l)
+			[[ $((i + 1)) -lt ${#args[@]} ]] && gh_labels="${gh_labels:+$gh_labels, }${args[$((i + 1))]}"
+			((++i))
+			;;
+		--label=*)
+			gh_labels="${gh_labels:+$gh_labels, }${args[$i]#--label=}"
+			;;
+		esac
+		((++i))
+	done
 
 	local gh_issues
 	gh_issues=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
