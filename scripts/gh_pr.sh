@@ -69,6 +69,36 @@ _get_pr_body() {
 	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
 }
 
+# Filter out flags managed by gh-assistant from pr create arguments
+#
+# Removes title, body, and fill flags (and their values) since
+# the PR content is AI-generated. All other flags pass through.
+_filter_pr_create_args() {
+	local filtered=()
+	local skip_next=false
+	local arg
+
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		--title | -t | --body | -b | --body-file | -F)
+			skip_next=true
+			;;
+		--title=* | --body=* | --body-file=*) ;;
+		--fill | --fill-first | --fill-verbose) ;;
+		*)
+			filtered+=("$arg")
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
 # PR Create implementation
 #
 # Creates a GitHub PR with AI-generated title and description.
@@ -86,9 +116,7 @@ _gh_pr_create() {
 	template_file="$_gh_assistant_source_dir/templates/gh_pr_create.tmpl"
 
 	local filtered_args
-	filtered_args=$(_filter_args \
-		"--title -t --body -b --body-file -F" "--fill --fill-first --fill-verbose" -- "${args[@]}")
-	# Filter out assistant-managed arguments
+	filtered_args=$(_filter_pr_create_args "${args[@]}")
 	if [[ -n "$filtered_args" ]]; then
 		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
 	else
@@ -181,6 +209,39 @@ _gh_pr_create() {
 	gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
 }
 
+# Filter out flags managed by gh-assistant from pr review arguments
+#
+# Removes body flags (and their values) and the PR number since
+# the review content is AI-generated. All other flags pass through.
+_filter_pr_review_args() {
+	local pr_number="$1"
+	shift
+
+	local filtered=()
+	local skip_next=false
+	local arg
+
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		--body | -b | --body-file | -F)
+			skip_next=true
+			;;
+		--body=* | --body-file=*) ;;
+		"$pr_number") ;;
+		*)
+			filtered+=("$arg")
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
 # PR Review implementation
 #
 # Submits a GitHub PR review with AI-generated feedback.
@@ -207,8 +268,7 @@ _gh_pr_review() {
 	fi
 
 	local filtered_args
-	filtered_args=$(_filter_args "--body -b --body-file -F" "$gh_pr_number" -- "${args[@]}")
-	# Filter out assistant-managed arguments and the PR number
+	filtered_args=$(_filter_pr_review_args "$gh_pr_number" "${args[@]}")
 	if [[ -n "$filtered_args" ]]; then
 		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
 	else

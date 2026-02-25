@@ -29,6 +29,36 @@ SEE ALSO:
 EOF
 }
 
+# Filter out flags managed by gh-assistant from git commit arguments
+#
+# Removes -m/--message and -F/--file flags (and their values) since
+# the commit message is AI-generated. All other flags pass through.
+_filter_commit_args() {
+	local filtered=()
+	local skip_next=false
+	local arg
+
+	for arg in "$@"; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			continue
+		fi
+
+		case "$arg" in
+		-m | --message | -F | --file)
+			skip_next=true
+			;;
+		--message=* | --file=*)
+			;;
+		*)
+			filtered+=("$arg")
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
 # Main commit command implementation
 #
 # Creates a git commit with an AI-generated message based on staged changes.
@@ -53,8 +83,7 @@ _gh_commit() {
 	template_file="$_gh_assistant_source_dir/templates/gh_commit.tmpl"
 
 	local filtered_args
-	filtered_args=$(_filter_args "-m --message -F --file" "" -- "${args[@]}")
-	# Filter out assistant-managed arguments
+	filtered_args=$(_filter_commit_args "${args[@]}")
 	if [[ -n "$filtered_args" ]]; then
 		IFS=$'\n' read -rd '' -a clean_args <<<"$filtered_args" || true
 	else
