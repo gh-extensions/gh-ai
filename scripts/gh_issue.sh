@@ -45,7 +45,7 @@ OPTIONS:
 
 EXAMPLES:
     gh ai issue create -d "Login page crashes with special chars"
-    gh ai issue create --label bug --assignee @me "Login crash"
+    gh ai issue create -d "Login crash" --label bug --assignee @me
     gh ai issue create                     # interactive prompt
     some_command 2>&1 | gh ai issue create -d "Command X fails"
 
@@ -56,42 +56,27 @@ EOF
 
 # Extract issue description from arguments
 #
-# Looks for -d/--description flag or first positional argument.
-# Flag takes priority over positional.
+# Looks for -d/--description flag value.
 #
 # Example: _get_issue_description -d "Login crash" --label bug  # Returns: Login crash
-# Example: _get_issue_description "Login crash" --label bug     # Returns: Login crash
 _get_issue_description() {
-	local issue_description=""
-	local positional=""
-	local consume=""
+	local consume=false
 
 	local arg
 	for arg in "$@"; do
-		if [[ -n "$consume" ]]; then
-			issue_description="$arg"
-			consume=""
-			continue
+		if [ "$consume" = true ]; then
+			echo "$arg"
+			return 0
 		fi
 
 		case "$arg" in
-		--description | -d) consume=yes ;;
-		--description=*) issue_description="${arg#--description=}" ;;
-		--*) ;;
-		*)
-			if [[ -z "$positional" ]]; then
-				positional="$arg"
-			fi
+		--description | -d) consume=true ;;
+		--description=*)
+			echo "${arg#--description=}"
+			return 0
 			;;
 		esac
 	done
-
-	# Flag takes priority over positional
-	if [[ -n "$issue_description" ]]; then
-		echo "$issue_description"
-	elif [[ -n "$positional" ]]; then
-		echo "$positional"
-	fi
 }
 
 # Extract labels from arguments
@@ -123,15 +108,11 @@ _get_issue_labels() {
 
 # Filter out flags managed by gh-ai from issue create arguments
 #
-# Removes description, title, body, template flags (and their values),
-# and the first positional argument (description fallback).
-# Flags that take values (--label, --assignee, etc.) are preserved
-# along with their values.
+# Removes description, title, body, and template flags (and their values)
+# since the issue content is AI-generated. All other flags pass through.
 _filter_issue_create_args() {
 	local filtered=()
 	local skip_next=false
-	local pass_next=false
-	local first_positional=true
 	local arg
 
 	for arg in "$@"; do
@@ -140,31 +121,13 @@ _filter_issue_create_args() {
 			continue
 		fi
 
-		if [ "$pass_next" = true ]; then
-			filtered+=("$arg")
-			pass_next=false
-			continue
-		fi
-
 		case "$arg" in
 		--description | -d | --title | -t | --body | -b | --body-file | -F | --template | -T)
 			skip_next=true
 			;;
 		--description=* | --title=* | --body=* | --body-file=* | --template=*) ;;
-		--assignee | -a | --label | -l | --milestone | -m | --project | -p)
-			filtered+=("$arg")
-			pass_next=true
-			;;
-		--*)
-			filtered+=("$arg")
-			;;
 		*)
-			# Skip first positional (description fallback)
-			if [ "$first_positional" = true ]; then
-				first_positional=false
-			else
-				filtered+=("$arg")
-			fi
+			filtered+=("$arg")
 			;;
 		esac
 	done
