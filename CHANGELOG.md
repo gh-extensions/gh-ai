@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/gh-extensions/gh-ai/compare/v0.2.1...v0.3.0) (2026-02-25)
+
+
+### Features
+
+* add gh ai issue create command ([09a648e](https://github.com/gh-extensions/gh-ai/commit/09a648ebda8885c8b99d8c697daede442a796e6c))
+* add gh ai pr explain command ([4c988a6](https://github.com/gh-extensions/gh-ai/commit/4c988a600cc2bfa50a0b6a8c887ba65ce16f2a2d))
+
+
+### Bug Fixes
+
+* preserve flag values when filtering issue create args ([f3cca86](https://github.com/gh-extensions/gh-ai/commit/f3cca86d091b0db548f2e05b2c7735df8ac5d81e))
+* remove dead _show_issue_create_help and fix stale comments ([766950e](https://github.com/gh-extensions/gh-ai/commit/766950e82a78ea7f2239dbfff7cdbdf164b95b90))
+
 ## [0.2.1](https://github.com/gh-extensions/gh-ai/compare/v0.2.0...v0.2.1) (2026-02-25)
 
 
