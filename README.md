@@ -2,9 +2,7 @@
 
 # gh-ai
 
-A GitHub CLI extension that uses AI to generate commit messages, pull request
-descriptions and edits, code reviews, PR explanations, structured issues,
-issue edits, and implementation plans.
+A GitHub CLI extension that uses AI to generate commit messages, create and edit pull requests and issues, review code, and explain CI failures.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
