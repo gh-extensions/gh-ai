@@ -46,7 +46,6 @@ OPTIONS:
 EXAMPLES:
     gh ai issue create -d "Login page crashes with special chars"
     gh ai issue create -d "Login crash" --label bug --assignee @me
-    gh ai issue create                     # interactive prompt
     some_command 2>&1 | gh ai issue create -d "Command X fails"
 
 SEE ALSO:
@@ -140,7 +139,7 @@ _filter_issue_create_args() {
 # Creates a GitHub issue with an AI-generated title and structured body.
 # Renders a prompt template with the description and repo context,
 # sends it to the AI provider, and parses the response.
-# Supports interactive mode (no args) and piped stdin context.
+# Supports piped stdin as additional context.
 #
 # Usage: _gh_issue_create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
 _gh_issue_create() {
@@ -166,14 +165,14 @@ _gh_issue_create() {
 		clean_args=()
 	fi
 
-	local issue_description
-	issue_description=$(_get_issue_description "${args[@]}")
+	local gh_issue_description
+	gh_issue_description=$(_get_issue_description "${args[@]}")
 
-	local issue_labels
-	issue_labels=$(_get_issue_labels "${args[@]}")
+	local gh_issue_labels
+	gh_issue_labels=$(_get_issue_labels "${args[@]}")
 
 	# If no description, try interactive or error
-	if [[ -z "$issue_description" ]]; then
+	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
 		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [OPTIONS]"
 		return 1
@@ -196,7 +195,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$issue_description" GH_LABELS="$issue_labels" GH_ISSUES="$gh_issue_list" EXTRA_CONTEXT="$extra_context" \
+				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_LABELS="$gh_issue_labels" GH_ISSUES="$gh_issue_list" EXTRA_CONTEXT="$extra_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)

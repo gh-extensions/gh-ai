@@ -48,8 +48,7 @@ _filter_commit_args() {
 		-m | --message | -F | --file)
 			skip_next=true
 			;;
-		--message=* | --file=*)
-			;;
+		--message=* | --file=*) ;;
 		*)
 			filtered+=("$arg")
 			;;
@@ -106,29 +105,29 @@ _gh_commit() {
 	local git_branch
 	git_branch=$(git rev-parse --abbrev-ref HEAD)
 
-	local git_commits
-	git_commits=$(git log --oneline -5 2>/dev/null | sed 's/^[a-f0-9]* /- /')
+	local git_log_oneline
+	git_log_oneline=$(git log --oneline -5 2>/dev/null | sed 's/^[a-f0-9]* /- /')
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.commit.model 2>/dev/null || true)
 
-	local git_message
+	local git_commit_message
 	# Generate commit message using assistant run
-	git_message=$(
+	git_commit_message=$(
 		gum spin --title "Generating Git commit message..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_commits" \
+				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_log_oneline" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
 	# Validate we got a commit message
-	if [[ -z "$git_message" ]]; then
+	if [[ -z "$git_commit_message" ]]; then
 		gum log --level error "Failed to generate commit message"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Commit with the generated message and pass through any extra args
-	git commit -m "$git_message" "${clean_args[@]}"
+	git commit -m "$git_commit_message" "${clean_args[@]}"
 }

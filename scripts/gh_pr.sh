@@ -128,9 +128,9 @@ _gh_pr_create() {
 	git_log=$(git log --oneline "origin/$git_base_branch".."$git_head_branch" 2>/dev/null ||
 		git log --oneline "$git_base_branch".."$git_head_branch" 2>/dev/null || true)
 
-	local git_commits
+	local git_log_oneline
 	# shellcheck disable=SC2001
-	git_commits=$(echo "$git_log" | sed 's/^[a-f0-9]* /- /')
+	git_log_oneline=$(echo "$git_log" | sed 's/^[a-f0-9]* /- /')
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
@@ -140,7 +140,7 @@ _gh_pr_create() {
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_commits" \
+				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 
 			)
@@ -153,25 +153,25 @@ _gh_pr_create() {
 		return 1
 	fi
 
-	local pr_title
+	local gh_pr_title
 	# Parse title from output
-	if ! pr_title=$(_get_title "$output"); then
+	if ! gh_pr_title=$(_get_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
-	local pr_body
+	local gh_pr_body
 	# Parse body from output
-	pr_body=$(_get_body "$output")
+	gh_pr_body=$(_get_body "$output")
 
 	# Validate we got body content
-	if [[ -z "$pr_body" ]]; then
+	if [[ -z "$gh_pr_body" ]]; then
 		gum log --level error "Failed to extract body from AI content"
 		return 1
 	fi
 
 	# Create PR with AI-generated content
-	gh pr create --title "$pr_title" --body "$pr_body" "${clean_args[@]}"
+	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${clean_args[@]}"
 }
 
 # Filter out flags managed by gh-ai from pr review arguments
@@ -252,8 +252,8 @@ _gh_pr_review() {
 	local git_diff_stat
 	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
 
-	local git_commits
-	git_commits=$(gum spin --title "Fetching GitHub pull request commits..." -- \
+	local git_commit_list
+	git_commit_list=$(gum spin --title "Fetching GitHub pull request commits..." -- \
 		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
 
 	local git_branch
@@ -263,25 +263,25 @@ _gh_pr_review() {
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
 
-	local pr_body
+	local gh_pr_body
 	# Generate review content using assistant run
-	pr_body=$(
+	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commits" GIT_BRANCH="$git_branch" \
+				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
 	# Validate we got review content
-	if [[ -z "$pr_body" ]]; then
+	if [[ -z "$gh_pr_body" ]]; then
 		gum log --level error "Failed to generate review content"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Submit review with AI-generated content
-	gh pr review "$gh_pr_number" --body "$pr_body" "${clean_args[@]}"
+	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${clean_args[@]}"
 }
 
 # PR Explain implementation
@@ -318,8 +318,8 @@ _gh_pr_explain() {
 	local git_diff_stat
 	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
 
-	local git_commits
-	git_commits=$(gum spin --title "Fetching GitHub pull request commits..." -- \
+	local git_commit_list
+	git_commit_list=$(gum spin --title "Fetching GitHub pull request commits..." -- \
 		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
 
 	local git_branch
@@ -327,11 +327,11 @@ _gh_pr_explain() {
 		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
 
 	# Fetch PR title and body
-	local pr_title
-	pr_title=$(gh pr view "$gh_pr_number" --json title -q '.title' 2>/dev/null || true)
+	local gh_pr_title
+	gh_pr_title=$(gh pr view "$gh_pr_number" --json title -q '.title' 2>/dev/null || true)
 
-	local pr_body
-	pr_body=$(gh pr view "$gh_pr_number" --json body -q '.body' 2>/dev/null || true)
+	local gh_pr_body
+	gh_pr_body=$(gh pr view "$gh_pr_number" --json body -q '.body' 2>/dev/null || true)
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
@@ -341,8 +341,8 @@ _gh_pr_explain() {
 	output=$(
 		gum spin --title "Generating GitHub pull request explanation..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				PR_TITLE="$pr_title" PR_BODY="$pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
-					GIT_COMMITS="$git_commits" GIT_BRANCH="$git_branch" \
+				PR_TITLE="$gh_pr_title" PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
+					GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
