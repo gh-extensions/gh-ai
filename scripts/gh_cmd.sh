@@ -89,8 +89,8 @@ _cmd_assist() {
 # Returns: "Fix bug in parser"
 _get_title() {
 	local ai_content="$1"
-	local title
 
+	local title
 	# Extract title (first line with # prefix removed)
 	title=$(printf '%s\n' "$ai_content" | head -n 1 | sed 's/^# *//')
 
@@ -104,13 +104,20 @@ _get_title() {
 
 # Extract body from AI response
 #
-# Takes everything after the first line of AI content (skipping the title)
-# and removes leading blank lines.
+# Takes everything after the first line of AI content (skipping the title),
+# removes leading blank lines, and prepends a markdownlint directive.
 _get_body() {
 	local ai_content="$1"
 
+	local body
 	# Extract body (skip first line) and remove leading blank lines
-	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
+	body=$(printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d')
+
+	# Suppress MD013 (line length) since AI output often exceeds 80 chars
+	local footer
+	footer="<!-- markdownlint-disable-file MD013 -->"
+
+	printf '%s\n\n%s\n' "$body" "$footer"
 }
 
 main() {

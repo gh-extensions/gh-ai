@@ -1,5 +1,3 @@
-<!-- markdownlint-disable-file MD013 -->
-
 # gh-ai
 
 A GitHub CLI extension that uses AI to generate commit messages, create and
@@ -149,3 +147,5 @@ gh config set gh-ai.pr.model sonnet
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2025 gh-extensions
+
+<!-- markdownlint-disable-file MD013 -->
