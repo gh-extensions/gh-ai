@@ -74,6 +74,39 @@ _cmd_assist() {
 	esac
 }
 
+# Extract title from AI response
+#
+# Gets the title from AI-generated content by taking the first line
+# and removing any markdown heading prefix (#).
+#
+# Example: _get_title "# Fix bug in parser\n\nDescription..."
+# Returns: "Fix bug in parser"
+_get_title() {
+	local ai_content="$1"
+	local title
+
+	# Extract title (first line with # prefix removed)
+	title=$(printf '%s\n' "$ai_content" | head -n 1 | sed 's/^# *//')
+
+	# Validate we got a title
+	if [[ -z "$title" ]]; then
+		return 1
+	fi
+
+	printf '%s\n' "$title"
+}
+
+# Extract body from AI response
+#
+# Takes everything after the first line of AI content (skipping the title)
+# and removes leading blank lines.
+_get_body() {
+	local ai_content="$1"
+
+	# Extract body (skip first line) and remove leading blank lines
+	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
+}
+
 main() {
 	local command
 	command="${1:-}"

@@ -35,40 +35,6 @@ _get_pr_number() {
 	fi
 }
 
-# Extract title from AI response
-#
-# Gets the PR title from AI-generated content by taking the first line
-# and removing any markdown heading prefix (#).
-#
-# Example: _get_pr_title "# Fix bug in parser\n\nDescription..."
-# Returns: "Fix bug in parser"
-_get_pr_title() {
-	local ai_content="$1"
-	local title
-
-	# Extract title (first line with # prefix removed)
-	title=$(printf '%s\n' "$ai_content" | head -n 1 | sed 's/^# *//')
-
-	# Validate we got a title
-	if [[ -z "$title" ]]; then
-		return 1
-	fi
-
-	printf '%s\n' "$title"
-}
-
-# Extract body from AI response
-#
-# Takes everything after the first line of AI content (skipping the title)
-# and removes leading blank lines. This avoids duplicating the title which is
-# already set in the PR title field.
-_get_pr_body() {
-	local ai_content="$1"
-
-	# Extract body (skip first line) and remove leading blank lines
-	printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d'
-}
-
 # Filter out flags managed by gh-ai from pr create arguments
 #
 # Removes title, body, and fill flags (and their values) since
@@ -190,14 +156,14 @@ _gh_pr_create() {
 
 	local pr_title
 	# Parse title from output
-	if ! pr_title=$(_get_pr_title "$output"); then
+	if ! pr_title=$(_get_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local pr_body
 	# Parse body from output
-	pr_body=$(_get_pr_body "$output")
+	pr_body=$(_get_body "$output")
 
 	# Validate we got body content
 	if [[ -z "$pr_body" ]]; then
@@ -319,6 +285,118 @@ _gh_pr_review() {
 	gh pr review "$gh_pr_number" --body "$pr_body" "${clean_args[@]}"
 }
 
+# Filter out flags managed by gh-ai from pr explain arguments
+#
+# Removes --comment, --edit, and the PR number since
+# these are handled by _gh_pr_explain. All other flags pass through.
+_filter_pr_explain_args() {
+	local pr_number="$1"
+	shift
+
+	local filtered=()
+	local arg
+
+	for arg in "$@"; do
+		case "$arg" in
+		--comment | --edit) ;;
+		"$pr_number") ;;
+		*)
+			filtered+=("$arg")
+			;;
+		esac
+	done
+
+	[[ ${#filtered[@]} -gt 0 ]] && printf '%s\n' "${filtered[@]}" || true
+}
+
+# PR Explain implementation
+#
+# Generates a plain-language explanation of what a PR does.
+# By default prints to stdout; supports --comment and --edit output modes.
+#
+# Usage: _gh_pr_explain [PR_NUMBER] [--comment | --edit]
+_gh_pr_explain() {
+	local args=("$@")
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
+
+	local gh_pr_number
+	# Resolve PR number from arguments or auto-detect from current branch
+	gh_pr_number=$(_get_pr_number "${args[@]}")
+	if [[ -z "$gh_pr_number" ]]; then
+		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level info "Usage: gh ai pr explain [PR_NUMBER] [--comment | --edit]"
+		return 1
+	fi
+
+	# Get PR diff using gh cli (--patch for full patch format)
+	local git_diff
+	git_diff=$(gum spin --title "Fetching GitHub pull request diff..." -- \
+		gh pr diff "$gh_pr_number" --patch || true)
+	if [[ -z "$git_diff" ]]; then
+		gum log --level error "Failed to get diff for PR #$gh_pr_number"
+		return 1
+	fi
+
+	local git_diff_stat
+	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
+
+	local git_commits
+	git_commits=$(gum spin --title "Fetching GitHub pull request commits..." -- \
+		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
+
+	local git_branch
+	git_branch=$(gum spin --title "Fetching GitHub pull request branch..." -- \
+		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
+
+	# Fetch PR title and body
+	local pr_title
+	pr_title=$(gh pr view "$gh_pr_number" --json title -q '.title' 2>/dev/null || true)
+
+	local pr_body
+	pr_body=$(gh pr view "$gh_pr_number" --json body -q '.body' 2>/dev/null || true)
+
+	local agent_model
+	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+
+	local output
+	# Generate explanation using assistant run
+	output=$(
+		gum spin --title "Generating GitHub pull request explanation..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+				PR_TITLE="$pr_title" PR_BODY="$pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
+					GIT_COMMITS="$git_commits" GIT_BRANCH="$git_branch" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Validate we got explanation content
+	if [[ -z "$output" ]]; then
+		gum log --level error "Failed to generate explanation"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	# Output based on flags
+	local arg
+	for arg in "${args[@]}"; do
+		case "$arg" in
+		--comment)
+			gh pr comment "$gh_pr_number" --body "$output"
+			return 0
+			;;
+		--edit)
+			gh pr edit "$gh_pr_number" --body "$output"
+			return 0
+			;;
+		esac
+	done
+
+	printf '%s\n' "$output"
+}
+
 # PR help function
 #
 # Displays comprehensive help information for all PR subcommands
@@ -330,17 +408,20 @@ gh ai pr - Pull request commands with AI assistance
 USAGE:
     gh ai pr create [GH_PR_CREATE_OPTIONS]
     gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+    gh ai pr explain [PR_NUMBER] [--comment | --edit]
 
 DESCRIPTION:
-    Creates and reviews GitHub pull requests with AI-generated content.
+    Creates, reviews, and explains GitHub pull requests with AI-generated content.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
     review      Review PRs with AI-generated feedback
+    explain     Generate a plain-language explanation of a PR
 
 SEE ALSO:
-    gh ai pr create --help    # Full list of gh pr create options
-    gh ai pr review --help    # Full list of gh pr review options
+    gh ai pr create --help     # Full list of gh pr create options
+    gh ai pr review --help     # Full list of gh pr review options
+    gh ai pr explain --help    # PR explain usage
 EOF
 }
 
@@ -362,12 +443,15 @@ _gh_pr() {
 	review)
 		_gh_pr_review "$@"
 		;;
+	explain)
+		_gh_pr_explain "$@"
+		;;
 	--help | -h | help | "")
 		_show_pr_help
 		;;
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, review"
+		gum log --level info "Available commands: create, review, explain"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		exit 1
 		;;

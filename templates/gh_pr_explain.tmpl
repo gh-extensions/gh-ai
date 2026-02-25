@@ -1,0 +1,51 @@
+Explain what this pull request does in clear, accessible language.
+
+<pr>
+Title: {{ param "PR_TITLE" }}
+Branch: {{ param "GIT_BRANCH" }}
+</pr>
+
+<current_description>
+{{ param "PR_BODY" }}
+</current_description>
+
+<diffstat>
+{{ param "GIT_DIFF_STAT" }}
+</diffstat>
+
+<diff>
+{{ param "GIT_DIFF" }}
+</diff>
+
+<context>
+<recent_commits>
+{{ param "GIT_COMMITS" }}
+</recent_commits>
+</context>
+
+<format>
+- Focus on *what* changed and *why*, not low-level code details
+- Organize by logical change group, not by file
+- 3–8 bullets per section
+- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
+- Omit sections that do not apply; do not write "N/A"
+- Output only the explanation, no preamble or commentary
+- Do NOT include a title line — the entire response is the explanation body
+</format>
+
+<body>
+## Summary
+
+{1–2 sentence overview of the PR's purpose}
+
+## What Changed
+
+{bulleted list of logical changes, grouped by feature or concern}
+
+## Impact
+
+- **Who is affected:** {users, developers, CI, etc.}
+- **Breaking changes:** {yes/no with details}
+- **Dependencies:** {new, removed, or updated dependencies}
+
+</body>
