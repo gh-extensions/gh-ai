@@ -113,7 +113,7 @@ _get_body() {
 	# Extract body (skip first line) and remove leading blank lines
 	body=$(printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d')
 
-	# Suppress MD013 (line length) since AI output often exceeds 80 chars
+	# Suppress common markdownlint warnings in AI-generated body
 	local footer
 	footer="<!-- markdownlint-disable-file MD013 MD022 MD041 MD047 -->"
 
