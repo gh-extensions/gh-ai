@@ -29,12 +29,11 @@ _cmd_render() {
 }
 
 _cmd_assist() {
-	local agent_model="${1:-}"
-
 	local agent_provider
 	agent_provider=$(gh config get gh-assistant.provider 2>/dev/null || true)
 	agent_provider="${agent_provider:-anthropic}"
 
+	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
 		agent_model=$(gh config get gh-assistant.model 2>/dev/null || true)
 		agent_model="${agent_model:-haiku}"
