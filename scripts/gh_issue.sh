@@ -184,9 +184,6 @@ _gh_issue_create() {
 		extra_context=$(cat)
 	fi
 
-	local gh_issue_list
-	gh_issue_list=$(gh issue list --limit 5 --state all --json number,title -q '.[] | "#" + (.number | tostring) + " " + .title' 2>/dev/null || true)
-
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
 
@@ -195,7 +192,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_LABELS="$gh_issue_labels" GH_ISSUES="$gh_issue_list" EXTRA_CONTEXT="$extra_context" \
+				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_LABELS="$gh_issue_labels" EXTRA_CONTEXT="$extra_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
