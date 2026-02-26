@@ -20,13 +20,13 @@
       {
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
-            bash # 4.4+ required; macOS ships with 3.2
+            bash
             gh
             gum
             jq
             bats
             shellcheck
-            gettext # provides envsubst
+            gettext
           ];
 
           shellHook = ''

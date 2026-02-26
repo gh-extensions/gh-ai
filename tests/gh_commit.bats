@@ -148,3 +148,19 @@ setup() {
 
 	[[ "$description" == "second" ]]
 }
+
+@test "T007: -d without value returns error" {
+	local description=""
+	local args=()
+	run _parse_commit_args description args -d
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T007: --description without value returns error" {
+	local description=""
+	local args=()
+	run _parse_commit_args description args --description
+
+	[[ "$status" -eq 1 ]]
+}

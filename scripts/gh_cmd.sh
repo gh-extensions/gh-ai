@@ -11,6 +11,12 @@ set -euo pipefail
 # Reads the given template file and uses envsubst to replace ${VAR} tokens
 # with the values of the corresponding environment variables.
 #
+# Safety: envsubst operates in a single pass over the template file. Values
+# read from the environment are substituted directly into the output without
+# being re-processed, so ${...} patterns inside a substituted value (e.g. in
+# a git diff) are never expanded. Template files use ALL_CAPS variable names
+# (GIT_DIFF, GH_PR_*, etc.) that do not overlap with standard shell variables.
+#
 # Usage: MY_VAR="value" _cmd_render template.tmpl
 _cmd_render() {
 	local template_file="$1"
