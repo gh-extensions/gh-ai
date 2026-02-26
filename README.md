@@ -28,7 +28,7 @@ gh extension install gh-extensions/gh-ai
 gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
 gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-gh ai pr review [-d <DESCRIPTION>] [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
