@@ -59,7 +59,7 @@ _parse_issue_create_args() {
 
 		case "${raw_args[$i]}" in
 		--description | -d)
-			if (( i + 1 >= ${#raw_args[@]} )); then
+			if ((i + 1 >= ${#raw_args[@]})); then
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
@@ -106,7 +106,7 @@ _parse_issue_edit_args() {
 
 		case "${raw_args[$i]}" in
 		--description | -d)
-			if (( i + 1 >= ${#raw_args[@]} )); then
+			if ((i + 1 >= ${#raw_args[@]})); then
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
@@ -170,7 +170,7 @@ EOF
 # and updates the issue with the parsed response.
 # Supports piped stdin as additional context.
 #
-# Usage: _gh_issue_edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+# Usage: _gh_issue_edit <NUMBER> -d <DESCRIPTION> [-- OPTIONS]
 _gh_issue_edit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -291,7 +291,7 @@ _parse_issue_develop_args() {
 
 		case "${raw_args[$i]}" in
 		--base | -b)
-			if (( i + 1 >= ${#raw_args[@]} )); then
+			if ((i + 1 >= ${#raw_args[@]})); then
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
@@ -299,10 +299,11 @@ _parse_issue_develop_args() {
 			skip_next=true
 			;;
 		--base=*)
+			# shellcheck disable=SC2034
 			gh_develop_base_ref="${raw_args[$i]#--base=}"
 			;;
 		--name | -n)
-			if (( i + 1 >= ${#raw_args[@]} )); then
+			if ((i + 1 >= ${#raw_args[@]})); then
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
@@ -310,10 +311,11 @@ _parse_issue_develop_args() {
 			skip_next=true
 			;;
 		--name=*)
+			# shellcheck disable=SC2034
 			gh_develop_name_ref="${raw_args[$i]#--name=}"
 			;;
 		--branch-repo)
-			if (( i + 1 >= ${#raw_args[@]} )); then
+			if ((i + 1 >= ${#raw_args[@]})); then
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
@@ -321,11 +323,12 @@ _parse_issue_develop_args() {
 			skip_next=true
 			;;
 		--branch-repo=*)
+			# shellcheck disable=SC2034
 			gh_develop_branch_repo_ref="${raw_args[$i]#--branch-repo=}"
 			;;
 		# -c mirrors the short form of `gh issue develop --checkout`
-		# shellcheck disable=SC2034
 		--checkout | -c)
+			# shellcheck disable=SC2034
 			gh_checkout_ref=true
 			;;
 		-*)
@@ -388,7 +391,7 @@ EOF
 # plan, and opens a pull request with that plan as the body.
 # Uses native `gh issue develop` for branch creation.
 #
-# Usage: _gh_issue_develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
+# Usage: _gh_issue_develop <NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- OPTIONS]
 _gh_issue_develop() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -562,7 +565,7 @@ EOF
 # sends it to the AI provider, and parses the response.
 # Supports piped stdin as additional context.
 #
-# Usage: _gh_issue_create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+# Usage: _gh_issue_create -d <DESCRIPTION> [-- OPTIONS]
 _gh_issue_create() {
 	case "${1:-}" in
 	--help | -h | help)

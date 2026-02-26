@@ -101,7 +101,7 @@ EOF
 # Renders a prompt template with git diff and commit context,
 # sends it to the AI provider, and parses the response.
 #
-# Usage: _gh_pr_create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+# Usage: _gh_pr_create [-d <DESCRIPTION>] [-B <BASE>] [-- OPTIONS]
 _gh_pr_create() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -300,7 +300,7 @@ EOF
 # with the description and PR context, sends it to the AI provider,
 # and updates the PR with the parsed response.
 #
-# Usage: _gh_pr_edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+# Usage: _gh_pr_edit [NUMBER] -d <DESCRIPTION> [-- OPTIONS]
 _gh_pr_edit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -535,7 +535,7 @@ EOF
 # sends it to the AI provider, and submits the response as a review.
 # Auto-detects PR number from current branch if not provided.
 #
-# Usage: _gh_pr_review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+# Usage: _gh_pr_review [NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]
 _gh_pr_review() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -644,7 +644,7 @@ EOF
 # Generates a plain-language explanation of what a PR does.
 # By default prints to stdout; supports --comment and --edit output modes.
 #
-# Usage: _gh_pr_explain [PR_NUMBER] [--comment | --edit]
+# Usage: _gh_pr_explain [NUMBER] [--comment | --edit]
 _gh_pr_explain() {
 	case "${1:-}" in
 	--help | -h | help)

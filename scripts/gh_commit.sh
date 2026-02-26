@@ -85,7 +85,7 @@ _parse_commit_args() {
 # Renders a prompt template with the staged diff and branch context,
 # sends it to the AI provider, and commits with the response.
 #
-# Usage: _gh_commit [-d <DESCRIPTION>] [-- GIT_COMMIT_OPTIONS]
+# Usage: _gh_commit [-d <DESCRIPTION>] [-- OPTIONS]
 _gh_commit() {
 	case "${1:-}" in
 	--help | -h | help)
