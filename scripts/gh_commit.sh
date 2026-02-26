@@ -45,35 +45,35 @@ _parse_commit_args() {
 	local -n git_commit_args_ref="$2"
 	shift 2
 
-	local _argv=("$@")
+	local _args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#_argv[@]} ]]; do
+	while [[ $i -lt ${#_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${_argv[$i]}" in
+		case "${_args[$i]}" in
 		--description | -d)
-			if (( i + 1 >= ${#_argv[@]} )); then
-				echo "error: ${_argv[$i]} requires a value" >&2
+			if (( i + 1 >= ${#_args[@]} )); then
+				echo "error: ${_args[$i]} requires a value" >&2
 				return 1
 			fi
-			gh_commit_description_ref="${_argv[$((i + 1))]}"
+			gh_commit_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			gh_commit_description_ref="${_argv[$i]#--description=}"
+			gh_commit_description_ref="${_args[$i]#--description=}"
 			;;
 		-m | --message | -F | --file)
 			skip_next=true
 			;;
 		--message=* | --file=*) ;;
 		*)
-			git_commit_args_ref+=("${_argv[$i]}")
+			git_commit_args_ref+=("${_args[$i]}")
 			;;
 		esac
 		((++i))
