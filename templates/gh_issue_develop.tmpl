@@ -1,14 +1,14 @@
 Create an implementation plan for the following GitHub issue.
 
 <issue>
-Number: {{ param "GH_ISSUE_NUMBER" }}
-Title: {{ param "GH_ISSUE_TITLE" }}
-Body: {{ param "GH_ISSUE_BODY" }}
-Labels: {{ param "GH_ISSUE_LABELS" }}
+Number: ${GH_ISSUE_NUMBER}
+Title: ${GH_ISSUE_TITLE}
+Body: ${GH_ISSUE_BODY}
+Labels: ${GH_ISSUE_LABELS}
 </issue>
 
 <comments>
-{{ param "GH_ISSUE_COMMENTS" }}
+${GH_ISSUE_COMMENTS}
 </comments>
 
 <format>
@@ -24,7 +24,7 @@ Labels: {{ param "GH_ISSUE_LABELS" }}
 <body>
 # {title}
 
-Closes #{{ param "GH_ISSUE_NUMBER" }}
+Closes #${GH_ISSUE_NUMBER}
 
 ## Summary
 

@@ -14,6 +14,7 @@ explain CI failures.
 - [JQ](https://jqlang.org) (`jq`) — macOS: `brew install jq`
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`) — macOS: `brew install bash`
 - [GitHub CLI](https://cli.github.com/) (`gh`) — macOS: `brew install gh`
+- [gettext](https://www.gnu.org/software/gettext/) (`envsubst`) — macOS: `brew install gettext`
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
 
 ## Installation

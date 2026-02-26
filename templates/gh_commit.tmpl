@@ -1,21 +1,21 @@
 Write a conventional commit message for the staged changes below.
 
 <diffstat>
-{{ param "GIT_DIFF_STAGED_STAT" }}
+${GIT_DIFF_STAGED_STAT}
 </diffstat>
 
 <diff>
-{{ param "GIT_DIFF_STAGED" }}
+${GIT_DIFF_STAGED}
 </diff>
 
 <context>
-Branch: {{ param "GIT_BRANCH" }}
+Branch: ${GIT_BRANCH}
 <recent_commits>
-{{ param "GIT_COMMITS" }}
+${GIT_COMMITS}
 </recent_commits>
 </context>
 
-{{ param "GH_COMMIT_DESCRIPTION" }}
+${GH_COMMIT_DESCRIPTION}
 
 <format>
 - Subject: `<type>[optional scope]: <description>` under 72 chars
