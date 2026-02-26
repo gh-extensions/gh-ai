@@ -283,17 +283,18 @@ _gh_issue_edit() {
 # Parse issue develop arguments in a single pass
 #
 # Extracts the issue number (first numeric arg), gh issue develop flags
-# (--base, --name, --branch-repo), and gh pr create passthrough args
-# via namerefs. Develop-only flags are a small explicit set; everything
-# else passes through to gh pr create.
+# (--base, --name, --branch-repo), gh pr create passthrough args, and the
+# checkout flag via namerefs. Develop-only flags are a small explicit set;
+# everything else passes through to gh pr create.
 #
-# Example: _parse_issue_develop_args num devargs prargs 42 --name my-branch --draft
+# Example: _parse_issue_develop_args num devargs prargs checkout 42 --name my-branch --draft
 _parse_issue_develop_args() {
 	local -n gh_issue_number_ref="$1"
 	# shellcheck disable=SC2178
 	local -n gh_issue_args_ref="$2"
 	local -n gh_pr_args_ref="$3"
-	shift 3
+	local -n gh_checkout_ref="$4"
+	shift 4
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -314,7 +315,7 @@ _parse_issue_develop_args() {
 		--base=* | --name=* | --branch-repo=*)
 			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
-		--checkout | -c) ;;
+		--checkout | -c) gh_checkout_ref=true ;;
 		--head | -H | -B)
 			skip_next=true
 			;;
@@ -370,8 +371,13 @@ PR FLAGS (gh pr create):
     -r, --reviewer handle      Request reviews from people or teams
     -w, --web                  Open the web browser to create the PR
 
+COMMIT FLAGS:
+    -c, --checkout   Check out the new branch locally (default: uses git-commit-tree,
+                     creates the initial commit without switching branches)
+
 EXAMPLES:
     gh ai issue develop 42
+    gh ai issue develop 42 --checkout
     gh ai issue develop 42 --draft
     gh ai issue develop 42 --base develop --label enhancement
     gh ai issue develop 42 --reviewer monalisa --milestone v1.0
@@ -402,7 +408,8 @@ _gh_issue_develop() {
 	local gh_issue_number=""
 	local gh_issue_args=()
 	local gh_pr_args=()
-	_parse_issue_develop_args gh_issue_number gh_issue_args gh_pr_args "${args[@]}"
+	local gh_checkout=false
+	_parse_issue_develop_args gh_issue_number gh_issue_args gh_pr_args gh_checkout "${args[@]}"
 
 	# Reject flags that are incompatible with AI content generation
 	for arg in "${gh_pr_args[@]}"; do
@@ -479,15 +486,36 @@ _gh_issue_develop() {
 		return 1
 	fi
 
-	# Create the development branch and checkout
-	gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
+	if [[ "$gh_checkout" == "true" ]]; then
+		# Standard approach: checkout branch locally
+		gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
 
-	# Empty commit so the PR has a diff against the base branch
-	git commit --allow-empty -m "chore: start work on #$gh_issue_number"
-	git push -u origin HEAD
+		# Empty commit so the PR has a diff against the base branch
+		git commit --allow-empty -m "chore: start work on #$gh_issue_number"
+		git push -u origin HEAD
 
-	# Create the pull request
-	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
+		# Create the pull request
+		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
+	else
+		# git-commit-tree approach: create branch without local checkout
+		local branch_output branch_name
+		branch_output=$(gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
+		branch_name=$(basename "$branch_output")
+
+		git fetch origin "$branch_name"
+
+		local tree_sha parent_sha new_commit
+		tree_sha=$(git rev-parse FETCH_HEAD^{tree})
+		parent_sha=$(git rev-parse FETCH_HEAD)
+		new_commit=$(git commit-tree "$tree_sha" -p "$parent_sha" \
+			-m "chore: start work on #$gh_issue_number")
+
+		git push origin "$new_commit:refs/heads/$branch_name"
+
+		# Create the pull request, explicitly naming the head branch
+		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
+			--head "$branch_name" "${gh_pr_args[@]}"
+	fi
 }
 
 # Issue create help function
