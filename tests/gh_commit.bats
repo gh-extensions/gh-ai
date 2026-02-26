@@ -164,3 +164,67 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 }
+
+# ---------------------------------------------------------------------------
+# T008: Incompatible flags rejected by _gh_commit
+# ---------------------------------------------------------------------------
+
+@test "T008: --fixup=value is rejected" {
+	run _gh_commit --fixup=HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --fixup with space is rejected" {
+	run _gh_commit --fixup HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --squash=value is rejected" {
+	run _gh_commit --squash=HEAD~1
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --squash with space is rejected" {
+	run _gh_commit --squash HEAD~1
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: -C is rejected" {
+	run _gh_commit -C HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --reuse-message=value is rejected" {
+	run _gh_commit --reuse-message=HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --reuse-message with space is rejected" {
+	run _gh_commit --reuse-message HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: -c is rejected" {
+	run _gh_commit -c HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --reedit-message=value is rejected" {
+	run _gh_commit --reedit-message=HEAD
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T008: --reedit-message with space is rejected" {
+	run _gh_commit --reedit-message HEAD
+
+	[[ "$status" -eq 1 ]]
+}

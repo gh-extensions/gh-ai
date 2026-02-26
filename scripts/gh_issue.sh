@@ -51,40 +51,40 @@ _parse_issue_create_args() {
 	local -n gh_issue_args_ref="$3"
 	shift 3
 
-	local args=("$@")
+	local raw_args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
+	while [[ $i -lt ${#raw_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${args[$i]}" in
+		case "${raw_args[$i]}" in
 		--description | -d)
-			gh_issue_description_ref="${args[$((i + 1))]}"
+			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			gh_issue_description_ref="${args[$i]#--description=}"
+			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		--label | -l)
-			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${args[$((i + 1))]}"
-			gh_issue_args_ref+=("${args[$i]}" "${args[$((i + 1))]}")
+			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${raw_args[$((i + 1))]}"
+			gh_issue_args_ref+=("${raw_args[$i]}" "${raw_args[$((i + 1))]}")
 			skip_next=true
 			;;
 		--label=*)
-			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${args[$i]#--label=}"
-			gh_issue_args_ref+=("${args[$i]}")
+			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${raw_args[$i]#--label=}"
+			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
-		--title | -t | --body | -b | --body-file | -F | --template | -T)
+		--title | -t | --body | -b | --body-file | -F)
 			skip_next=true
 			;;
-		--title=* | --body=* | --body-file=* | --template=*) ;;
+		--title=* | --body=* | --body-file=*) ;;
 		*)
-			gh_issue_args_ref+=("${args[$i]}")
+			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
 		esac
 		((++i))
@@ -105,35 +105,35 @@ _parse_issue_edit_args() {
 	local -n gh_issue_args_ref="$3"
 	shift 3
 
-	local args=("$@")
+	local raw_args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
+	while [[ $i -lt ${#raw_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${args[$i]}" in
+		case "${raw_args[$i]}" in
 		--description | -d)
-			gh_issue_description_ref="${args[$((i + 1))]}"
+			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
 			# shellcheck disable=SC2034
-			gh_issue_description_ref="${args[$i]#--description=}"
+			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		--title | -t | --body | -b | --body-file | -F)
 			skip_next=true
 			;;
 		--title=* | --body=* | --body-file=*) ;;
 		*)
-			if [[ -z "$gh_issue_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_issue_number_ref="${args[$i]}"
+			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="${raw_args[$i]}"
 			else
-				gh_issue_args_ref+=("${args[$i]}")
+				gh_issue_args_ref+=("${raw_args[$i]}")
 			fi
 			;;
 		esac
@@ -295,40 +295,39 @@ _parse_issue_develop_args() {
 	local -n gh_pr_args_ref="$3"
 	shift 3
 
-	local args=("$@")
+	local raw_args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
+	while [[ $i -lt ${#raw_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${args[$i]}" in
+		case "${raw_args[$i]}" in
 		--base | -b | --name | -n | --branch-repo)
-			gh_issue_args_ref+=("${args[$i]}" "${args[$((i + 1))]}")
+			gh_issue_args_ref+=("${raw_args[$i]}" "${raw_args[$((i + 1))]}")
 			skip_next=true
 			;;
 		--base=* | --name=* | --branch-repo=*)
-			gh_issue_args_ref+=("${args[$i]}")
+			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
 		--checkout | -c) ;;
 		--head | -H | -B)
 			skip_next=true
 			;;
 		--head=*) ;;
-		--title | -t | --body | --body-file | -F | --template | -T)
+		--title | -t | --body | --body-file | -F)
 			skip_next=true
 			;;
-		--title=* | --body=* | --body-file=* | --template=*) ;;
-		--fill | --fill-first | --fill-verbose) ;;
+		--title=* | --body=* | --body-file=*) ;;
 		*)
-			if [[ -z "$gh_issue_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_issue_number_ref="${args[$i]}"
+			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="${raw_args[$i]}"
 			else
-				gh_pr_args_ref+=("${args[$i]}")
+				gh_pr_args_ref+=("${raw_args[$i]}")
 			fi
 			;;
 		esac
@@ -404,6 +403,17 @@ _gh_issue_develop() {
 	local gh_issue_args=()
 	local gh_pr_args=()
 	_parse_issue_develop_args gh_issue_number gh_issue_args gh_pr_args "${args[@]}"
+
+	# Reject flags that are incompatible with AI content generation
+	for arg in "${gh_pr_args[@]}"; do
+		case "$arg" in
+		--fill | --fill-first | --fill-verbose | -T | --template | --template=*)
+			gum log --level error "'$arg' is not supported by gh ai issue develop"
+			gum log --level info "Use 'gh pr create $arg' directly instead"
+			return 1
+			;;
+		esac
+	done
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
@@ -535,6 +545,17 @@ _gh_issue_create() {
 	local gh_issue_labels=""
 	local gh_issue_args=()
 	_parse_issue_create_args gh_issue_description gh_issue_labels gh_issue_args "${args[@]}"
+
+	# Reject flags that are incompatible with AI content generation
+	for arg in "${gh_issue_args[@]}"; do
+		case "$arg" in
+		-T | --template | --template=*)
+			gum log --level error "'$arg' is not supported by gh ai issue create"
+			gum log --level info "Use 'gh issue create $arg' directly instead"
+			return 1
+			;;
+		esac
+	done
 
 	# If no description, error out
 	if [[ -z "$gh_issue_description" ]]; then

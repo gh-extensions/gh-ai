@@ -59,11 +59,10 @@ _parse_pr_create_args() {
 			git_base_branch_ref="${raw_args[$i]#--base=}"
 			gh_pr_args_ref+=("${raw_args[$i]}")
 			;;
-		--title | -t | --body | -b | --body-file | -F | --template | -T)
+		--title | -t | --body | -b | --body-file | -F)
 			skip_next=true
 			;;
-		--title=* | --body=* | --body-file=* | --template=*) ;;
-		--fill | --fill-first | --fill-verbose) ;;
+		--title=* | --body=* | --body-file=*) ;;
 		*)
 			gh_pr_args_ref+=("${raw_args[$i]}")
 			;;
@@ -127,6 +126,17 @@ _gh_pr_create() {
 	local gh_pr_description=""
 	local gh_pr_args=()
 	_parse_pr_create_args git_base_branch gh_pr_description gh_pr_args "${args[@]}"
+
+	# Reject flags that are incompatible with AI content generation
+	for arg in "${gh_pr_args[@]}"; do
+		case "$arg" in
+		--fill | --fill-first | --fill-verbose | -T | --template | --template=*)
+			gum log --level error "'$arg' is not supported by gh ai pr create"
+			gum log --level info "Use 'gh pr create $arg' directly instead"
+			return 1
+			;;
+		esac
+	done
 
 	local git_head_branch
 	git_head_branch=$(git rev-parse --abbrev-ref HEAD)

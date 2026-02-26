@@ -8,9 +8,9 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       flake-utils,
+      ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -31,7 +31,7 @@
 
           shellHook = ''
             if ! command -v claude &>/dev/null; then
-              echo "warning: 'claude' CLI not found — install via: npm install -g @anthropic-ai/claude-code"
+              echo "warning: 'claude' CLI not found — install via: https://code.claude.com/docs/en/terminal-guide"
             fi
           '';
         };

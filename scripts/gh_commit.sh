@@ -105,6 +105,17 @@ _gh_commit() {
 	local git_commit_args=()
 	_parse_commit_args gh_commit_description git_commit_args "${args[@]}"
 
+	# Reject flags that are incompatible with AI message generation
+	for arg in "${git_commit_args[@]}"; do
+		case "$arg" in
+		--fixup | --fixup=* | --squash | --squash=* | -C | --reuse-message | --reuse-message=* | -c | --reedit-message | --reedit-message=*)
+			gum log --level error "'$arg' is not supported by gh ai commit"
+			gum log --level info "Use 'git commit $arg' directly instead"
+			return 1
+			;;
+		esac
+	done
+
 	# Gather git context
 	local git_diff_staged
 	git_diff_staged=$(git diff --staged)
