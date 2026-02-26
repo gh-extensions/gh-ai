@@ -211,35 +211,35 @@ _parse_pr_edit_args() {
 	local -n gh_pr_args_ref="$3"
 	shift 3
 
-	local args=("$@")
+	local _args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
+	while [[ $i -lt ${#_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${args[$i]}" in
+		case "${_args[$i]}" in
 		--description | -d)
-			gh_pr_description_ref="${args[$((i + 1))]}"
+			gh_pr_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
 			# shellcheck disable=SC2034
-			gh_pr_description_ref="${args[$i]#--description=}"
+			gh_pr_description_ref="${_args[$i]#--description=}"
 			;;
 		--title | -t | --body | -b | --body-file | -F)
 			skip_next=true
 			;;
 		--title=* | --body=* | --body-file=*) ;;
 		*)
-			if [[ -z "$gh_pr_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="${args[$i]}"
+			if [[ -z "$gh_pr_number_ref" && "${_args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="${_args[$i]}"
 			else
-				gh_pr_args_ref+=("${args[$i]}")
+				gh_pr_args_ref+=("${_args[$i]}")
 			fi
 			;;
 		esac
@@ -448,35 +448,35 @@ _parse_pr_review_args() {
 	local -n gh_pr_args_ref="$3"
 	shift 3
 
-	local args=("$@")
+	local _args=("$@")
 	local skip_next=false
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
+	while [[ $i -lt ${#_args[@]} ]]; do
 		if [ "$skip_next" = true ]; then
 			skip_next=false
 			((++i))
 			continue
 		fi
 
-		case "${args[$i]}" in
+		case "${_args[$i]}" in
 		--description | -d)
-			gh_pr_description_ref="${args[$((i + 1))]}"
+			gh_pr_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
 			# shellcheck disable=SC2034
-			gh_pr_description_ref="${args[$i]#--description=}"
+			gh_pr_description_ref="${_args[$i]#--description=}"
 			;;
 		--body | -b | --body-file | -F)
 			skip_next=true
 			;;
 		--body=* | --body-file=*) ;;
 		*)
-			if [[ -z "$gh_pr_number_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="${args[$i]}"
+			if [[ -z "$gh_pr_number_ref" && "${_args[$i]}" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="${_args[$i]}"
 			else
-				gh_pr_args_ref+=("${args[$i]}")
+				gh_pr_args_ref+=("${_args[$i]}")
 			fi
 			;;
 		esac
