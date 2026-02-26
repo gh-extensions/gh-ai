@@ -494,12 +494,12 @@ _gh_issue_develop() {
 
 	if [ "$gh_checkout" = "true" ]; then
 		# Standard approach: checkout branch locally
-		gum spin --title "Creating branch #$gh_issue_number..." -- \
+		gum spin --title "Creating Git branch #$gh_issue_number..." -- \
 			gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
 
 		# Empty commit so the PR has a diff against the base branch
 		git commit --allow-empty -m "chore: start work on #$gh_issue_number"
-		gum spin --title "Pushing initial commit..." -- git push -u origin HEAD
+		gum spin --title "Pushing Git initial commit..." -- git push -u origin HEAD
 
 		# Create the pull request
 		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
@@ -507,7 +507,7 @@ _gh_issue_develop() {
 		# No-checkout approach: create the branch remotely, then add an initial
 		# commit via git commit-tree without switching the local working tree.
 		local gh_develop_url
-		gh_develop_url=$(gum spin --title "Creating branch #$gh_issue_number..." -- \
+		gh_develop_url=$(gum spin --title "Creating Git branch #$gh_issue_number..." -- \
 			gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
 		if [[ -z "$gh_develop_url" ]]; then
 			gum log --level error "Failed to create development branch for #$gh_issue_number"
@@ -524,7 +524,7 @@ _gh_issue_develop() {
 			return 1
 		fi
 
-		gum spin --title "Fetching branch $git_branch_name..." -- \
+		gum spin --title "Fetching Git branch $git_branch_name..." -- \
 			git fetch origin "$git_branch_name"
 
 		local git_tree_sha
@@ -538,7 +538,7 @@ _gh_issue_develop() {
 		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" \
 			-m "chore: start work on #$gh_issue_number")
 
-		gum spin --title "Pushing initial commit..." -- \
+		gum spin --title "Pushing Git initial commit..." -- \
 			git push origin "$git_commit_sha:refs/heads/$git_branch_name"
 
 		# Create the pull request, explicitly naming the head branch
