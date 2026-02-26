@@ -498,7 +498,7 @@ _show_pr_review_help() {
 gh ai pr review - Review PRs with AI-generated feedback
 
 USAGE:
-    gh ai pr review [-d <DESCRIPTION>] [PR_NUMBER] [OPTIONS]
+    gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [OPTIONS]
 
 DESCRIPTION:
     Submits a GitHub PR review with AI-generated feedback based on the
