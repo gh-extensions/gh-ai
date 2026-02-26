@@ -19,11 +19,7 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# Basic splitting
-# ---------------------------------------------------------------------------
-
-@test "no separator puts all args in before, after is empty" {
+@test "_split_on_separator: places all args in before when no -- present" {
 	local before=()
 	local after=()
 	_split_on_separator before after -d "desc" --flag
@@ -35,7 +31,7 @@ setup() {
 	[[ ${#after[@]} -eq 0 ]]
 }
 
-@test "clean split on --" {
+@test "_split_on_separator: splits args into before and after on --" {
 	local before=()
 	local after=()
 	_split_on_separator before after -d "desc" -- --signoff --no-verify
@@ -48,7 +44,7 @@ setup() {
 	[[ "${after[1]}" == "--no-verify" ]]
 }
 
-@test "empty before separator" {
+@test "_split_on_separator: handles empty before when -- is first arg" {
 	local before=()
 	local after=()
 	_split_on_separator before after -- --signoff
@@ -58,7 +54,7 @@ setup() {
 	[[ "${after[0]}" == "--signoff" ]]
 }
 
-@test "empty after separator" {
+@test "_split_on_separator: handles empty after when -- is last arg" {
 	local before=()
 	local after=()
 	_split_on_separator before after -d "desc" --
@@ -67,7 +63,7 @@ setup() {
 	[[ ${#after[@]} -eq 0 ]]
 }
 
-@test "no arguments produces two empty arrays" {
+@test "_split_on_separator: returns two empty arrays for no arguments" {
 	local before=()
 	local after=()
 	_split_on_separator before after
@@ -76,7 +72,7 @@ setup() {
 	[[ ${#after[@]} -eq 0 ]]
 }
 
-@test "second -- in tail is preserved as passthrough arg" {
+@test "_split_on_separator: passes second -- through as passthrough arg" {
 	local before=()
 	local after=()
 	_split_on_separator before after -d "desc" -- --signoff -- --extra
@@ -88,7 +84,7 @@ setup() {
 	[[ "${after[2]}" == "--extra" ]]
 }
 
-@test "special characters are preserved" {
+@test "_split_on_separator: preserves special characters across the split" {
 	local before=()
 	local after=()
 	_split_on_separator before after -d 'fix: handle $HOME & "quotes"' -- --message='hello world'
@@ -97,7 +93,7 @@ setup() {
 	[[ "${after[0]}" == "--message=hello world" ]]
 }
 
-@test "only -- separator produces two empty arrays" {
+@test "_split_on_separator: returns two empty arrays when only -- given" {
 	local before=()
 	local after=()
 	_split_on_separator before after --

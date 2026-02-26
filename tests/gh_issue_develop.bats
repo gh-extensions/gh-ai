@@ -26,11 +26,7 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T002: Issue number captured from positional arg
-# ---------------------------------------------------------------------------
-
-@test "T002: issue number captured as first numeric arg" {
+@test "_parse_issue_develop_args: captures issue number from first positional arg" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -41,11 +37,7 @@ setup() {
 	[[ -z "$base" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T003: gh issue develop flags captured as scalars
-# ---------------------------------------------------------------------------
-
-@test "T003: --base flag captures base value" {
+@test "_parse_issue_develop_args: sets base from --base flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -55,7 +47,7 @@ setup() {
 	[[ -z "$name" ]]
 }
 
-@test "T003: -b flag captures base value" {
+@test "_parse_issue_develop_args: sets base from -b flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -64,7 +56,7 @@ setup() {
 	[[ "$base" == "develop" ]]
 }
 
-@test "T003: --base=value captures base" {
+@test "_parse_issue_develop_args: sets base from --base=value" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -73,7 +65,7 @@ setup() {
 	[[ "$base" == "develop" ]]
 }
 
-@test "T003: --name flag captures name value" {
+@test "_parse_issue_develop_args: sets name from --name flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -82,7 +74,7 @@ setup() {
 	[[ "$name" == "my-branch" ]]
 }
 
-@test "T003: -n flag captures name value" {
+@test "_parse_issue_develop_args: sets name from -n flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -91,7 +83,7 @@ setup() {
 	[[ "$name" == "my-branch" ]]
 }
 
-@test "T003: --branch-repo flag captures branch_repo value" {
+@test "_parse_issue_develop_args: sets branch_repo from --branch-repo flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -100,11 +92,7 @@ setup() {
 	[[ "$branch_repo" == "owner/repo" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T004: Checkout flag handled
-# ---------------------------------------------------------------------------
-
-@test "T004: --checkout sets checkout=true" {
+@test "_parse_issue_develop_args: enables checkout with --checkout flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -113,7 +101,7 @@ setup() {
 	[[ "$checkout" == "true" ]]
 }
 
-@test "T004: -c sets checkout=true" {
+@test "_parse_issue_develop_args: enables checkout with -c flag" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -122,11 +110,7 @@ setup() {
 	[[ "$checkout" == "true" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases — combined flags
-# ---------------------------------------------------------------------------
-
-@test "T006: all flags parsed together" {
+@test "_parse_issue_develop_args: parses all flags together" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -138,11 +122,7 @@ setup() {
 	[[ "$name" == "my-branch" ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_issue_develop_args: returns error with hint for unknown flags" {
 	local number=""
 	local checkout=false
 	local base="" name="" branch_repo=""
@@ -153,7 +133,7 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# Helpers shared by T009/T010 integration tests
+# Helpers shared by _gh_issue_develop integration tests
 # ---------------------------------------------------------------------------
 
 # _setup_develop_mocks sets up gh/git/gum mocks that record calls to temp
@@ -202,11 +182,7 @@ _setup_develop_mocks() {
 	export -f gum
 }
 
-# ---------------------------------------------------------------------------
-# T009: checkout path — _gh_issue_develop with --checkout
-# ---------------------------------------------------------------------------
-
-@test "T009: checkout path calls gh issue develop with --checkout" {
+@test "_gh_issue_develop: passes --checkout to gh issue develop when -c given" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -220,7 +196,7 @@ _setup_develop_mocks() {
 	! grep -q "commit-tree" "$git_log"
 }
 
-@test "T009: checkout path gh pr create does not include --head" {
+@test "_gh_issue_develop: omits --head from gh pr create in checkout mode" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -230,11 +206,7 @@ _setup_develop_mocks() {
 	! grep -qx -- "--head" "$gh_log"
 }
 
-# ---------------------------------------------------------------------------
-# T010: no-checkout path — _gh_issue_develop without --checkout
-# ---------------------------------------------------------------------------
-
-@test "T010: no-checkout path does not call gh issue develop with --checkout" {
+@test "_gh_issue_develop: omits --checkout from gh issue develop by default" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -245,7 +217,7 @@ _setup_develop_mocks() {
 	! grep -qx -- "--checkout" "$gh_log"
 }
 
-@test "T010: no-checkout path uses git commit-tree workflow" {
+@test "_gh_issue_develop: uses commit-tree workflow without --checkout" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -257,7 +229,7 @@ _setup_develop_mocks() {
 	grep -q "push origin def456sha:refs/heads/42-test-issue" "$git_log"
 }
 
-@test "T010: no-checkout path gh pr create includes --head" {
+@test "_gh_issue_develop: passes --head to gh pr create without --checkout" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -268,7 +240,7 @@ _setup_develop_mocks() {
 	grep -qx "42-test-issue" "$gh_log"
 }
 
-@test "T010: no-checkout path does not call git commit --allow-empty" {
+@test "_gh_issue_develop: skips empty commit without --checkout" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -279,7 +251,7 @@ _setup_develop_mocks() {
 	! grep -q "push -u origin HEAD" "$git_log"
 }
 
-@test "T009: checkout path forwards --base to gh issue develop" {
+@test "_gh_issue_develop: forwards --base to gh issue develop in checkout mode" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -291,7 +263,7 @@ _setup_develop_mocks() {
 	grep -qx "main" "$gh_log"
 }
 
-@test "T010: no-checkout path fails when gh issue develop returns empty" {
+@test "_gh_issue_develop: fails when gh issue develop returns no branch URL" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -311,7 +283,7 @@ _setup_develop_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T010: passthrough flags reach gh pr create" {
+@test "_gh_issue_develop: forwards -- flags to gh pr create" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"

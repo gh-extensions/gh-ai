@@ -26,43 +26,35 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T001: -d/--description captured
-# ---------------------------------------------------------------------------
-
-@test "T001: -d flag captures description" {
+@test "_parse_issue_create_args: sets description from -d flag" {
 	local description=""
 	_parse_issue_create_args description -d "Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
-@test "T001: --description flag captures description" {
+@test "_parse_issue_create_args: sets description from --description flag" {
 	local description=""
 	_parse_issue_create_args description --description "Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
-@test "T001: --description=value form captures description" {
+@test "_parse_issue_create_args: sets description from --description=value" {
 	local description=""
 	_parse_issue_create_args description --description="Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases
-# ---------------------------------------------------------------------------
-
-@test "T006: no flags leaves description empty" {
+@test "_parse_issue_create_args: defaults description to empty when no flags given" {
 	local description=""
 	_parse_issue_create_args description
 
 	[[ -z "$description" ]]
 }
 
-@test "T006: description with special characters is preserved" {
+@test "_parse_issue_create_args: preserves special characters in description" {
 	local description=""
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
 	_parse_issue_create_args description -d "$expected"
@@ -70,29 +62,21 @@ setup() {
 	[[ "$description" == "$expected" ]]
 }
 
-@test "T006: -d and --description=value both work (last wins)" {
+@test "_parse_issue_create_args: last value wins when -d and --description both given" {
 	local description=""
 	_parse_issue_create_args description -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T007: Missing value errors
-# ---------------------------------------------------------------------------
-
-@test "T007: -d without value returns error" {
+@test "_parse_issue_create_args: returns error when -d has no value" {
 	local description=""
 	run _parse_issue_create_args description -d
 
 	[[ "$status" -eq 1 ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_issue_create_args: returns error with hint for unknown flags" {
 	local description=""
 	run _parse_issue_create_args description --label bug
 

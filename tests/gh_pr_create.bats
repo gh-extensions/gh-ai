@@ -26,11 +26,7 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T001: -d/--description captured
-# ---------------------------------------------------------------------------
-
-@test "T001: -d flag captures description" {
+@test "_parse_pr_create_args: sets description from -d flag" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description -d "focus on security"
@@ -38,7 +34,7 @@ setup() {
 	[[ "$description" == "focus on security" ]]
 }
 
-@test "T001: --description flag captures description" {
+@test "_parse_pr_create_args: sets description from --description flag" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description --description "improve readability"
@@ -46,7 +42,7 @@ setup() {
 	[[ "$description" == "improve readability" ]]
 }
 
-@test "T001: --description=value form captures description" {
+@test "_parse_pr_create_args: sets description from --description=value" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description --description="use imperative mood"
@@ -54,11 +50,7 @@ setup() {
 	[[ "$description" == "use imperative mood" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T002: --base/-B captured
-# ---------------------------------------------------------------------------
-
-@test "T002: --base captures branch" {
+@test "_parse_pr_create_args: sets base from --base flag" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description --base develop
@@ -66,7 +58,7 @@ setup() {
 	[[ "$base" == "develop" ]]
 }
 
-@test "T002: -B captures branch" {
+@test "_parse_pr_create_args: sets base from -B flag" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description -B main
@@ -74,7 +66,7 @@ setup() {
 	[[ "$base" == "main" ]]
 }
 
-@test "T002: --base=value captures branch" {
+@test "_parse_pr_create_args: sets base from --base=value" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description --base=develop
@@ -82,11 +74,7 @@ setup() {
 	[[ "$base" == "develop" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases
-# ---------------------------------------------------------------------------
-
-@test "T006: no flags leaves description and base empty" {
+@test "_parse_pr_create_args: defaults description and base to empty" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description
@@ -95,7 +83,7 @@ setup() {
 	[[ -z "$base" ]]
 }
 
-@test "T006: -d and --description=value both work in same invocation (last wins)" {
+@test "_parse_pr_create_args: last value wins when -d and --description both given" {
 	local base=""
 	local description=""
 	_parse_pr_create_args base description -d "first" --description="second"
@@ -103,7 +91,7 @@ setup() {
 	[[ "$description" == "second" ]]
 }
 
-@test "T006: description with special characters is preserved" {
+@test "_parse_pr_create_args: preserves special characters in description" {
 	local base=""
 	local description=""
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
@@ -112,11 +100,7 @@ setup() {
 	[[ "$description" == "$expected" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T007: Missing value errors
-# ---------------------------------------------------------------------------
-
-@test "T007: -d without value returns error" {
+@test "_parse_pr_create_args: returns error when -d has no value" {
 	local base=""
 	local description=""
 	run _parse_pr_create_args base description -d
@@ -124,7 +108,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: --description without value returns error" {
+@test "_parse_pr_create_args: returns error when --description has no value" {
 	local base=""
 	local description=""
 	run _parse_pr_create_args base description --description
@@ -132,7 +116,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: --base without value returns error" {
+@test "_parse_pr_create_args: returns error when --base has no value" {
 	local base=""
 	local description=""
 	run _parse_pr_create_args base description --base
@@ -140,7 +124,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: -B without value returns error" {
+@test "_parse_pr_create_args: returns error when -B has no value" {
 	local base=""
 	local description=""
 	run _parse_pr_create_args base description -B
@@ -148,11 +132,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_pr_create_args: returns error with hint for unknown flags" {
 	local base=""
 	local description=""
 	run _parse_pr_create_args base description --draft

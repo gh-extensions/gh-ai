@@ -27,11 +27,7 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T001: -d/--description captured
-# ---------------------------------------------------------------------------
-
-@test "T001: -d flag captures description" {
+@test "_parse_pr_review_args: sets description from -d flag" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description -d "focus on security"
@@ -39,7 +35,7 @@ setup() {
 	[[ "$description" == "focus on security" ]]
 }
 
-@test "T001: --description flag captures description" {
+@test "_parse_pr_review_args: sets description from --description flag" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description --description "improve readability"
@@ -47,7 +43,7 @@ setup() {
 	[[ "$description" == "improve readability" ]]
 }
 
-@test "T001: --description=value form captures description" {
+@test "_parse_pr_review_args: sets description from --description=value" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description --description="use imperative mood"
@@ -55,7 +51,7 @@ setup() {
 	[[ "$description" == "use imperative mood" ]]
 }
 
-@test "T001: PR number and -d flag both captured correctly" {
+@test "_parse_pr_review_args: captures both PR number and description" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description 42 -d "focus on security"
@@ -64,11 +60,7 @@ setup() {
 	[[ "$description" == "focus on security" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases
-# ---------------------------------------------------------------------------
-
-@test "T006: empty description leaves variable empty" {
+@test "_parse_pr_review_args: accepts empty string for -d" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description -d ""
@@ -76,7 +68,7 @@ setup() {
 	[[ -z "$description" ]]
 }
 
-@test "T006: description with special characters is preserved" {
+@test "_parse_pr_review_args: preserves special characters in description" {
 	local number=""
 	local description=""
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
@@ -85,7 +77,7 @@ setup() {
 	[[ "$description" == "$expected" ]]
 }
 
-@test "T006: no description flag leaves variable empty" {
+@test "_parse_pr_review_args: defaults description to empty when no flags given" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description
@@ -93,7 +85,7 @@ setup() {
 	[[ -z "$description" ]]
 }
 
-@test "T006: -d and --description=value both work in same invocation (last wins)" {
+@test "_parse_pr_review_args: last value wins when -d and --description both given" {
 	local number=""
 	local description=""
 	_parse_pr_review_args number description -d "first" --description="second"
@@ -101,7 +93,7 @@ setup() {
 	[[ "$description" == "second" ]]
 }
 
-@test "T007: -d without value returns error" {
+@test "_parse_pr_review_args: returns error when -d has no value" {
 	local number=""
 	local description=""
 	run _parse_pr_review_args number description -d
@@ -109,7 +101,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: --description without value returns error" {
+@test "_parse_pr_review_args: returns error when --description has no value" {
 	local number=""
 	local description=""
 	run _parse_pr_review_args number description --description
@@ -117,11 +109,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_pr_review_args: returns error with hint for unknown flags" {
 	local number=""
 	local description=""
 	run _parse_pr_review_args number description --approve

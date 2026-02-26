@@ -26,11 +26,7 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T001: -d/--description captured
-# ---------------------------------------------------------------------------
-
-@test "T001: -d flag captures description" {
+@test "_parse_pr_edit_args: sets description from -d flag" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description -d "add testing section"
@@ -38,7 +34,7 @@ setup() {
 	[[ "$description" == "add testing section" ]]
 }
 
-@test "T001: --description flag captures description" {
+@test "_parse_pr_edit_args: sets description from --description flag" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description --description "fix summary"
@@ -46,7 +42,7 @@ setup() {
 	[[ "$description" == "fix summary" ]]
 }
 
-@test "T001: --description=value form captures description" {
+@test "_parse_pr_edit_args: sets description from --description=value" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description --description="improve wording"
@@ -54,11 +50,7 @@ setup() {
 	[[ "$description" == "improve wording" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T002: PR number captured from positional arg
-# ---------------------------------------------------------------------------
-
-@test "T002: PR number captured as first numeric arg" {
+@test "_parse_pr_edit_args: captures PR number from first positional arg" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description 42 -d "fix summary"
@@ -67,7 +59,7 @@ setup() {
 	[[ "$description" == "fix summary" ]]
 }
 
-@test "T002: PR number alone is captured" {
+@test "_parse_pr_edit_args: captures PR number without other flags" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description 42
@@ -75,11 +67,7 @@ setup() {
 	[[ "$number" == "42" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases
-# ---------------------------------------------------------------------------
-
-@test "T006: no flags leaves description empty" {
+@test "_parse_pr_edit_args: defaults number and description to empty" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description
@@ -88,7 +76,7 @@ setup() {
 	[[ -z "$number" ]]
 }
 
-@test "T006: -d and --description=value both work in same invocation (last wins)" {
+@test "_parse_pr_edit_args: last value wins when -d and --description both given" {
 	local number=""
 	local description=""
 	_parse_pr_edit_args number description -d "first" --description="second"
@@ -96,7 +84,7 @@ setup() {
 	[[ "$description" == "second" ]]
 }
 
-@test "T006: description with special characters is preserved" {
+@test "_parse_pr_edit_args: preserves special characters in description" {
 	local number=""
 	local description=""
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
@@ -105,11 +93,7 @@ setup() {
 	[[ "$description" == "$expected" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T007: Missing value errors
-# ---------------------------------------------------------------------------
-
-@test "T007: -d without value returns error" {
+@test "_parse_pr_edit_args: returns error when -d has no value" {
 	local number=""
 	local description=""
 	run _parse_pr_edit_args number description -d
@@ -117,7 +101,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: --description without value returns error" {
+@test "_parse_pr_edit_args: returns error when --description has no value" {
 	local number=""
 	local description=""
 	run _parse_pr_edit_args number description --description
@@ -125,11 +109,7 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_pr_edit_args: returns error with hint for unknown flags" {
 	local number=""
 	local description=""
 	run _parse_pr_edit_args number description --add-label bug

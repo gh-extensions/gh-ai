@@ -31,50 +31,42 @@ setup() {
 	)"
 }
 
-# ---------------------------------------------------------------------------
-# T001: -d/--description captured
-# ---------------------------------------------------------------------------
-
-@test "T001: -d flag captures description" {
+@test "_parse_commit_args: sets description from -d flag" {
 	local description=""
 	_parse_commit_args description -d "focus on security"
 
 	[[ "$description" == "focus on security" ]]
 }
 
-@test "T001: --description flag captures description" {
+@test "_parse_commit_args: sets description from --description flag" {
 	local description=""
 	_parse_commit_args description --description "improve readability"
 
 	[[ "$description" == "improve readability" ]]
 }
 
-@test "T001: --description=value form captures description" {
+@test "_parse_commit_args: sets description from --description=value" {
 	local description=""
 	_parse_commit_args description --description="use imperative mood"
 
 	[[ "$description" == "use imperative mood" ]]
 }
 
-# ---------------------------------------------------------------------------
-# T006: Edge cases
-# ---------------------------------------------------------------------------
-
-@test "T006: empty description leaves variable empty" {
+@test "_parse_commit_args: accepts empty string for -d" {
 	local description=""
 	_parse_commit_args description -d ""
 
 	[[ -z "$description" ]]
 }
 
-@test "T006: description with special characters is preserved" {
+@test "_parse_commit_args: preserves special characters in description" {
 	local description=""
 	_parse_commit_args description -d "fix: handle \$HOME and 'quotes' & <html>"
 
 	[[ "$description" == 'fix: handle $HOME and '"'"'quotes'"'"' & <html>' ]]
 }
 
-@test "T006: long description is preserved verbatim" {
+@test "_parse_commit_args: preserves long description verbatim" {
 	local long_desc
 	long_desc="$(printf 'word%.0s ' {1..100})"
 	local description=""
@@ -83,39 +75,35 @@ setup() {
 	[[ "$description" == "$long_desc" ]]
 }
 
-@test "T006: no flags leaves description empty" {
+@test "_parse_commit_args: defaults description to empty when no flags given" {
 	local description=""
 	_parse_commit_args description
 
 	[[ -z "$description" ]]
 }
 
-@test "T006: -d and --description=value both work in same invocation (last wins)" {
+@test "_parse_commit_args: last value wins when -d and --description both given" {
 	local description=""
 	_parse_commit_args description -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
 
-@test "T007: -d without value returns error" {
+@test "_parse_commit_args: returns error when -d has no value" {
 	local description=""
 	run _parse_commit_args description -d
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "T007: --description without value returns error" {
+@test "_parse_commit_args: returns error when --description has no value" {
 	local description=""
 	run _parse_commit_args description --description
 
 	[[ "$status" -eq 1 ]]
 }
 
-# ---------------------------------------------------------------------------
-# Unknown flags before -- produce an error
-# ---------------------------------------------------------------------------
-
-@test "unknown flag before -- returns error with hint" {
+@test "_parse_commit_args: returns error with hint for unknown flags" {
 	local description=""
 	run _parse_commit_args description --signoff
 
