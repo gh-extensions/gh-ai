@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Unit and integration tests for gh ai commit -d/--description flag
+# Unit and integration tests for gh ai commit
 #
 # Requires bats-core: https://github.com/bats-core/bats-core
 # Run: bats tests/gh_commit.bats
@@ -23,82 +23,37 @@ setup() {
 	# shellcheck disable=SC2155
 	eval "$(
 		export _gh_ai_source_dir="$REPO_ROOT"
+		# shellcheck source=../scripts/gh_cmd.sh
+		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_commit.sh
 		source "$REPO_ROOT/scripts/gh_commit.sh"
-		declare -f _parse_commit_args _show_commit_help _gh_commit
+		declare -f _parse_commit_args _show_commit_help _gh_commit _split_on_separator
 	)"
 }
 
 # ---------------------------------------------------------------------------
-# T001 / T005: Integration — flag is recognised and captured
+# T001: -d/--description captured
 # ---------------------------------------------------------------------------
 
-@test "T001: -d flag captures description and excludes it from git args" {
+@test "T001: -d flag captures description" {
 	local description=""
-	local args=()
-	_parse_commit_args description args -d "focus on security"
+	_parse_commit_args description -d "focus on security"
 
 	[[ "$description" == "focus on security" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
-@test "T001: --description flag captures description and excludes it from git args" {
+@test "T001: --description flag captures description" {
 	local description=""
-	local args=()
-	_parse_commit_args description args --description "improve readability"
+	_parse_commit_args description --description "improve readability"
 
 	[[ "$description" == "improve readability" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "T001: --description=value form captures description" {
 	local description=""
-	local args=()
-	_parse_commit_args description args --description="use imperative mood"
+	_parse_commit_args description --description="use imperative mood"
 
 	[[ "$description" == "use imperative mood" ]]
-	[[ ${#args[@]} -eq 0 ]]
-}
-
-@test "T001: -d flag does not bleed into git passthrough args" {
-	local description=""
-	local args=()
-	_parse_commit_args description args --signoff -d "context" --no-verify
-
-	[[ "$description" == "context" ]]
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--signoff" ]]
-	[[ "${args[1]}" == "--no-verify" ]]
-}
-
-@test "T005: existing AI-managed flags (-m) are still stripped" {
-	local description=""
-	local args=()
-	_parse_commit_args description args -m "ignored message" --signoff
-
-	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 1 ]]
-	[[ "${args[0]}" == "--signoff" ]]
-}
-
-@test "T005: existing AI-managed flag (-F) is still stripped" {
-	local description=""
-	local args=()
-	_parse_commit_args description args -F file.txt --no-verify
-
-	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 1 ]]
-	[[ "${args[0]}" == "--no-verify" ]]
-}
-
-@test "T005: --message=value form is still stripped" {
-	local description=""
-	local args=()
-	_parse_commit_args description args --message="ignored" --signoff
-
-	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 1 ]]
-	[[ "${args[0]}" == "--signoff" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -107,17 +62,14 @@ setup() {
 
 @test "T006: empty description leaves variable empty" {
 	local description=""
-	local args=()
-	_parse_commit_args description args -d ""
+	_parse_commit_args description -d ""
 
 	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "T006: description with special characters is preserved" {
 	local description=""
-	local args=()
-	_parse_commit_args description args -d "fix: handle \$HOME and 'quotes' & <html>"
+	_parse_commit_args description -d "fix: handle \$HOME and 'quotes' & <html>"
 
 	[[ "$description" == 'fix: handle $HOME and '"'"'quotes'"'"' & <html>' ]]
 }
@@ -126,105 +78,47 @@ setup() {
 	local long_desc
 	long_desc="$(printf 'word%.0s ' {1..100})"
 	local description=""
-	local args=()
-	_parse_commit_args description args -d "$long_desc"
+	_parse_commit_args description -d "$long_desc"
 
 	[[ "$description" == "$long_desc" ]]
 }
 
-@test "T006: no description flag leaves variable empty and passes all args" {
+@test "T006: no flags leaves description empty" {
 	local description=""
-	local args=()
-	_parse_commit_args description args --signoff --no-verify
+	_parse_commit_args description
 
 	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 2 ]]
 }
 
 @test "T006: -d and --description=value both work in same invocation (last wins)" {
 	local description=""
-	local args=()
-	_parse_commit_args description args -d "first" --description="second"
+	_parse_commit_args description -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
 
 @test "T007: -d without value returns error" {
 	local description=""
-	local args=()
-	run _parse_commit_args description args -d
+	run _parse_commit_args description -d
 
 	[[ "$status" -eq 1 ]]
 }
 
 @test "T007: --description without value returns error" {
 	local description=""
-	local args=()
-	run _parse_commit_args description args --description
+	run _parse_commit_args description --description
 
 	[[ "$status" -eq 1 ]]
 }
 
 # ---------------------------------------------------------------------------
-# T008: Incompatible flags rejected by _gh_commit
+# Unknown flags before -- produce an error
 # ---------------------------------------------------------------------------
 
-@test "T008: --fixup=value is rejected" {
-	run _gh_commit --fixup=HEAD
+@test "unknown flag before -- returns error with hint" {
+	local description=""
+	run _parse_commit_args description --signoff
 
 	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --fixup with space is rejected" {
-	run _gh_commit --fixup HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --squash=value is rejected" {
-	run _gh_commit --squash=HEAD~1
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --squash with space is rejected" {
-	run _gh_commit --squash HEAD~1
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: -C is rejected" {
-	run _gh_commit -C HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --reuse-message=value is rejected" {
-	run _gh_commit --reuse-message=HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --reuse-message with space is rejected" {
-	run _gh_commit --reuse-message HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: -c is rejected" {
-	run _gh_commit -c HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --reedit-message=value is rejected" {
-	run _gh_commit --reedit-message=HEAD
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "T008: --reedit-message with space is rejected" {
-	run _gh_commit --reedit-message HEAD
-
-	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"use -- to pass flags to git commit"* ]]
 }

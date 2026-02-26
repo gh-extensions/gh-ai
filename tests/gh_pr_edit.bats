@@ -18,56 +18,40 @@ setup() {
 	# shellcheck disable=SC2155
 	eval "$(
 		export _gh_ai_source_dir="$REPO_ROOT"
+		# shellcheck source=../scripts/gh_cmd.sh
+		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_edit_args _show_pr_edit_help _gh_pr_edit
+		declare -f _parse_pr_edit_args _show_pr_edit_help _gh_pr_edit _split_on_separator
 	)"
 }
 
 # ---------------------------------------------------------------------------
-# T001: -d/--description captured and excluded from passthrough
+# T001: -d/--description captured
 # ---------------------------------------------------------------------------
 
-@test "T001: -d flag captures description and excludes it from passthrough args" {
+@test "T001: -d flag captures description" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -d "add testing section"
+	_parse_pr_edit_args number description -d "add testing section"
 
 	[[ "$description" == "add testing section" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
-@test "T001: --description flag captures description and excludes it from passthrough args" {
+@test "T001: --description flag captures description" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --description "fix summary"
+	_parse_pr_edit_args number description --description "fix summary"
 
 	[[ "$description" == "fix summary" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "T001: --description=value form captures description" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --description="improve wording"
+	_parse_pr_edit_args number description --description="improve wording"
 
 	[[ "$description" == "improve wording" ]]
-	[[ ${#args[@]} -eq 0 ]]
-}
-
-@test "T001: -d flag does not bleed into passthrough args" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -d "context" --add-label bug
-
-	[[ "$description" == "context" ]]
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-	[[ "${args[1]}" == "bug" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -77,150 +61,37 @@ setup() {
 @test "T002: PR number captured as first numeric arg" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args 42 -d "fix summary"
+	_parse_pr_edit_args number description 42 -d "fix summary"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "fix summary" ]]
-	[[ ${#args[@]} -eq 0 ]]
 }
 
-@test "T002: PR number does not bleed into passthrough args" {
+@test "T002: PR number alone is captured" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args 42 --add-label bug
+	_parse_pr_edit_args number description 42
 
 	[[ "$number" == "42" ]]
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-	[[ "${args[1]}" == "bug" ]]
-}
-
-@test "T002: non-numeric arg is not captured as PR number" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --add-label bug
-
-	[[ -z "$number" ]]
-	[[ ${#args[@]} -eq 2 ]]
-}
-
-# ---------------------------------------------------------------------------
-# T005: AI-managed flags stripped silently
-# ---------------------------------------------------------------------------
-
-@test "T005: -t flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -t "ignored title" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-	[[ "${args[1]}" == "bug" ]]
-}
-
-@test "T005: --title flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --title "ignored" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: --title=value form is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --title="ignored" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: -b flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -b "ignored body" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: --body flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --body "ignored" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: --body=value form is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --body="ignored" --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: -F flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -F body.md --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: --body-file flag is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --body-file body.md --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
-}
-
-@test "T005: --body-file=value form is stripped" {
-	local number=""
-	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --body-file=body.md --add-label bug
-
-	[[ ${#args[@]} -eq 2 ]]
-	[[ "${args[0]}" == "--add-label" ]]
 }
 
 # ---------------------------------------------------------------------------
 # T006: Edge cases
 # ---------------------------------------------------------------------------
 
-@test "T006: no flags leaves description empty and passes all args" {
+@test "T006: no flags leaves description empty" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args --add-label bug --remove-label wip
+	_parse_pr_edit_args number description
 
 	[[ -z "$description" ]]
-	[[ ${#args[@]} -eq 4 ]]
+	[[ -z "$number" ]]
 }
 
 @test "T006: -d and --description=value both work in same invocation (last wins)" {
 	local number=""
 	local description=""
-	local args=()
-	_parse_pr_edit_args number description args -d "first" --description="second"
+	_parse_pr_edit_args number description -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
@@ -228,9 +99,8 @@ setup() {
 @test "T006: description with special characters is preserved" {
 	local number=""
 	local description=""
-	local args=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_pr_edit_args number description args -d "$expected"
+	_parse_pr_edit_args number description -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
@@ -242,8 +112,7 @@ setup() {
 @test "T007: -d without value returns error" {
 	local number=""
 	local description=""
-	local args=()
-	run _parse_pr_edit_args number description args -d
+	run _parse_pr_edit_args number description -d
 
 	[[ "$status" -eq 1 ]]
 }
@@ -251,8 +120,20 @@ setup() {
 @test "T007: --description without value returns error" {
 	local number=""
 	local description=""
-	local args=()
-	run _parse_pr_edit_args number description args --description
+	run _parse_pr_edit_args number description --description
 
 	[[ "$status" -eq 1 ]]
+}
+
+# ---------------------------------------------------------------------------
+# Unknown flags before -- produce an error
+# ---------------------------------------------------------------------------
+
+@test "unknown flag before -- returns error with hint" {
+	local number=""
+	local description=""
+	run _parse_pr_edit_args number description --add-label bug
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"use -- to pass flags to gh pr edit"* ]]
 }

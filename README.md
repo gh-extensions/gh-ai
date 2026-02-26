@@ -25,14 +25,14 @@ gh extension install gh-extensions/gh-ai
 ## Usage
 
 ```bash
-gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
-gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
-gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
+gh ai commit [-d <DESCRIPTION>] [-- GIT_COMMIT_OPTIONS]
+gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
-gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
-gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-gh ai issue develop <ISSUE_NUMBER> [-c] [GH_ISSUE_DEVELOP_OPTIONS]
+gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
 gh ai run explain <RUN_ID>
 ```
 
@@ -46,8 +46,8 @@ the AI when writing the message.
 git add -p
 gh ai commit
 gh ai commit -d "focus on the security improvements"
-gh ai commit --signoff
-gh ai commit --no-verify
+gh ai commit -- --signoff
+gh ai commit -- --no-verify
 ```
 
 ### Pull Request
@@ -56,7 +56,7 @@ Creates a pull request with an AI-generated title and description.
 
 ```bash
 gh ai pr create
-gh ai pr create --draft --base develop
+gh ai pr create -B develop -- --draft
 gh ai pr create -d "focus on the security changes"
 ```
 
@@ -65,7 +65,7 @@ of what to change.
 
 ```bash
 gh ai pr edit 42 -d "add testing section"
-gh ai pr edit 42 -d "fix summary" --add-label bug
+gh ai pr edit 42 -d "fix summary" -- --add-label bug
 gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 ```
 
@@ -74,9 +74,9 @@ to provide extra context or focus areas that guide the AI review.
 
 ```bash
 gh ai pr review 42
-gh ai pr review 42 --approve
+gh ai pr review 42 -- --approve
 gh ai pr review -d "focus on security"
-gh ai pr review 42 -d "check error handling" --comment
+gh ai pr review 42 -d "check error handling" -- --comment
 gh ai pr review # auto-detects PR for the current branch
 ```
 
@@ -95,7 +95,7 @@ Creates a structured GitHub issue from a brief description.
 
 ```bash
 gh ai issue create -d "Login page crashes with special chars"
-gh ai issue create -d "Login crash" --label bug --assignee @me
+gh ai issue create -d "Login crash" -- --label bug --assignee @me
 some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
 ```
 
@@ -105,17 +105,17 @@ what to change.
 ```bash
 gh ai issue edit 42 -d "add acceptance criteria"
 gh ai issue edit 42 -d "fix typos and improve clarity"
-gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
+gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
 ```
 
 Develops an issue by creating a branch, generating an AI implementation plan,
 and opening a pull request.
 
 ```bash
-gh ai issue develop 42            # branch created remotely, working tree unchanged
-gh ai issue develop 42 --checkout # also check out the branch locally
-gh ai issue develop 42 --draft
-gh ai issue develop 42 --base develop
+gh ai issue develop 42              # branch created remotely, working tree unchanged
+gh ai issue develop 42 --checkout   # also check out the branch locally
+gh ai issue develop 42 -- --draft
+gh ai issue develop 42 -b develop
 ```
 
 ### Run

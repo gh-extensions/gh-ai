@@ -15,9 +15,9 @@ _show_issue_help() {
 gh ai issue - Issue commands with AI assistance
 
 USAGE:
-    gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
-    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-    gh ai issue develop <ISSUE_NUMBER> [-c] [GH_ISSUE_DEVELOP_OPTIONS]
+    gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
@@ -36,20 +36,15 @@ SEE ALSO:
 EOF
 }
 
-# Parse issue create arguments in a single pass
+# Parse issue create arguments (before -- separator)
 #
-# Extracts the description, labels (comma-separated for the template),
-# and passthrough args for gh issue create via namerefs.
-# Labels pass through to gh issue create AND are collected for the template.
-# AI-managed flags (--title, --body, --body-file, --template) are stripped.
+# Extracts the -d/--description value. Unknown flags produce an error
+# with a hint to use --.
 #
-# Example: _parse_issue_create_args desc labels args -d "Login crash" --label bug
+# Example: _parse_issue_create_args desc -d "Login crash"
 _parse_issue_create_args() {
 	local -n gh_issue_description_ref="$1"
-	local -n gh_issue_labels_ref="$2"
-	# shellcheck disable=SC2178
-	local -n gh_issue_args_ref="$3"
-	shift 3
+	shift
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -64,46 +59,39 @@ _parse_issue_create_args() {
 
 		case "${raw_args[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#raw_args[@]} )); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--label | -l)
-			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${raw_args[$((i + 1))]}"
-			gh_issue_args_ref+=("${raw_args[$i]}" "${raw_args[$((i + 1))]}")
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue create)" >&2
+			return 1
 			;;
-		--label=*)
-			gh_issue_labels_ref="${gh_issue_labels_ref:+$gh_issue_labels_ref, }${raw_args[$i]#--label=}"
-			gh_issue_args_ref+=("${raw_args[$i]}")
-			;;
-		--title | -t | --body | -b | --body-file | -F)
-			skip_next=true
-			;;
-		--title=* | --body=* | --body-file=*) ;;
 		*)
-			gh_issue_args_ref+=("${raw_args[$i]}")
+			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			return 1
 			;;
 		esac
 		((++i))
 	done
 }
 
-# Parse issue edit arguments in a single pass
+# Parse issue edit arguments (before -- separator)
 #
-# Extracts the issue number (first numeric arg), description, and
-# passthrough args for gh issue edit via namerefs.
-# AI-managed flags (--title, --body, --body-file) are stripped.
+# Extracts the issue number (first numeric arg) and -d/--description value.
+# Unknown flags produce an error with a hint to use --.
 #
-# Example: _parse_issue_edit_args num desc args 42 -d "add acceptance criteria" --add-label bug
+# Example: _parse_issue_edit_args num desc 42 -d "add acceptance criteria"
 _parse_issue_edit_args() {
 	local -n gh_issue_number_ref="$1"
 	local -n gh_issue_description_ref="$2"
-	# shellcheck disable=SC2178
-	local -n gh_issue_args_ref="$3"
-	shift 3
+	shift 2
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -118,6 +106,10 @@ _parse_issue_edit_args() {
 
 		case "${raw_args[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#raw_args[@]} )); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
@@ -125,15 +117,16 @@ _parse_issue_edit_args() {
 			# shellcheck disable=SC2034
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--title | -t | --body | -b | --body-file | -F)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue edit)" >&2
+			return 1
 			;;
-		--title=* | --body=* | --body-file=*) ;;
 		*)
 			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
 				gh_issue_number_ref="${raw_args[$i]}"
 			else
-				gh_issue_args_ref+=("${raw_args[$i]}")
+				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				return 1
 			fi
 			;;
 		esac
@@ -150,24 +143,21 @@ _show_issue_edit_help() {
 gh ai issue edit - Edit an existing issue with AI-generated content
 
 USAGE:
-    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]
+    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub issue using AI. Fetches the current issue
     content, applies the requested changes via AI, and updates the issue
-    title and body. Supports piped stdin as additional context.
+    title and body. Supports piped stdin as additional context. Options
+    after -- are passed directly to gh issue edit.
 
 FLAGS:
     -d, --description string   Description of the changes to make (required)
 
-PASSTHROUGH FLAGS:
-    All other flags are passed directly to gh issue edit.
-    See gh issue edit --help for the full list.
-
 EXAMPLES:
     gh ai issue edit 42 -d "add acceptance criteria"
     gh ai issue edit 42 -d "fix typos and improve clarity"
-    gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
+    gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
     some_command 2>&1 | gh ai issue edit 42 -d "add error output"
 EOF
 }
@@ -180,7 +170,7 @@ EOF
 # and updates the issue with the parsed response.
 # Supports piped stdin as additional context.
 #
-# Usage: _gh_issue_edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+# Usage: _gh_issue_edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 _gh_issue_edit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -189,7 +179,9 @@ _gh_issue_edit() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
@@ -197,18 +189,17 @@ _gh_issue_edit() {
 
 	local gh_issue_number=""
 	local gh_issue_description=""
-	local gh_issue_args=()
-	_parse_issue_edit_args gh_issue_number gh_issue_description gh_issue_args "${args[@]}"
+	_parse_issue_edit_args gh_issue_number gh_issue_description "${ai_args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -269,24 +260,23 @@ _gh_issue_edit() {
 	fi
 
 	# Edit issue with AI-generated content
-	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${gh_issue_args[@]}"
+	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${passthrough[@]}"
 }
 
-# Parse issue develop arguments in a single pass
+# Parse issue develop arguments (before -- separator)
 #
-# Extracts the issue number (first numeric arg), gh issue develop flags
-# (--base, --name, --branch-repo), gh pr create passthrough args, and the
-# checkout flag via namerefs. Develop-only flags are a small explicit set;
-# everything else passes through to gh pr create.
+# Extracts the issue number (first numeric arg), -c/--checkout flag, and
+# gh issue develop scalars (-b/--base, -n/--name, --branch-repo).
+# Unknown flags produce an error with a hint to use --.
 #
-# Example: _parse_issue_develop_args num devargs prargs checkout 42 --name my-branch --draft
+# Example: _parse_issue_develop_args num checkout base name branch_repo 42 -c -b develop
 _parse_issue_develop_args() {
 	local -n gh_issue_number_ref="$1"
-	# shellcheck disable=SC2178
-	local -n gh_issue_args_ref="$2"
-	local -n gh_pr_args_ref="$3"
-	local -n gh_checkout_ref="$4"
-	shift 4
+	local -n gh_checkout_ref="$2"
+	local -n gh_develop_base_ref="$3"
+	local -n gh_develop_name_ref="$4"
+	local -n gh_develop_branch_repo_ref="$5"
+	shift 5
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -300,32 +290,54 @@ _parse_issue_develop_args() {
 		fi
 
 		case "${raw_args[$i]}" in
-		--base | -b | --name | -n | --branch-repo)
-			gh_issue_args_ref+=("${raw_args[$i]}" "${raw_args[$((i + 1))]}")
+		--base | -b)
+			if (( i + 1 >= ${#raw_args[@]} )); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
+			gh_develop_base_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
-		--base=* | --name=* | --branch-repo=*)
-			gh_issue_args_ref+=("${raw_args[$i]}")
+		--base=*)
+			gh_develop_base_ref="${raw_args[$i]#--base=}"
 			;;
-		# -c mirrors the short form of `gh issue develop --checkout`; we
-		# intercept it here so it is not forwarded to gh pr create.
+		--name | -n)
+			if (( i + 1 >= ${#raw_args[@]} )); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
+			gh_develop_name_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--name=*)
+			gh_develop_name_ref="${raw_args[$i]#--name=}"
+			;;
+		--branch-repo)
+			if (( i + 1 >= ${#raw_args[@]} )); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
+			gh_develop_branch_repo_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--branch-repo=*)
+			gh_develop_branch_repo_ref="${raw_args[$i]#--branch-repo=}"
+			;;
+		# -c mirrors the short form of `gh issue develop --checkout`
 		# shellcheck disable=SC2034
 		--checkout | -c)
 			gh_checkout_ref=true
 			;;
-		--head | -H | -B)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)" >&2
+			return 1
 			;;
-		--head=*) ;;
-		--title | -t | --body | --body-file | -F)
-			skip_next=true
-			;;
-		--title=* | --body=* | --body-file=*) ;;
 		*)
 			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
 				gh_issue_number_ref="${raw_args[$i]}"
 			else
-				gh_pr_args_ref+=("${raw_args[$i]}")
+				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				return 1
 			fi
 			;;
 		esac
@@ -342,7 +354,7 @@ _show_issue_develop_help() {
 gh ai issue develop - Create a branch and PR with an AI implementation plan
 
 USAGE:
-    gh ai issue develop <ISSUE_NUMBER> [OPTIONS]
+    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a development branch from a GitHub issue, generates an AI
@@ -350,23 +362,12 @@ DESCRIPTION:
 
     Combines gh issue develop (branch creation) with gh pr create
     (pull request). Title and body are AI-generated from the issue.
+    Options after -- are passed directly to gh pr create.
 
 BRANCH FLAGS (gh issue develop):
     -b, --base string          Name of the remote branch to branch from
     -n, --name string          Name of the branch to create
         --branch-repo string   Name or URL of the repo for the new branch
-
-PR FLAGS (gh pr create):
-    -a, --assignee login       Assign people by their login
-    -d, --draft                Mark pull request as a draft
-        --dry-run              Print details instead of creating the PR
-    -e, --editor               Open text editor for title and body
-    -l, --label name           Add labels by name
-    -m, --milestone name       Add the pull request to a milestone
-        --no-maintainer-edit   Disable maintainer's ability to modify PR
-    -p, --project title        Add the pull request to projects
-    -r, --reviewer handle      Request reviews from people or teams
-    -w, --web                  Open the web browser to create the PR
 
 WORKFLOW FLAGS:
     -c, --checkout   Check out the new branch locally after creating it.
@@ -376,9 +377,8 @@ WORKFLOW FLAGS:
 EXAMPLES:
     gh ai issue develop 42
     gh ai issue develop 42 --checkout
-    gh ai issue develop 42 --draft
-    gh ai issue develop 42 --base develop --label enhancement
-    gh ai issue develop 42 --reviewer monalisa --milestone v1.0
+    gh ai issue develop 42 -b develop -- --draft
+    gh ai issue develop 42 -- --label enhancement --reviewer monalisa
 EOF
 }
 
@@ -388,7 +388,7 @@ EOF
 # plan, and opens a pull request with that plan as the body.
 # Uses native `gh issue develop` for branch creation.
 #
-# Usage: _gh_issue_develop <ISSUE_NUMBER> [OPTIONS]
+# Usage: _gh_issue_develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
 _gh_issue_develop() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -397,32 +397,30 @@ _gh_issue_develop() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_issue_develop.tmpl"
 
 	local gh_issue_number=""
-	local gh_issue_args=()
-	local gh_pr_args=()
 	local gh_checkout=false
-	_parse_issue_develop_args gh_issue_number gh_issue_args gh_pr_args gh_checkout "${args[@]}"
+	local gh_develop_base=""
+	local gh_develop_name=""
+	local gh_develop_branch_repo=""
+	_parse_issue_develop_args gh_issue_number gh_checkout gh_develop_base gh_develop_name gh_develop_branch_repo "${ai_args[@]}"
 
-	# Reject flags that are incompatible with AI content generation
-	for arg in "${gh_pr_args[@]}"; do
-		case "$arg" in
-		--fill | --fill-first | --fill-verbose | -T | --template | --template=*)
-			gum log --level error "'$arg' is not supported by gh ai issue develop"
-			gum log --level info "Use 'gh pr create $arg' directly instead"
-			return 1
-			;;
-		esac
-	done
+	# Build gh issue develop args from scalars
+	local gh_issue_args=()
+	[[ -n "$gh_develop_base" ]] && gh_issue_args+=("--base" "$gh_develop_base")
+	[[ -n "$gh_develop_name" ]] && gh_issue_args+=("--name" "$gh_develop_name")
+	[[ -n "$gh_develop_branch_repo" ]] && gh_issue_args+=("--branch-repo" "$gh_develop_branch_repo")
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue develop <ISSUE_NUMBER> [OPTIONS]"
+		gum log --level info "Usage: gh ai issue develop <ISSUE_NUMBER> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -486,7 +484,7 @@ _gh_issue_develop() {
 		gum spin --title "Pushing Git initial commit..." -- git push -u origin HEAD
 
 		# Create the pull request
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
+		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
 	else
 		# No-checkout approach: create the branch remotely, then add an initial
 		# commit via git commit-tree without switching the local working tree.
@@ -527,7 +525,7 @@ _gh_issue_develop() {
 
 		# Create the pull request, explicitly naming the head branch
 		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
-			--head "$git_branch_name" "${gh_pr_args[@]}"
+			--head "$git_branch_name" "${passthrough[@]}"
 	fi
 }
 
@@ -540,22 +538,19 @@ _show_issue_create_help() {
 gh ai issue create - Create issues with AI-generated content
 
 USAGE:
-    gh ai issue create -d <DESCRIPTION> [OPTIONS]
+    gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub issue with an AI-generated title and structured body
     from a brief description. Supports piped stdin as additional context.
+    Options after -- are passed directly to gh issue create.
 
 FLAGS:
     -d, --description string   Brief description of the issue (required)
 
-PASSTHROUGH FLAGS:
-    All other flags are passed directly to gh issue create.
-    See gh issue create --help for the full list.
-
 EXAMPLES:
     gh ai issue create -d "Login page crashes with special chars"
-    gh ai issue create -d "Login crash" --label bug --assignee @me
+    gh ai issue create -d "Login crash" -- --label bug --assignee @me
     some_command 2>&1 | gh ai issue create -d "Command X fails"
 EOF
 }
@@ -567,7 +562,7 @@ EOF
 # sends it to the AI provider, and parses the response.
 # Supports piped stdin as additional context.
 #
-# Usage: _gh_issue_create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
+# Usage: _gh_issue_create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 _gh_issue_create() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -576,32 +571,21 @@ _gh_issue_create() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
 
 	local gh_issue_description=""
-	local gh_issue_labels=""
-	local gh_issue_args=()
-	_parse_issue_create_args gh_issue_description gh_issue_labels gh_issue_args "${args[@]}"
-
-	# Reject flags that are incompatible with AI content generation
-	for arg in "${gh_issue_args[@]}"; do
-		case "$arg" in
-		-T | --template | --template=*)
-			gum log --level error "'$arg' is not supported by gh ai issue create"
-			gum log --level info "Use 'gh issue create $arg' directly instead"
-			return 1
-			;;
-		esac
-	done
+	_parse_issue_create_args gh_issue_description "${ai_args[@]}"
 
 	# If no description, error out
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -619,7 +603,7 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_CONTEXT="$gh_issue_context" \
+				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_LABELS="" GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -649,7 +633,7 @@ _gh_issue_create() {
 	fi
 
 	# Create issue with AI-generated content
-	gh issue create --title "$gh_issue_title" --body "$gh_issue_body" "${gh_issue_args[@]}"
+	gh issue create --title "$gh_issue_title" --body "$gh_issue_body" "${passthrough[@]}"
 }
 
 # Issue subcommand handler

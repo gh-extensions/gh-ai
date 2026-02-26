@@ -6,20 +6,16 @@ set -euo pipefail
 
 # PR-related functions for gh-ai
 
-# Parse PR create arguments in a single pass
+# Parse PR create arguments (before -- separator)
 #
-# Extracts the --base branch value, optional description, and passthrough
-# args for gh pr create via namerefs. --base passes through AND is captured
-# for git diff. AI-managed flags (--title, --body, --body-file, --template,
-# --fill*) are stripped.
+# Extracts -d/--description and -B/--base values. Unknown flags produce
+# an error with a hint to use --.
 #
-# Example: _parse_pr_create_args base desc args --base develop --draft
+# Example: _parse_pr_create_args base desc -B develop -d "context"
 _parse_pr_create_args() {
 	local -n git_base_branch_ref="$1"
 	local -n gh_pr_description_ref="$2"
-	# shellcheck disable=SC2178
-	local -n gh_pr_args_ref="$3"
-	shift 3
+	shift 2
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -50,21 +46,21 @@ _parse_pr_create_args() {
 				echo "error: ${raw_args[$i]} requires a value" >&2
 				return 1
 			fi
+			# shellcheck disable=SC2034
 			git_base_branch_ref="${raw_args[$((i + 1))]}"
-			gh_pr_args_ref+=("${raw_args[$i]}" "${raw_args[$((i + 1))]}")
 			skip_next=true
 			;;
 		--base=*)
 			# shellcheck disable=SC2034
 			git_base_branch_ref="${raw_args[$i]#--base=}"
-			gh_pr_args_ref+=("${raw_args[$i]}")
 			;;
-		--title | -t | --body | -b | --body-file | -F)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)" >&2
+			return 1
 			;;
-		--title=* | --body=* | --body-file=*) ;;
 		*)
-			gh_pr_args_ref+=("${raw_args[$i]}")
+			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			return 1
 			;;
 		esac
 		((++i))
@@ -80,23 +76,21 @@ _show_pr_create_help() {
 gh ai pr create - Create PRs with AI-generated titles and descriptions
 
 USAGE:
-    gh ai pr create [-d <DESCRIPTION>] [OPTIONS]
+    gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub pull request with an AI-generated title and description
     based on the diff and commit history between the current and base branch.
+    Options after -- are passed directly to gh pr create.
 
 FLAGS:
     -d, --description string   Optional guidance for the AI (e.g. focus area)
-
-PASSTHROUGH FLAGS:
-    All other flags are passed directly to gh pr create.
-    See gh pr create --help for the full list.
+    -B, --base string          Base branch for the pull request
 
 EXAMPLES:
     gh ai pr create
-    gh ai pr create --draft
-    gh ai pr create --draft --base develop
+    gh ai pr create -- --draft
+    gh ai pr create -B develop -- --draft
     gh ai pr create -d "focus on the security changes"
 EOF
 }
@@ -107,7 +101,7 @@ EOF
 # Renders a prompt template with git diff and commit context,
 # sends it to the AI provider, and parses the response.
 #
-# Usage: _gh_pr_create [GH_PR_CREATE_OPTIONS]
+# Usage: _gh_pr_create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 _gh_pr_create() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -116,7 +110,9 @@ _gh_pr_create() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
@@ -124,19 +120,11 @@ _gh_pr_create() {
 
 	local git_base_branch=""
 	local gh_pr_description=""
-	local gh_pr_args=()
-	_parse_pr_create_args git_base_branch gh_pr_description gh_pr_args "${args[@]}"
+	_parse_pr_create_args git_base_branch gh_pr_description "${ai_args[@]}"
 
-	# Reject flags that are incompatible with AI content generation
-	for arg in "${gh_pr_args[@]}"; do
-		case "$arg" in
-		--fill | --fill-first | --fill-verbose | -T | --template | --template=*)
-			gum log --level error "'$arg' is not supported by gh ai pr create"
-			gum log --level info "Use 'gh pr create $arg' directly instead"
-			return 1
-			;;
-		esac
-	done
+	# Remember whether the user explicitly specified --base so we only
+	# forward it to gh pr create when intended (not from fallback defaults).
+	local user_specified_base="$git_base_branch"
 
 	local git_head_branch
 	git_head_branch=$(git rev-parse --abbrev-ref HEAD)
@@ -211,23 +199,26 @@ _gh_pr_create() {
 		return 1
 	fi
 
+	# Inject --base into passthrough only if the user explicitly specified it
+	if [[ -n "$user_specified_base" ]]; then
+		passthrough=("--base" "$user_specified_base" "${passthrough[@]}")
+	fi
+
 	# Create PR with AI-generated content
-	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
+	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
 }
 
-# Parse PR edit arguments in a single pass
+# Parse PR edit arguments (before -- separator)
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback),
-# description, and passthrough args for gh pr edit via namerefs.
-# AI-managed flags (--title, --body, --body-file) are stripped.
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and -d/--description value. Unknown flags produce an error with a hint
+# to use --.
 #
-# Example: _parse_pr_edit_args num desc args 42 -d "add testing section" --add-label bug
+# Example: _parse_pr_edit_args num desc 42 -d "add testing section"
 _parse_pr_edit_args() {
 	local -n gh_pr_number_ref="$1"
 	local -n gh_pr_description_ref="$2"
-	# shellcheck disable=SC2178
-	local -n gh_pr_args_ref="$3"
-	shift 3
+	shift 2
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -253,15 +244,16 @@ _parse_pr_edit_args() {
 			# shellcheck disable=SC2034
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--title | -t | --body | -b | --body-file | -F)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr edit)" >&2
+			return 1
 			;;
-		--title=* | --body=* | --body-file=*) ;;
 		*)
 			if [[ -z "$gh_pr_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="${raw_args[$i]}"
 			else
-				gh_pr_args_ref+=("${raw_args[$i]}")
+				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				return 1
 			fi
 			;;
 		esac
@@ -283,24 +275,20 @@ _show_pr_edit_help() {
 gh ai pr edit - Edit an existing PR with AI-generated content
 
 USAGE:
-    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]
+    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub pull request using AI. Fetches the current PR
     content and diff, applies the requested changes via AI, and updates the
     PR title and body. Auto-detects PR from the current branch if no number
-    is provided.
+    is provided. Options after -- are passed directly to gh pr edit.
 
 FLAGS:
     -d, --description string   Description of the changes to make (required)
 
-PASSTHROUGH FLAGS:
-    All other flags are passed directly to gh pr edit.
-    See gh pr edit --help for the full list.
-
 EXAMPLES:
     gh ai pr edit 42 -d "add testing section"
-    gh ai pr edit 42 -d "fix summary" --add-label bug
+    gh ai pr edit 42 -d "fix summary" -- --add-label bug
     gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 EOF
 }
@@ -312,7 +300,7 @@ EOF
 # with the description and PR context, sends it to the AI provider,
 # and updates the PR with the parsed response.
 #
-# Usage: _gh_pr_edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+# Usage: _gh_pr_edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 _gh_pr_edit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -321,7 +309,9 @@ _gh_pr_edit() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
@@ -329,18 +319,17 @@ _gh_pr_edit() {
 
 	local gh_pr_number=""
 	local gh_pr_description=""
-	local gh_pr_args=()
-	_parse_pr_edit_args gh_pr_number gh_pr_description gh_pr_args "${args[@]}"
+	_parse_pr_edit_args gh_pr_number gh_pr_description "${ai_args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -411,13 +400,13 @@ _gh_pr_edit() {
 	fi
 
 	# Edit PR with AI-generated content
-	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${gh_pr_args[@]}"
+	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${passthrough[@]}"
 }
 
-# Parse PR explain arguments in a single pass
+# Parse PR explain arguments
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback),
-# output mode (--comment or --edit), and passthrough args via namerefs.
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and output mode (--comment or --edit) via namerefs.
 #
 # Example: _parse_pr_explain_args num mode 42 --comment
 _parse_pr_explain_args() {
@@ -452,21 +441,18 @@ _parse_pr_explain_args() {
 	fi
 }
 
-# Parse PR review arguments in a single pass
+# Parse PR review arguments (before -- separator)
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback),
-# the optional -d/--description value, and passthrough args for gh pr review
-# via namerefs. AI-managed flags (--body, --body-file, --description) and
-# the PR number are stripped.
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and -d/--description value. Unknown flags produce an error with a hint
+# to use --.
 #
-# Example: _parse_pr_review_args num desc args 42 -d "focus on security" --approve
+# Example: _parse_pr_review_args num desc 42 -d "focus on security"
 _parse_pr_review_args() {
 	local -n gh_pr_number_ref="$1"
 	# shellcheck disable=SC2178
 	local -n gh_pr_description_ref="$2"
-	# shellcheck disable=SC2178
-	local -n gh_pr_args_ref="$3"
-	shift 3
+	shift 2
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -492,15 +478,16 @@ _parse_pr_review_args() {
 			# shellcheck disable=SC2034
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--body | -b | --body-file | -F)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr review)" >&2
+			return 1
 			;;
-		--body=* | --body-file=*) ;;
 		*)
 			if [[ -z "$gh_pr_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="${raw_args[$i]}"
 			else
-				gh_pr_args_ref+=("${raw_args[$i]}")
+				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				return 1
 			fi
 			;;
 		esac
@@ -522,23 +509,20 @@ _show_pr_review_help() {
 gh ai pr review - Review PRs with AI-generated feedback
 
 USAGE:
-    gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [OPTIONS]
+    gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 
 DESCRIPTION:
     Submits a GitHub PR review with AI-generated feedback based on the
     diff and commit history. Auto-detects PR from the current branch
-    if no number is provided.
+    if no number is provided. Options after -- are passed directly to
+    gh pr review.
 
 OPTIONS:
     -d, --description <TEXT>    Additional context for AI review generation
 
-PASSTHROUGH FLAGS:
-    All other flags are passed directly to gh pr review.
-    See gh pr review --help for the full list.
-
 EXAMPLES:
     gh ai pr review 42
-    gh ai pr review 42 --approve
+    gh ai pr review 42 -- --approve
     gh ai pr review -d "focus on security"
     gh ai pr review              # auto-detect PR from current branch
 EOF
@@ -551,7 +535,7 @@ EOF
 # sends it to the AI provider, and submits the response as a review.
 # Auto-detects PR number from current branch if not provided.
 #
-# Usage: _gh_pr_review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+# Usage: _gh_pr_review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 _gh_pr_review() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -560,7 +544,9 @@ _gh_pr_review() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
@@ -568,12 +554,11 @@ _gh_pr_review() {
 
 	local gh_pr_number=""
 	local gh_pr_description=""
-	local gh_pr_args=()
-	_parse_pr_review_args gh_pr_number gh_pr_description gh_pr_args "${args[@]}"
+	_parse_pr_review_args gh_pr_number gh_pr_description "${ai_args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh ai pr review <PR_NUMBER> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr review <PR_NUMBER> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -623,7 +608,7 @@ _gh_pr_review() {
 	fi
 
 	# Submit review with AI-generated content
-	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${gh_pr_args[@]}"
+	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${passthrough[@]}"
 }
 
 # PR explain help function
@@ -755,9 +740,9 @@ _show_pr_help() {
 gh ai pr - Pull request commands with AI assistance
 
 USAGE:
-    gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
-    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-    gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+    gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+    gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER] [--comment | --edit]
 
 DESCRIPTION:

@@ -13,11 +13,11 @@ _show_commit_help() {
 gh ai commit - Create commits with AI-generated messages
 
 USAGE:
-    gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
+    gh ai commit [-d <DESCRIPTION>] [-- GIT_COMMIT_OPTIONS]
 
 DESCRIPTION:
     Generates a conventional commit message from staged changes using AI,
-    then creates the commit. Any extra options are passed to git commit.
+    then creates the commit. Options after -- are passed to git commit.
 
 OPTIONS:
     -d, --description <TEXT>    Additional context for AI commit message generation
@@ -25,25 +25,23 @@ OPTIONS:
 EXAMPLES:
     gh ai commit                                        # Generate message and commit
     gh ai commit -d "focus on security improvements"   # With additional context
-    gh ai commit --signoff                              # Commit with sign-off
-    gh ai commit --no-verify                            # Skip pre-commit hooks
+    gh ai commit -- --signoff                           # Commit with sign-off
+    gh ai commit -- --no-verify                         # Skip pre-commit hooks
 
 SEE ALSO:
     git commit --help    # Full list of git commit options
 EOF
 }
 
-# Parse commit arguments in a single pass
+# Parse commit arguments (before -- separator)
 #
-# Extracts the optional description and collects passthrough args for
-# git commit via namerefs. AI-managed flags (-m/--message, -F/--file)
-# and the -d/--description flag are stripped from git commit args.
+# Extracts the optional -d/--description value. Unknown flags produce
+# an error with a hint to use -- for git commit options.
 #
-# Example: _parse_commit_args desc args --signoff -d "context" -m "ignored"
+# Example: _parse_commit_args desc -d "context"
 _parse_commit_args() {
 	local -n gh_commit_description_ref="$1"
-	local -n git_commit_args_ref="$2"
-	shift 2
+	shift
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -68,12 +66,13 @@ _parse_commit_args() {
 		--description=*)
 			gh_commit_description_ref="${raw_args[$i]#--description=}"
 			;;
-		-m | --message | -F | --file)
-			skip_next=true
+		-*)
+			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to git commit)" >&2
+			return 1
 			;;
-		--message=* | --file=*) ;;
 		*)
-			git_commit_args_ref+=("${raw_args[$i]}")
+			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			return 1
 			;;
 		esac
 		((++i))
@@ -86,7 +85,7 @@ _parse_commit_args() {
 # Renders a prompt template with the staged diff and branch context,
 # sends it to the AI provider, and commits with the response.
 #
-# Usage: _gh_commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
+# Usage: _gh_commit [-d <DESCRIPTION>] [-- GIT_COMMIT_OPTIONS]
 _gh_commit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -95,26 +94,16 @@ _gh_commit() {
 		;;
 	esac
 
-	local args=("$@")
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_commit.tmpl"
 
 	local gh_commit_description=""
-	local git_commit_args=()
-	_parse_commit_args gh_commit_description git_commit_args "${args[@]}"
-
-	# Reject flags that are incompatible with AI message generation
-	for arg in "${git_commit_args[@]}"; do
-		case "$arg" in
-		--fixup | --fixup=* | --squash | --squash=* | -C | --reuse-message | --reuse-message=* | -c | --reedit-message | --reedit-message=*)
-			gum log --level error "'$arg' is not supported by gh ai commit"
-			gum log --level info "Use 'git commit $arg' directly instead"
-			return 1
-			;;
-		esac
-	done
+	_parse_commit_args gh_commit_description "${ai_args[@]}"
 
 	# Gather git context
 	local git_diff_staged
@@ -163,5 +152,5 @@ _gh_commit() {
 	fi
 
 	# Commit with the generated message and pass through any extra args
-	git commit -m "$git_commit_message" "${git_commit_args[@]}"
+	git commit -m "$git_commit_message" "${passthrough[@]}"
 }
