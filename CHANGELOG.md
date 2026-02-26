@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/gh-extensions/gh-ai/compare/v0.4.0...v0.5.0) (2026-02-26)
+
+
+### Features
+
+* add --checkout option to gh ai issue develop ([#21](https://github.com/gh-extensions/gh-ai/issues/21)) ([bd53c16](https://github.com/gh-extensions/gh-ai/commit/bd53c16b088458db29e3da0943cf24a35649c4c1))
+* add -d/--description flag to gh ai commit ([8e3eb2c](https://github.com/gh-extensions/gh-ai/commit/8e3eb2ce0f1d83af28f3dfd37edb74eb626a08ab)), closes [#17](https://github.com/gh-extensions/gh-ai/issues/17)
+* add -d/--description flag to gh ai pr review ([e43aa2e](https://github.com/gh-extensions/gh-ai/commit/e43aa2e49819946e24c82e3f1746ae8f6fc9beee)), closes [#18](https://github.com/gh-extensions/gh-ai/issues/18)
+* add jq dependency and version command ([692e430](https://github.com/gh-extensions/gh-ai/commit/692e43095cff5aa9162236cbd147c0d630ee02c9))
+* update commit template to include optional description context ([340eb0f](https://github.com/gh-extensions/gh-ai/commit/340eb0ffd4073f8463e96bdd441f81163e2ff6d0))
+
+
+### Bug Fixes
+
+* add validation for required argument values in option parsing ([0fbec1d](https://github.com/gh-extensions/gh-ai/commit/0fbec1d7bf4719fd91ec982d2fc9c1fdb47de4b4))
+* address review findings in --checkout implementation ([1e7e1a1](https://github.com/gh-extensions/gh-ai/commit/1e7e1a1c658edf1ea84235b8a27c7cdb42058c27))
+* resolve nameref conflict and set -e leak in tests ([ad72e4e](https://github.com/gh-extensions/gh-ai/commit/ad72e4e0184f3cd50c65f460ee559fddfdacffad))
+
 ## [0.4.0](https://github.com/gh-extensions/gh-ai/compare/v0.3.0...v0.4.0) (2026-02-25)
 
 
