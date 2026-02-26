@@ -58,6 +58,10 @@ _parse_commit_args() {
 
 		case "${_argv[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#_argv[@]} )); then
+				echo "error: ${_argv[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_commit_description_ref="${_argv[$((i + 1))]}"
 			skip_next=true
 			;;

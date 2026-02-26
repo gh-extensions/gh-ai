@@ -34,6 +34,10 @@ _parse_pr_create_args() {
 
 		case "${_args[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#_args[@]} )); then
+				echo "error: ${_args[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_pr_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
@@ -42,6 +46,10 @@ _parse_pr_create_args() {
 			gh_pr_description_ref="${_args[$i]#--description=}"
 			;;
 		--base | -B)
+			if (( i + 1 >= ${#_args[@]} )); then
+				echo "error: ${_args[$i]} requires a value" >&2
+				return 1
+			fi
 			git_base_branch_ref="${_args[$((i + 1))]}"
 			gh_pr_args_ref+=("${_args[$i]}" "${_args[$((i + 1))]}")
 			skip_next=true
@@ -224,6 +232,10 @@ _parse_pr_edit_args() {
 
 		case "${_args[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#_args[@]} )); then
+				echo "error: ${_args[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_pr_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
@@ -461,6 +473,10 @@ _parse_pr_review_args() {
 
 		case "${_args[$i]}" in
 		--description | -d)
+			if (( i + 1 >= ${#_args[@]} )); then
+				echo "error: ${_args[$i]} requires a value" >&2
+				return 1
+			fi
 			gh_pr_description_ref="${_args[$((i + 1))]}"
 			skip_next=true
 			;;
