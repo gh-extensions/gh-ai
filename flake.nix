@@ -25,7 +25,6 @@
             gum
             bats
             shellcheck
-            gettext
           ];
 
           shellHook = ''
