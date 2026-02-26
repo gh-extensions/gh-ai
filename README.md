@@ -25,7 +25,7 @@ gh extension install gh-extensions/gh-ai
 ## Usage
 
 ```bash
-gh ai commit [GIT_COMMIT_OPTIONS]
+gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
 gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
@@ -38,12 +38,16 @@ gh ai run explain <RUN_ID>
 
 ### Commit
 
-Generates a conventional commit message from your staged changes.
+Generates a conventional commit message from your staged changes. Use
+`-d`/`--description` to provide extra context or constraints that guide
+the AI when writing the message.
 
 ```bash
 git add -p
 gh ai commit
+gh ai commit -d "focus on the security improvements"
 gh ai commit --signoff
+gh ai commit --no-verify
 ```
 
 ### Pull Request
