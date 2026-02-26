@@ -189,3 +189,21 @@ setup() {
 
 	[[ "$description" == "second" ]]
 }
+
+@test "T007: -d without value returns error" {
+	local number=""
+	local description=""
+	local args=()
+	run _parse_pr_review_args number description args -d
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "T007: --description without value returns error" {
+	local number=""
+	local description=""
+	local args=()
+	run _parse_pr_review_args number description args --description
+
+	[[ "$status" -eq 1 ]]
+}
