@@ -26,6 +26,7 @@
             jq
             bats
             shellcheck
+            gettext # provides envsubst
           ];
 
           shellHook = ''

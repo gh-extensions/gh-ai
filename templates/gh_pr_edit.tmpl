@@ -1,25 +1,25 @@
 Edit the following GitHub pull request based on the requested changes.
 
 <pull_request>
-Number: {{ param "GH_PR_NUMBER" }}
-Title: {{ param "GH_PR_TITLE" }}
-Body: {{ param "GH_PR_BODY" }}
+Number: ${GH_PR_NUMBER}
+Title: ${GH_PR_TITLE}
+Body: ${GH_PR_BODY}
 </pull_request>
 
 <diffstat>
-{{ param "GIT_DIFF_STAT" }}
+${GIT_DIFF_STAT}
 </diffstat>
 
 <diff>
-{{ param "GIT_DIFF" }}
+${GIT_DIFF}
 </diff>
 
 <commits>
-{{ param "GIT_COMMITS" }}
+${GIT_COMMITS}
 </commits>
 
 <requested_changes>
-{{ param "GH_PR_DESCRIPTION" }}
+${GH_PR_DESCRIPTION}
 </requested_changes>
 
 <format>

@@ -1,19 +1,19 @@
 Analyze this GitHub Actions workflow run and explain what happened.
 
 <run>
-Title: {{ param "GH_RUN_TITLE" }}
-Conclusion: {{ param "GH_RUN_CONCLUSION" }}
-Event: {{ param "GH_RUN_EVENT" }}
-Branch: {{ param "GH_RUN_BRANCH" }}
-URL: {{ param "GH_RUN_URL" }}
+Title: ${GH_RUN_TITLE}
+Conclusion: ${GH_RUN_CONCLUSION}
+Event: ${GH_RUN_EVENT}
+Branch: ${GH_RUN_BRANCH}
+URL: ${GH_RUN_URL}
 </run>
 
 <jobs>
-{{ param "GH_RUN_JOBS" }}
+${GH_RUN_JOBS}
 </jobs>
 
 <log>
-{{ param "GH_RUN_LOG" }}
+${GH_RUN_LOG}
 </log>
 
 <format>
