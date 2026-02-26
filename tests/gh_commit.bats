@@ -16,9 +16,17 @@ setup() {
 	git() { echo ""; }
 	export -f gum gh git
 
-	# Source the commit script to expose its functions
-	# shellcheck source=../scripts/gh_commit.sh
-	source "$REPO_ROOT/scripts/gh_commit.sh"
+	# Source gh_commit.sh inside a subshell and import only the function
+	# definitions.  This prevents the `set -euo pipefail` at the top of
+	# gh_commit.sh from leaking into the bats test runner, which would
+	# cause pipefail-triggered deadlocks when a test assertion fails.
+	# shellcheck disable=SC2155
+	eval "$(
+		export _gh_ai_source_dir="$REPO_ROOT"
+		# shellcheck source=../scripts/gh_commit.sh
+		source "$REPO_ROOT/scripts/gh_commit.sh"
+		declare -f _parse_commit_args _show_commit_help _gh_commit
+	)"
 }
 
 # ---------------------------------------------------------------------------
