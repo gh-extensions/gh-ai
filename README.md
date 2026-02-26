@@ -33,7 +33,7 @@ gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-gh ai issue develop <ISSUE_NUMBER> [GH_ISSUE_DEVELOP_OPTIONS]
+gh ai issue develop <ISSUE_NUMBER> [-c] [GH_ISSUE_DEVELOP_OPTIONS]
 gh ai run explain <RUN_ID>
 ```
 
@@ -113,8 +113,8 @@ Develops an issue by creating a branch, generating an AI implementation plan,
 and opening a pull request.
 
 ```bash
-gh ai issue develop 42            # no local branch switch (uses git commit-tree)
-gh ai issue develop 42 --checkout # check out the branch locally
+gh ai issue develop 42            # branch created remotely, working tree unchanged
+gh ai issue develop 42 --checkout # also check out the branch locally
 gh ai issue develop 42 --draft
 gh ai issue develop 42 --base develop
 ```

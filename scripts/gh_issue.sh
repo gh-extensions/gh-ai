@@ -17,7 +17,7 @@ gh ai issue - Issue commands with AI assistance
 USAGE:
     gh ai issue create [-d DESCRIPTION] [GH_ISSUE_CREATE_OPTIONS]
     gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-    gh ai issue develop <ISSUE_NUMBER> [GH_ISSUE_DEVELOP_OPTIONS]
+    gh ai issue develop <ISSUE_NUMBER> [-c] [GH_ISSUE_DEVELOP_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
@@ -315,8 +315,10 @@ _parse_issue_develop_args() {
 		--base=* | --name=* | --branch-repo=*)
 			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
+		# -c mirrors the short form of `gh issue develop --checkout`; we
+		# intercept it here so it is not forwarded to gh pr create.
+		# shellcheck disable=SC2034
 		--checkout | -c)
-			# shellcheck disable=2034
 			gh_checkout_ref=true
 			;;
 		--head | -H | -B)
@@ -374,9 +376,10 @@ PR FLAGS (gh pr create):
     -r, --reviewer handle      Request reviews from people or teams
     -w, --web                  Open the web browser to create the PR
 
-COMMIT FLAGS:
-    -c, --checkout   Check out the new branch locally (default: uses git-commit-tree,
-                     creates the initial commit without switching branches)
+WORKFLOW FLAGS:
+    -c, --checkout   Check out the new branch locally after creating it.
+                     Default: branch is created remotely and an initial commit
+                     is added without switching your working tree.
 
 EXAMPLES:
     gh ai issue develop 42
@@ -489,39 +492,58 @@ _gh_issue_develop() {
 		return 1
 	fi
 
-	if [[ "$gh_checkout" == "true" ]]; then
+	if [ "$gh_checkout" = "true" ]; then
 		# Standard approach: checkout branch locally
-		gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
+		gum spin --title "Creating branch #$gh_issue_number..." -- \
+			gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
 
 		# Empty commit so the PR has a diff against the base branch
 		git commit --allow-empty -m "chore: start work on #$gh_issue_number"
-		git push -u origin HEAD
+		gum spin --title "Pushing initial commit..." -- git push -u origin HEAD
 
 		# Create the pull request
 		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
 	else
-		# git-commit-tree approach: create branch without local checkout
-		local git_branch_url
-		git_branch_url=$(gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
+		# No-checkout approach: create the branch remotely, then add an initial
+		# commit via git commit-tree without switching the local working tree.
+		local gh_develop_url
+		gh_develop_url=$(gum spin --title "Creating branch #$gh_issue_number..." -- \
+			gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
+		if [[ -z "$gh_develop_url" ]]; then
+			gum log --level error "Failed to create development branch for #$gh_issue_number"
+			return 1
+		fi
 
+		# gh issue develop outputs a GitHub web URL ending with /tree/<branch>.
+		# Strip the prefix rather than using basename to handle branch names
+		# that contain '/' (e.g. feature/my-topic).
 		local git_branch_name
-		git_branch_name=$(basename "$git_branch_url")
-		# Fetch the branch
-		git fetch origin "$git_branch_name"
+		git_branch_name="${gh_develop_url##*/tree/}"
+		if [[ -z "$git_branch_name" ]]; then
+			gum log --level error "Failed to determine branch name from: $gh_develop_url"
+			return 1
+		fi
+
+		gum spin --title "Fetching branch $git_branch_name..." -- \
+			git fetch origin "$git_branch_name"
 
 		local git_tree_sha
-		# shellcheck disable=SC1083
+		# shellcheck disable=SC1083  # braces are git rev-parse syntax, not a shell expansion
 		git_tree_sha=$(git rev-parse FETCH_HEAD^{tree})
 
 		local git_parent_sha
 		git_parent_sha=$(git rev-parse FETCH_HEAD)
 
 		local git_commit_sha
-		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" -m "chore: start work on #$gh_issue_number")
-		git push origin "$git_commit_sha:refs/heads/$git_branch_name"
+		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" \
+			-m "chore: start work on #$gh_issue_number")
+
+		gum spin --title "Pushing initial commit..." -- \
+			git push origin "$git_commit_sha:refs/heads/$git_branch_name"
 
 		# Create the pull request, explicitly naming the head branch
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" --head "$git_branch_name" "${gh_pr_args[@]}"
+		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
+			--head "$git_branch_name" "${gh_pr_args[@]}"
 	fi
 }
 
