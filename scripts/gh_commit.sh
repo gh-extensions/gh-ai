@@ -13,16 +13,20 @@ _show_commit_help() {
 gh ai commit - Create commits with AI-generated messages
 
 USAGE:
-    gh ai commit [GIT_COMMIT_OPTIONS]
+    gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
 
 DESCRIPTION:
     Generates a conventional commit message from staged changes using AI,
     then creates the commit. Any extra options are passed to git commit.
 
+OPTIONS:
+    -d, --description <TEXT>    Additional context for AI commit message generation
+
 EXAMPLES:
-    gh ai commit                # Generate message and commit
-    gh ai commit --signoff      # Commit with sign-off
-    gh ai commit --no-verify    # Skip pre-commit hooks
+    gh ai commit                                        # Generate message and commit
+    gh ai commit -d "focus on security improvements"   # With additional context
+    gh ai commit --signoff                              # Commit with sign-off
+    gh ai commit --no-verify                            # Skip pre-commit hooks
 
 SEE ALSO:
     git commit --help    # Full list of git commit options
@@ -31,13 +35,15 @@ EOF
 
 # Parse commit arguments in a single pass
 #
-# Strips AI-managed flags (-m/--message, -F/--file) and collects
-# passthrough args for git commit via nameref.
+# Extracts the optional description and collects passthrough args for
+# git commit via namerefs. AI-managed flags (-m/--message, -F/--file)
+# and the -d/--description flag are stripped from git commit args.
 #
-# Example: _parse_commit_args args --signoff -m "ignored"
+# Example: _parse_commit_args desc args --signoff -d "context" -m "ignored"
 _parse_commit_args() {
-	local -n git_commit_args_ref="$1"
-	shift
+	local -n gh_commit_description_ref="$1"
+	local -n git_commit_args_ref="$2"
+	shift 2
 
 	local args=("$@")
 	local skip_next=false
@@ -51,6 +57,13 @@ _parse_commit_args() {
 		fi
 
 		case "${args[$i]}" in
+		--description | -d)
+			gh_commit_description_ref="${args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			gh_commit_description_ref="${args[$i]#--description=}"
+			;;
 		-m | --message | -F | --file)
 			skip_next=true
 			;;
@@ -69,7 +82,7 @@ _parse_commit_args() {
 # Renders a prompt template with the staged diff and branch context,
 # sends it to the AI provider, and commits with the response.
 #
-# Usage: _gh_commit [GIT_COMMIT_OPTIONS]
+# Usage: _gh_commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
 _gh_commit() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -84,8 +97,9 @@ _gh_commit() {
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_commit.tmpl"
 
+	local gh_commit_description=""
 	local git_commit_args=()
-	_parse_commit_args git_commit_args "${args[@]}"
+	_parse_commit_args gh_commit_description git_commit_args "${args[@]}"
 
 	# Gather git context
 	local git_diff_staged
@@ -110,12 +124,18 @@ _gh_commit() {
 	local agent_model
 	agent_model=$(gh config get gh-ai.commit.model 2>/dev/null || true)
 
+	# Format description as context block if provided
+	local gh_commit_description_context=""
+	if [[ -n "$gh_commit_description" ]]; then
+		gh_commit_description_context="<description>$gh_commit_description</description>"
+	fi
+
 	local git_commit_message
 	# Generate commit message using assistant run
 	git_commit_message=$(
 		gum spin --title "Generating Git commit message..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_log_oneline" \
+				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_log_oneline" GH_COMMIT_DESCRIPTION="$gh_commit_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
