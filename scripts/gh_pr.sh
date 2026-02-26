@@ -345,19 +345,17 @@ _gh_pr_edit() {
 	fi
 
 	# Fetch PR metadata
-	local gh_pr_meta
-	gh_pr_meta=$(gum spin --title "Fetching GitHub pull request metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body || true)
-	if [[ -z "$gh_pr_meta" ]]; then
+	local gh_pr_eval
+	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request metadata..." -- \
+		gh pr view "$gh_pr_number" --json title,body \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
+	if [[ -z "$gh_pr_eval" ]]; then
 		gum log --level error "Failed to fetch PR #$gh_pr_number"
 		return 1
 	fi
 
-	local gh_pr_title
-	gh_pr_title=$(echo "$gh_pr_meta" | jq -r '.title // ""')
-
-	local gh_pr_body
-	gh_pr_body=$(echo "$gh_pr_meta" | jq -r '.body // ""')
+	local gh_pr_title gh_pr_body
+	eval "$gh_pr_eval"
 
 	# Get PR diff using gh cli (--patch for full patch format)
 	local git_diff

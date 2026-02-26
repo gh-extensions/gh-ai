@@ -219,25 +219,17 @@ _gh_issue_edit() {
 	fi
 
 	# Fetch issue metadata
-	local gh_issue_meta
-	gh_issue_meta=$(gum spin --title "Fetching GitHub issue metadata..." -- \
-		gh issue view "$gh_issue_number" --json title,body,labels,comments || true)
-	if [[ -z "$gh_issue_meta" ]]; then
+	local gh_issue_eval
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue metadata..." -- \
+		gh issue view "$gh_issue_number" --json title,body,labels,comments \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
+	if [[ -z "$gh_issue_eval" ]]; then
 		gum log --level error "Failed to fetch issue #$gh_issue_number"
 		return 1
 	fi
 
-	local gh_issue_title
-	gh_issue_title=$(echo "$gh_issue_meta" | jq -r '.title // ""')
-
-	local gh_issue_body
-	gh_issue_body=$(echo "$gh_issue_meta" | jq -r '.body // ""')
-
-	local gh_issue_labels
-	gh_issue_labels=$(echo "$gh_issue_meta" | jq -r '[.labels[].name] | join(", ")')
-
-	local gh_issue_comments
-	gh_issue_comments=$(echo "$gh_issue_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+	local gh_issue_title gh_issue_body gh_issue_labels gh_issue_comments
+	eval "$gh_issue_eval"
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
@@ -435,25 +427,17 @@ _gh_issue_develop() {
 	fi
 
 	# Fetch issue metadata
-	local gh_issue_meta
-	gh_issue_meta=$(gum spin --title "Fetching GitHub issue metadata..." -- \
-		gh issue view "$gh_issue_number" --json title,body,labels,comments || true)
-	if [[ -z "$gh_issue_meta" ]]; then
+	local gh_issue_eval
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue metadata..." -- \
+		gh issue view "$gh_issue_number" --json title,body,labels,comments \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
+	if [[ -z "$gh_issue_eval" ]]; then
 		gum log --level error "Failed to fetch issue #$gh_issue_number"
 		return 1
 	fi
 
-	local gh_issue_title
-	gh_issue_title=$(echo "$gh_issue_meta" | jq -r '.title // ""')
-
-	local gh_issue_body
-	gh_issue_body=$(echo "$gh_issue_meta" | jq -r '.body // ""')
-
-	local gh_issue_labels
-	gh_issue_labels=$(echo "$gh_issue_meta" | jq -r '[.labels[].name] | join(", ")')
-
-	local gh_issue_comments
-	gh_issue_comments=$(echo "$gh_issue_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+	local gh_issue_title gh_issue_body gh_issue_labels gh_issue_comments
+	eval "$gh_issue_eval"
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)

@@ -23,7 +23,6 @@
             bash
             gh
             gum
-            jq
             bats
             shellcheck
             gettext

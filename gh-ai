@@ -28,10 +28,6 @@ _check_dependencies() {
 	if ! command -v gum &>/dev/null; then
 		missing+=("gum     — https://github.com/charmbracelet/gum")
 	fi
-	if ! command -v jq &>/dev/null; then
-		missing+=("jq      — https://jqlang.org")
-	fi
-
 	if [[ ${#missing[@]} -gt 0 ]]; then
 		echo "gh-ai: missing required dependencies:" >&2
 		for dep in "${missing[@]}"; do

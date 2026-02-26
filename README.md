@@ -11,7 +11,6 @@ explain CI failures.
 ## Prerequisites
 
 - [Gum](https://github.com/charmbracelet/gum) — macOS: `brew install gum`
-- [JQ](https://jqlang.org) (`jq`) — macOS: `brew install jq`
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`) — macOS: `brew install bash`
 - [GitHub CLI](https://cli.github.com/) (`gh`) — macOS: `brew install gh`
 - [gettext](https://www.gnu.org/software/gettext/) (`envsubst`) — macOS: `brew install gettext`

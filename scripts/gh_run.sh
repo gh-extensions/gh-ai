@@ -100,34 +100,17 @@ _gh_run_explain() {
 	fi
 
 	# Fetch run metadata
-	local gh_run_meta
-	gh_run_meta=$(gum spin --title "Fetching GitHub workflow run metadata..." -- \
-		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs || true)
-	if [[ -z "$gh_run_meta" ]]; then
+	local gh_run_eval
+	gh_run_eval=$(gum spin --title "Fetching GitHub workflow run metadata..." -- \
+		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_run_meta.jq")" || true)
+	if [[ -z "$gh_run_eval" ]]; then
 		gum log --level error "Failed to fetch run $gh_run_id"
 		return 1
 	fi
 
-	local gh_run_title
-	gh_run_title=$(echo "$gh_run_meta" | jq -r '.displayTitle // ""')
-
-	local gh_run_conclusion
-	gh_run_conclusion=$(echo "$gh_run_meta" | jq -r '.conclusion // ""')
-
-	local gh_run_url
-	gh_run_url=$(echo "$gh_run_meta" | jq -r '.url // ""')
-
-	local gh_run_event
-	gh_run_event=$(echo "$gh_run_meta" | jq -r '.event // ""')
-
-	local gh_run_branch
-	gh_run_branch=$(echo "$gh_run_meta" | jq -r '.headBranch // ""')
-
-	local gh_run_jq_file
-	gh_run_jq_file="$_gh_ai_source_dir/scripts/gh_run_explain.jq"
-
-	local gh_run_jobs
-	gh_run_jobs=$(echo "$gh_run_meta" | jq -r -f "$gh_run_jq_file")
+	local gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_jobs
+	eval "$gh_run_eval"
 
 	# Fetch logs: use --log-failed for failed runs, --log otherwise
 	local gh_run_log

@@ -327,7 +327,7 @@ setup() {
 # Helpers shared by T009/T010 integration tests
 # ---------------------------------------------------------------------------
 
-# _setup_develop_mocks sets up gh/git/gum/jq mocks that record calls to temp
+# _setup_develop_mocks sets up gh/git/gum mocks that record calls to temp
 # files (passed as arguments) and return appropriate fake values for the full
 # develop workflow.  Callers should use BATS_TEST_TMPDIR for the log paths so
 # bats cleans them up automatically after each test.
@@ -337,13 +337,15 @@ _setup_develop_mocks() {
 	local gh_log="$1"
 	local git_log="$2"
 
+	# gh issue view now uses --jq with @sh to produce eval-ready output
+	# instead of raw JSON piped through jq.
 	gh() {
 		# Write each argument on its own line so multiline body args (e.g.
 		# --body with an AI-generated markdown string) don't break grep
 		# assertions that use -x for exact-line matching.
 		printf '%s\n' "$@" >>"$gh_log"
 		case "$1 $2" in
-		"issue view") echo '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
+		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''";;
 		"issue develop") echo "https://github.com/owner/repo/tree/42-test-issue";;
 		"config get") ;;
 		"pr create") ;;
@@ -359,20 +361,6 @@ _setup_develop_mocks() {
 		esac
 	}
 	export -f git
-
-	# jq is called to parse the JSON returned by `gh issue view`.  Mock it so
-	# that tests do not depend on jq being installed in the CI environment.
-	jq() {
-		# $1 is -r, $2 is the filter expression.
-		case "${2:-}" in
-		*title*)    echo "Test Issue";;
-		*labels*)   echo "";;
-		*comments*) echo "";;
-		*body*)     echo "Issue body";;
-		*)          echo "";;
-		esac
-	}
-	export -f jq
 
 	gum() {
 		case "$1" in
@@ -499,7 +487,7 @@ _setup_develop_mocks() {
 	gh() {
 		printf '%s\n' "$@" >>"$gh_log"
 		case "$1 $2" in
-		"issue view") echo '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
+		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''";;
 		"issue develop") ;;
 		"config get") ;;
 		esac
