@@ -22,99 +22,128 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_issue_develop_args _show_issue_develop_help _gh_issue_develop _get_title _get_body _split_on_separator
+		declare -f _parse_issue_develop_args _show_issue_develop_help _gh_issue_develop \
+			_gh_issue_develop_remotely _gh_issue_develop_no_checkout \
+			_cmd_assist_remotely _get_title _get_body _split_on_separator
 	)"
 }
 
-@test "_parse_issue_develop_args: captures issue number from first positional arg" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: issue number
+# ---------------------------------------------------------------------------
+
+@test "_parse_issue_develop_args: sets number from first positional arg" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42
 
 	[[ "$number" == "42" ]]
 	[[ "$checkout" == "false" ]]
 	[[ -z "$base" ]]
 }
 
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: branch flags
+# ---------------------------------------------------------------------------
+
 @test "_parse_issue_develop_args: sets base from --base flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 --base develop
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --base develop
 
 	[[ "$base" == "develop" ]]
-	[[ -z "$name" ]]
 }
 
 @test "_parse_issue_develop_args: sets base from -b flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 -b develop
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 -b develop
 
 	[[ "$base" == "develop" ]]
 }
 
-@test "_parse_issue_develop_args: sets base from --base=value" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 --base=develop
+@test "_parse_issue_develop_args: sets base from --base=value form" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --base=develop
 
 	[[ "$base" == "develop" ]]
 }
 
 @test "_parse_issue_develop_args: sets name from --name flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 --name my-branch
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --name my-branch
 
 	[[ "$name" == "my-branch" ]]
 }
 
 @test "_parse_issue_develop_args: sets name from -n flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 -n my-branch
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 -n my-branch
 
 	[[ "$name" == "my-branch" ]]
 }
 
 @test "_parse_issue_develop_args: sets branch_repo from --branch-repo flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 --branch-repo owner/repo
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --branch-repo owner/repo
 
 	[[ "$branch_repo" == "owner/repo" ]]
 }
 
-@test "_parse_issue_develop_args: enables checkout with --checkout flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 --checkout
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: checkout flag
+# ---------------------------------------------------------------------------
+
+@test "_parse_issue_develop_args: sets checkout=true from --checkout flag" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --checkout
 
 	[[ "$checkout" == "true" ]]
 }
 
-@test "_parse_issue_develop_args: enables checkout with -c flag" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 -c
+@test "_parse_issue_develop_args: sets checkout=true from -c flag" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 -c
 
 	[[ "$checkout" == "true" ]]
 }
+
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: --agent flag
+# ---------------------------------------------------------------------------
+
+@test "_parse_issue_develop_args: sets agent from --agent flag" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --agent @claude
+
+	[[ "$agent" == "@claude" ]]
+}
+
+@test "_parse_issue_develop_args: sets agent from --agent=value form" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --agent=@jules
+
+	[[ "$agent" == "@jules" ]]
+}
+
+@test "_parse_issue_develop_args: sets agent to @copilot" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 --agent=@copilot
+
+	[[ "$agent" == "@copilot" ]]
+}
+
+@test "_parse_issue_develop_args: --agent without value returns error" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	run _parse_issue_develop_args number checkout base name branch_repo agent 42 --agent
+
+	[[ "$status" -eq 1 ]]
+}
+
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: combined flags
+# ---------------------------------------------------------------------------
 
 @test "_parse_issue_develop_args: parses all flags together" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	_parse_issue_develop_args number checkout base name branch_repo 42 -c --base develop --name my-branch
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	_parse_issue_develop_args number checkout base name branch_repo agent 42 -c --base develop --name my-branch
 
 	[[ "$number" == "42" ]]
 	[[ "$checkout" == "true" ]]
@@ -122,26 +151,67 @@ setup() {
 	[[ "$name" == "my-branch" ]]
 }
 
-@test "_parse_issue_develop_args: returns error with hint for unknown flags" {
-	local number=""
-	local checkout=false
-	local base="" name="" branch_repo=""
-	run _parse_issue_develop_args number checkout base name branch_repo 42 --draft
+# ---------------------------------------------------------------------------
+# _parse_issue_develop_args: unknown flag error
+# ---------------------------------------------------------------------------
+
+@test "_parse_issue_develop_args: unknown flag before -- returns error with hint" {
+	local number="" checkout=false base="" name="" branch_repo="" agent=""
+	run _parse_issue_develop_args number checkout base name branch_repo agent 42 --draft
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"use -- to pass flags to gh pr create"* ]]
 }
 
 # ---------------------------------------------------------------------------
-# Helpers shared by _gh_issue_develop integration tests
+# _gh_issue_develop_remotely: agent delegation helper
 # ---------------------------------------------------------------------------
 
-# _setup_develop_mocks sets up gh/git/gum mocks that record calls to temp
-# files (passed as arguments) and return appropriate fake values for the full
-# develop workflow.  Callers should use BATS_TEST_TMPDIR for the log paths so
-# bats cleans them up automatically after each test.
-#
-# Usage: _setup_develop_mocks <gh_log> <git_log>
+@test "_gh_issue_develop_remotely: invokes _cmd_assist_remotely with repo and rendered prompt" {
+	local claude_log="$BATS_TEST_TMPDIR/claude.log"
+	claude() { echo "$*" >"$claude_log"; }
+	gh() { echo "owner/repo"; }
+	gum() {
+		case "$1" in
+		spin)
+			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
+			shift; "$@"
+			;;
+		log) ;;
+		esac
+	}
+	export -f claude gh gum
+
+	_gh_issue_develop_remotely @claude 42 "Fix the bug" "## Plan"
+
+	grep -q -- "--remote" "$claude_log"
+}
+
+@test "_gh_issue_develop_remotely: passes issue number in spin title" {
+	local gum_log="$BATS_TEST_TMPDIR/gum.log"
+	claude() { :; }
+	gh() { echo "owner/repo"; }
+	gum() {
+		case "$1" in
+		spin)
+			echo "$*" >>"$gum_log"
+			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
+			shift; "$@"
+			;;
+		log) ;;
+		esac
+	}
+	export -f claude gh gum
+
+	_gh_issue_develop_remotely @claude 99 "Title" "Body"
+
+	grep -q "99" "$gum_log"
+}
+
+# ---------------------------------------------------------------------------
+# Helpers shared by integration tests
+# ---------------------------------------------------------------------------
+
 _setup_develop_mocks() {
 	local gh_log="$1"
 	local git_log="$2"
@@ -182,7 +252,11 @@ _setup_develop_mocks() {
 	export -f gum
 }
 
-@test "_gh_issue_develop: passes --checkout to gh issue develop when -c given" {
+# ---------------------------------------------------------------------------
+# _gh_issue_develop: checkout path
+# ---------------------------------------------------------------------------
+
+@test "_gh_issue_develop: checkout path calls gh issue develop with --checkout" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -196,7 +270,7 @@ _setup_develop_mocks() {
 	! grep -q "commit-tree" "$git_log"
 }
 
-@test "_gh_issue_develop: omits --head from gh pr create in checkout mode" {
+@test "_gh_issue_develop: checkout path gh pr create does not include --head" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -206,52 +280,7 @@ _setup_develop_mocks() {
 	! grep -qx -- "--head" "$gh_log"
 }
 
-@test "_gh_issue_develop: omits --checkout from gh issue develop by default" {
-	local gh_log="$BATS_TEST_TMPDIR/gh.log"
-	local git_log="$BATS_TEST_TMPDIR/git.log"
-	_setup_develop_mocks "$gh_log" "$git_log"
-
-	_gh_issue_develop 42
-
-	grep -qx "develop" "$gh_log"
-	! grep -qx -- "--checkout" "$gh_log"
-}
-
-@test "_gh_issue_develop: uses commit-tree workflow without --checkout" {
-	local gh_log="$BATS_TEST_TMPDIR/gh.log"
-	local git_log="$BATS_TEST_TMPDIR/git.log"
-	_setup_develop_mocks "$gh_log" "$git_log"
-
-	_gh_issue_develop 42
-
-	grep -q "fetch origin 42-test-issue" "$git_log"
-	grep -q "commit-tree" "$git_log"
-	grep -q "push origin def456sha:refs/heads/42-test-issue" "$git_log"
-}
-
-@test "_gh_issue_develop: passes --head to gh pr create without --checkout" {
-	local gh_log="$BATS_TEST_TMPDIR/gh.log"
-	local git_log="$BATS_TEST_TMPDIR/git.log"
-	_setup_develop_mocks "$gh_log" "$git_log"
-
-	_gh_issue_develop 42
-
-	grep -qx -- "--head" "$gh_log"
-	grep -qx "42-test-issue" "$gh_log"
-}
-
-@test "_gh_issue_develop: skips empty commit without --checkout" {
-	local gh_log="$BATS_TEST_TMPDIR/gh.log"
-	local git_log="$BATS_TEST_TMPDIR/git.log"
-	_setup_develop_mocks "$gh_log" "$git_log"
-
-	_gh_issue_develop 42
-
-	! grep -q "commit --allow-empty" "$git_log"
-	! grep -q "push -u origin HEAD" "$git_log"
-}
-
-@test "_gh_issue_develop: forwards --base to gh issue develop in checkout mode" {
+@test "_gh_issue_develop: checkout path forwards --base to gh issue develop" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -263,12 +292,60 @@ _setup_develop_mocks() {
 	grep -qx "main" "$gh_log"
 }
 
-@test "_gh_issue_develop: fails when gh issue develop returns no branch URL" {
+# ---------------------------------------------------------------------------
+# _gh_issue_develop: no-checkout path
+# ---------------------------------------------------------------------------
+
+@test "_gh_issue_develop: no-checkout path does not call gh issue develop with --checkout" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
-	# Override gh to return empty output for the develop subcommand
+	_gh_issue_develop 42
+
+	grep -qx "develop" "$gh_log"
+	! grep -qx -- "--checkout" "$gh_log"
+}
+
+@test "_gh_issue_develop: no-checkout path uses git commit-tree workflow" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	_gh_issue_develop 42
+
+	grep -q "fetch origin 42-test-issue" "$git_log"
+	grep -q "commit-tree" "$git_log"
+	grep -q "push origin def456sha:refs/heads/42-test-issue" "$git_log"
+}
+
+@test "_gh_issue_develop: no-checkout path gh pr create includes --head" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	_gh_issue_develop 42
+
+	grep -qx -- "--head" "$gh_log"
+	grep -qx "42-test-issue" "$gh_log"
+}
+
+@test "_gh_issue_develop: no-checkout path does not call git commit --allow-empty" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	_gh_issue_develop 42
+
+	! grep -q "commit --allow-empty" "$git_log"
+	! grep -q "push -u origin HEAD" "$git_log"
+}
+
+@test "_gh_issue_develop: no-checkout path fails when gh issue develop returns empty" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
 	gh() {
 		printf '%s\n' "$@" >>"$gh_log"
 		case "$1 $2" in
@@ -283,7 +360,7 @@ _setup_develop_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_issue_develop: forwards -- flags to gh pr create" {
+@test "_gh_issue_develop: passthrough flags reach gh pr create" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -293,4 +370,67 @@ _setup_develop_mocks() {
 	grep -qx -- "--draft" "$gh_log"
 	grep -qx -- "--label" "$gh_log"
 	grep -qx "enhancement" "$gh_log"
+}
+
+# ---------------------------------------------------------------------------
+# _gh_issue_develop: --agent delegation path
+# ---------------------------------------------------------------------------
+
+@test "_gh_issue_develop: --agent @claude invokes claude --remote and returns 0" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	local claude_log="$BATS_TEST_TMPDIR/claude.log"
+	claude() { echo "$*" >"$claude_log"; }
+	export -f claude
+
+	run _gh_issue_develop 42 --agent @claude
+	[[ "$status" -eq 0 ]]
+	grep -q -- "--remote" "$claude_log"
+}
+
+@test "_gh_issue_develop: --agent path does not call gh issue develop" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	claude() { :; }
+	export -f claude
+
+	_gh_issue_develop 42 --agent @claude
+
+	! grep -qx "develop" "$gh_log"
+}
+
+@test "_gh_issue_develop: --agent path does not create git branch or PR" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	jules() { :; }
+	export -f jules
+
+	_gh_issue_develop 42 --agent @jules
+
+	! grep -q "commit-tree" "$git_log"
+	! grep -q "pr create" "$gh_log"
+}
+
+@test "_gh_issue_develop: unknown --agent value returns error" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	run _gh_issue_develop 42 --agent @unknown-bot
+	[[ "$status" -eq 1 ]]
+}
+
+@test "_gh_issue_develop: --agent value without @ prefix returns error" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	run _gh_issue_develop 42 --agent claude
+	[[ "$status" -eq 1 ]]
 }

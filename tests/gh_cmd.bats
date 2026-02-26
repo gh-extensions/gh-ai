@@ -10,12 +10,16 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 setup() {
 	export _gh_ai_source_dir="$REPO_ROOT"
 
+	gum() { :; }
+	gh() { echo ""; }
+	export -f gum gh
+
 	# shellcheck disable=SC2155
 	eval "$(
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _split_on_separator
+		declare -f _split_on_separator _cmd_assist_remotely
 	)"
 }
 
@@ -100,4 +104,43 @@ setup() {
 
 	[[ ${#before[@]} -eq 0 ]]
 	[[ ${#after[@]} -eq 0 ]]
+}
+
+# ---------------------------------------------------------------------------
+# _cmd_assist_remotely: CLI dispatch
+# ---------------------------------------------------------------------------
+
+@test "_cmd_assist_remotely: @claude pipes prompt to claude --remote" {
+	claude() { echo "claude $*"; }
+	export -f claude
+
+	local out
+	out=$(_cmd_assist_remotely @claude "owner/repo" "my prompt")
+
+	[[ "$out" == *"--remote"* ]]
+}
+
+@test "_cmd_assist_remotely: @jules calls jules remote new with --repo" {
+	jules() { echo "jules $*"; }
+	export -f jules
+
+	local out
+	out=$(_cmd_assist_remotely @jules "owner/repo" "my prompt")
+
+	[[ "$out" == *"remote new"* ]]
+	[[ "$out" == *"--repo"* ]]
+	[[ "$out" == *"owner/repo"* ]]
+}
+
+@test "_cmd_assist_remotely: @copilot pipes to gh agent-task create with -R" {
+	gh() { echo "gh $*"; }
+	export -f gh
+
+	local out
+	out=$(_cmd_assist_remotely @copilot "owner/repo" "my prompt")
+
+	[[ "$out" == *"agent-task"* ]]
+	[[ "$out" == *"create"* ]]
+	[[ "$out" == *"-R"* ]]
+	[[ "$out" == *"owner/repo"* ]]
 }

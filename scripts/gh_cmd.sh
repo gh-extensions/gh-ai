@@ -72,6 +72,32 @@ _cmd_assist() {
 	esac
 }
 
+# Invoke a remote AI agent CLI with a prompt
+#
+# Dispatches to the appropriate agent CLI based on the GitHub mention handle:
+#   @claude  -> claude --remote        (prompt via stdin)
+#   @jules   -> jules remote new       (prompt via --session, --repo)
+#   @copilot -> gh agent-task create   (prompt via stdin with -F -, -R)
+#
+# Usage: _cmd_assist_remotely <handle> <repo> <prompt>
+_cmd_assist_remotely() {
+	local handle="$1"
+	local repo="$2"
+	local prompt="$3"
+
+	case "$handle" in
+	@claude)
+		echo "$prompt" | claude --remote
+		;;
+	@jules)
+		jules remote new --repo "$repo" --session "$prompt"
+		;;
+	@copilot)
+		echo "$prompt" | gh agent-task create -R "$repo" -F -
+		;;
+	esac
+}
+
 # Extract title from AI response
 #
 # Gets the title from AI-generated content by taking the first line
@@ -149,8 +175,11 @@ main() {
 	assist)
 		_cmd_assist "${2:-}"
 		;;
+	remotely)
+		_cmd_assist_remotely "${2:-}" "${3:-}" "${4:-}"
+		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|assist> [args]"
+		gum log --level error "Usage: gh_cmd.sh <render|assist|remotely> [args]"
 		exit 1
 		;;
 	esac

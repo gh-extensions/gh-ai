@@ -265,18 +265,20 @@ _gh_issue_edit() {
 
 # Parse issue develop arguments (before -- separator)
 #
-# Extracts the issue number (first numeric arg), -c/--checkout flag, and
-# gh issue develop scalars (-b/--base, -n/--name, --branch-repo).
+# Extracts the issue number (first numeric arg), -c/--checkout flag,
+# gh issue develop scalars (-b/--base, -n/--name, --branch-repo), and
+# the --agent handle (@claude, @copilot, @jules).
 # Unknown flags produce an error with a hint to use --.
 #
-# Example: _parse_issue_develop_args num checkout base name branch_repo 42 -c -b develop
+# Example: _parse_issue_develop_args num checkout base name branch_repo agent 42 -c -b develop
 _parse_issue_develop_args() {
 	local -n gh_issue_number_ref="$1"
 	local -n gh_checkout_ref="$2"
 	local -n gh_develop_base_ref="$3"
 	local -n gh_develop_name_ref="$4"
 	local -n gh_develop_branch_repo_ref="$5"
-	shift 5
+	local -n gh_agent_ref="$6"
+	shift 6
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -331,6 +333,18 @@ _parse_issue_develop_args() {
 			# shellcheck disable=SC2034
 			gh_checkout_ref=true
 			;;
+		--agent)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
+			gh_agent_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--agent=*)
+			# shellcheck disable=SC2034
+			gh_agent_ref="${raw_args[$i]#--agent=}"
+			;;
 		-*)
 			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)" >&2
 			return 1
@@ -357,7 +371,7 @@ _show_issue_develop_help() {
 gh ai issue develop - Create a branch and PR with an AI implementation plan
 
 USAGE:
-    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
+    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [--agent HANDLE] [-- OPTIONS]
 
 DESCRIPTION:
     Creates a development branch from a GitHub issue, generates an AI
@@ -367,22 +381,116 @@ DESCRIPTION:
     (pull request). Title and body are AI-generated from the issue.
     Options after -- are passed directly to gh pr create.
 
+    With --agent, the AI-generated plan is passed as a prompt to the
+    specified agent CLI. No branch or PR is created locally.
+
 BRANCH FLAGS (gh issue develop):
     -b, --base string          Name of the remote branch to branch from
     -n, --name string          Name of the branch to create
         --branch-repo string   Name or URL of the repo for the new branch
 
 WORKFLOW FLAGS:
-    -c, --checkout   Check out the new branch locally after creating it.
-                     Default: branch is created remotely and an initial commit
-                     is added without switching your working tree.
+    -c, --checkout             Check out the new branch locally after creating it.
+                               Default: branch is created remotely and an initial commit
+                               is added without switching your working tree.
+        --agent HANDLE         Delegate implementation to a remote AI agent.
+                               Supported: @claude, @copilot, @jules
 
 EXAMPLES:
     gh ai issue develop 42
     gh ai issue develop 42 --checkout
     gh ai issue develop 42 -b develop -- --draft
     gh ai issue develop 42 -- --label enhancement --reviewer monalisa
+    gh ai issue develop 42 --agent @claude
+    gh ai issue develop 42 --agent @copilot
+    gh ai issue develop 42 --agent @jules
 EOF
+}
+
+# Delegate issue development to a remote AI agent.
+#
+# Renders the agent instruction template from the AI-generated plan and
+# pipes the result to the appropriate agent CLI via _cmd_assist_remotely.
+# No branch or PR is created locally — the agent handles everything.
+#
+# Usage: _gh_issue_develop_remotely <agent> <issue_number> <pr_title> <pr_body>
+_gh_issue_develop_remotely() {
+	local gh_agent="$1"
+	local gh_issue_number="$2"
+	local gh_pr_title="$3"
+	local gh_pr_body="$4"
+
+	local agent_template_file
+	# shellcheck disable=SC2154
+	agent_template_file="$_gh_ai_source_dir/templates/gh_issue_develop_agent.tmpl"
+
+	local agent_prompt
+	agent_prompt=$(
+		GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$agent_template_file"
+	)
+
+	local gh_repo
+	gh_repo=$(gh repo view --json nameWithOwner -q '.nameWithOwner')
+
+	gum spin --title "Delegating GitHub issue #$gh_issue_number to $gh_agent..." -- \
+		"$_gh_ai_source_dir/scripts/gh_cmd.sh" remotely "$gh_agent" "$gh_repo" "$agent_prompt"
+
+	gum log --level info "GitHub Issue #$gh_issue_number delegated to $gh_agent"
+}
+
+# No-checkout develop path: create branch remotely via commit-tree
+#
+# Creates the development branch using `gh issue develop`, adds an initial
+# empty commit via git commit-tree without switching the local working tree,
+# then opens a pull request with --head set to the new branch.
+#
+# Usage: _gh_issue_develop_no_checkout <issue_number> <pr_title> <pr_body> <issue_args_name> <passthrough_name>
+_gh_issue_develop_no_checkout() {
+	local gh_issue_number="$1"
+	local gh_pr_title="$2"
+	local gh_pr_body="$3"
+	local -n _issue_args_ref="$4"
+	local -n _passthrough_ref="$5"
+
+	local gh_develop_url
+	gh_develop_url=$(gum spin --title "Creating Git branch #$gh_issue_number..." -- \
+		gh issue develop "$gh_issue_number" "${_issue_args_ref[@]}")
+	if [[ -z "$gh_develop_url" ]]; then
+		gum log --level error "Failed to create development branch for #$gh_issue_number"
+		return 1
+	fi
+
+	# gh issue develop outputs a GitHub web URL ending with /tree/<branch>.
+	# Strip the prefix rather than using basename to handle branch names
+	# that contain '/' (e.g. feature/my-topic).
+	local git_branch_name
+	git_branch_name="${gh_develop_url##*/tree/}"
+	if [[ -z "$git_branch_name" ]]; then
+		gum log --level error "Failed to determine branch name from: $gh_develop_url"
+		return 1
+	fi
+
+	gum spin --title "Fetching Git branch $git_branch_name..." -- \
+		git fetch origin "$git_branch_name"
+
+	local git_tree_sha
+	# shellcheck disable=SC1083  # braces are git rev-parse syntax, not a shell expansion
+	git_tree_sha=$(git rev-parse FETCH_HEAD^{tree})
+
+	local git_parent_sha
+	git_parent_sha=$(git rev-parse FETCH_HEAD)
+
+	local git_commit_sha
+	git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" \
+		-m "chore: start work on #$gh_issue_number")
+
+	gum spin --title "Pushing Git initial commit..." -- \
+		git push origin "$git_commit_sha:refs/heads/$git_branch_name"
+
+	# Create the pull request, explicitly naming the head branch
+	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
+		--head "$git_branch_name" "${_passthrough_ref[@]}"
 }
 
 # Issue Develop implementation
@@ -391,7 +499,7 @@ EOF
 # plan, and opens a pull request with that plan as the body.
 # Uses native `gh issue develop` for branch creation.
 #
-# Usage: _gh_issue_develop <NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- OPTIONS]
+# Usage: _gh_issue_develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [--agent HANDLE] [-- OPTIONS]
 _gh_issue_develop() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -413,7 +521,18 @@ _gh_issue_develop() {
 	local gh_develop_base=""
 	local gh_develop_name=""
 	local gh_develop_branch_repo=""
-	_parse_issue_develop_args gh_issue_number gh_checkout gh_develop_base gh_develop_name gh_develop_branch_repo "${ai_args[@]}"
+	local gh_agent=""
+	_parse_issue_develop_args gh_issue_number gh_checkout gh_develop_base gh_develop_name gh_develop_branch_repo gh_agent "${ai_args[@]}"
+
+	if [[ -n "$gh_agent" ]]; then
+		case "$gh_agent" in
+		@claude | @jules | @copilot) ;;
+		*)
+			gum log --level error "Unknown agent '$gh_agent' (supported: @claude, @jules, @copilot)"
+			return 1
+			;;
+		esac
+	fi
 
 	# Build gh issue develop args from scalars
 	local gh_issue_args=()
@@ -477,6 +596,11 @@ _gh_issue_develop() {
 		return 1
 	fi
 
+	if [[ -n "$gh_agent" ]]; then
+		_gh_issue_develop_remotely "$gh_agent" "$gh_issue_number" "$gh_pr_title" "$gh_pr_body"
+		return 0
+	fi
+
 	if [ "$gh_checkout" = "true" ]; then
 		# Standard approach: checkout branch locally
 		gum spin --title "Creating Git branch #$gh_issue_number..." -- \
@@ -489,46 +613,7 @@ _gh_issue_develop() {
 		# Create the pull request
 		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
 	else
-		# No-checkout approach: create the branch remotely, then add an initial
-		# commit via git commit-tree without switching the local working tree.
-		local gh_develop_url
-		gh_develop_url=$(gum spin --title "Creating Git branch #$gh_issue_number..." -- \
-			gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
-		if [[ -z "$gh_develop_url" ]]; then
-			gum log --level error "Failed to create development branch for #$gh_issue_number"
-			return 1
-		fi
-
-		# gh issue develop outputs a GitHub web URL ending with /tree/<branch>.
-		# Strip the prefix rather than using basename to handle branch names
-		# that contain '/' (e.g. feature/my-topic).
-		local git_branch_name
-		git_branch_name="${gh_develop_url##*/tree/}"
-		if [[ -z "$git_branch_name" ]]; then
-			gum log --level error "Failed to determine branch name from: $gh_develop_url"
-			return 1
-		fi
-
-		gum spin --title "Fetching Git branch $git_branch_name..." -- \
-			git fetch origin "$git_branch_name"
-
-		local git_tree_sha
-		# shellcheck disable=SC1083  # braces are git rev-parse syntax, not a shell expansion
-		git_tree_sha=$(git rev-parse FETCH_HEAD^{tree})
-
-		local git_parent_sha
-		git_parent_sha=$(git rev-parse FETCH_HEAD)
-
-		local git_commit_sha
-		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" \
-			-m "chore: start work on #$gh_issue_number")
-
-		gum spin --title "Pushing Git initial commit..." -- \
-			git push origin "$git_commit_sha:refs/heads/$git_branch_name"
-
-		# Create the pull request, explicitly naming the head branch
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
-			--head "$git_branch_name" "${passthrough[@]}"
+		_gh_issue_develop_no_checkout "$gh_issue_number" "$gh_pr_title" "$gh_pr_body" gh_issue_args passthrough
 	fi
 }
 
