@@ -432,16 +432,19 @@ _parse_pr_explain_args() {
 
 # Parse PR review arguments in a single pass
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and passthrough args for gh pr review via namerefs.
-# AI-managed flags (--body, --body-file) and the PR number are stripped.
+# Extracts the PR number (first numeric arg, with auto-detect fallback),
+# the optional -d/--description value, and passthrough args for gh pr review
+# via namerefs. AI-managed flags (--body, --body-file, --description) and
+# the PR number are stripped.
 #
-# Example: _parse_pr_review_args num args 42 --approve
+# Example: _parse_pr_review_args num desc args 42 -d "focus on security" --approve
 _parse_pr_review_args() {
 	local -n gh_pr_number_ref="$1"
 	# shellcheck disable=SC2178
-	local -n gh_pr_args_ref="$2"
-	shift 2
+	local -n gh_pr_description_ref="$2"
+	# shellcheck disable=SC2178
+	local -n gh_pr_args_ref="$3"
+	shift 3
 
 	local args=("$@")
 	local skip_next=false
@@ -455,6 +458,13 @@ _parse_pr_review_args() {
 		fi
 
 		case "${args[$i]}" in
+		--description | -d)
+			gh_pr_description_ref="${args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			gh_pr_description_ref="${args[$i]#--description=}"
+			;;
 		--body | -b | --body-file | -F)
 			skip_next=true
 			;;
@@ -485,20 +495,24 @@ _show_pr_review_help() {
 gh ai pr review - Review PRs with AI-generated feedback
 
 USAGE:
-    gh ai pr review [PR_NUMBER] [OPTIONS]
+    gh ai pr review [-d <DESCRIPTION>] [PR_NUMBER] [OPTIONS]
 
 DESCRIPTION:
     Submits a GitHub PR review with AI-generated feedback based on the
     diff and commit history. Auto-detects PR from the current branch
     if no number is provided.
 
+OPTIONS:
+    -d, --description <TEXT>    Additional context for AI review generation
+
 PASSTHROUGH FLAGS:
-    All flags are passed directly to gh pr review.
+    All other flags are passed directly to gh pr review.
     See gh pr review --help for the full list.
 
 EXAMPLES:
     gh ai pr review 42
     gh ai pr review 42 --approve
+    gh ai pr review -d "focus on security"
     gh ai pr review              # auto-detect PR from current branch
 EOF
 }
@@ -526,8 +540,9 @@ _gh_pr_review() {
 	template_file="$_gh_ai_source_dir/templates/gh_pr_review.tmpl"
 
 	local gh_pr_number=""
+	local gh_pr_description=""
 	local gh_pr_args=()
-	_parse_pr_review_args gh_pr_number gh_pr_args "${args[@]}"
+	_parse_pr_review_args gh_pr_number gh_pr_description gh_pr_args "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
@@ -558,12 +573,19 @@ _gh_pr_review() {
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
 
+	local gh_pr_description_context=""
+	if [[ -n "$gh_pr_description" ]]; then
+		gh_pr_description_context="<description>$gh_pr_description</description>"
+	fi
+
 	local gh_pr_body
 	# Generate review content using assistant run
 	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
+				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
+				GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
+				GH_PR_REVIEW_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
