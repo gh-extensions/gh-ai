@@ -164,9 +164,10 @@ setup() {
 	local number=""
 	local description=""
 	local args=()
-	_parse_pr_review_args number description args -d "fix: handle \$HOME and 'quotes' & <html>"
+	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
+	_parse_pr_review_args number description args -d "$expected"
 
-	[[ "$description" == 'fix: handle $HOME and '"'"'quotes'"'"' & <html>' ]]
+	[[ "$description" == "$expected" ]]
 }
 
 @test "T006: no description flag leaves variable empty and passes all args" {
