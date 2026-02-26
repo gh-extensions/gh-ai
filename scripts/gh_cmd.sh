@@ -8,13 +8,12 @@ set -euo pipefail
 
 # Render a template file by substituting ${VAR} placeholders with env var values
 #
-# Reads the given template file and uses envsubst to replace ${VAR} tokens
-# with the values of the corresponding environment variables.
+# Reads the given template file and uses awk to replace ${VAR} tokens with the
+# values of the corresponding environment variables (via ENVIRON[]).
 #
-# Safety: envsubst operates in a single pass over the template file. Values
-# read from the environment are substituted directly into the output without
-# being re-processed, so ${...} patterns inside a substituted value (e.g. in
-# a git diff) are never expanded. Template files use ALL_CAPS variable names
+# Safety: substitution is a single left-to-right pass — values are never
+# re-scanned, so ${...} patterns inside a substituted value (e.g. in a git
+# diff) are never expanded. Template files use ALL_CAPS variable names
 # (GIT_DIFF, GH_PR_*, etc.) that do not overlap with standard shell variables.
 #
 # Usage: MY_VAR="value" _cmd_render template.tmpl
@@ -26,7 +25,17 @@ _cmd_render() {
 		return 1
 	fi
 
-	envsubst <"$template_file"
+	awk '
+	{ content = content $0 "\n" }
+	END {
+		result = ""; remaining = content
+		while (match(remaining, /\$\{[A-Z_][A-Z0-9_]*\}/)) {
+			varname = substr(remaining, RSTART+2, RLENGTH-3)
+			result = result substr(remaining, 1, RSTART-1) ENVIRON[varname]
+			remaining = substr(remaining, RSTART+RLENGTH)
+		}
+		printf "%s%s", result, remaining
+	}' "$template_file"
 }
 
 # Send a prompt to the AI provider and print the response

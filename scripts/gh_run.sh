@@ -122,9 +122,6 @@ _gh_run_explain() {
 			gh run view "$gh_run_id" --log || true)
 	fi
 
-	# Truncate to last 500 lines to keep prompt size reasonable
-	gh_run_log=$(echo "$gh_run_log" | tail -n 500)
-
 	local agent_model
 	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)
 

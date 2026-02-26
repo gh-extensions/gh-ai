@@ -8,7 +8,7 @@ _gh_ai_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Verify required dependencies are installed
 #
-# Checks that Bash 4.4+, gh, claude, gum, and envsubst are available.
+# Checks that Bash 4.4+, gh, claude, and gum are available.
 # Prints installation instructions and exits if any are missing.
 _check_dependencies() {
 	if [[ "${BASH_VERSINFO[0]}" -lt 4 || ("${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -lt 4) ]]; then
@@ -27,9 +27,6 @@ _check_dependencies() {
 	fi
 	if ! command -v gum &>/dev/null; then
 		missing+=("gum     — https://github.com/charmbracelet/gum")
-	fi
-	if ! command -v envsubst &>/dev/null; then
-		missing+=("envsubst — https://www.gnu.org/software/gettext (macOS: brew install gettext)")
 	fi
 	if [[ ${#missing[@]} -gt 0 ]]; then
 		echo "gh-ai: missing required dependencies:" >&2
