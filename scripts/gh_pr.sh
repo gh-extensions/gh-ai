@@ -47,6 +47,7 @@ _parse_pr_create_args() {
 			skip_next=true
 			;;
 		--base=*)
+			# shellcheck disable=SC2034
 			git_base_branch_ref="${args[$i]#--base=}"
 			gh_pr_args_ref+=("${args[$i]}")
 			;;
@@ -413,6 +414,7 @@ _parse_pr_explain_args() {
 			gh_pr_output_mode_ref="comment"
 			;;
 		--edit)
+			# shellcheck disable=SC2034
 			gh_pr_output_mode_ref="edit"
 			;;
 		*)
@@ -463,6 +465,7 @@ _parse_pr_review_args() {
 			skip_next=true
 			;;
 		--description=*)
+			# shellcheck disable=SC2034
 			gh_pr_description_ref="${args[$i]#--description=}"
 			;;
 		--body | -b | --body-file | -F)
@@ -583,9 +586,7 @@ _gh_pr_review() {
 	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
-				GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
-				GH_PR_REVIEW_DESCRIPTION="$gh_pr_description_context" \
+				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" GH_PR_REVIEW_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
