@@ -40,6 +40,7 @@ setup() {
 	[[ "$number" == "42" ]]
 	[[ ${#issue_args[@]} -eq 0 ]]
 	[[ ${#pr_args[@]} -eq 0 ]]
+	[[ "$checkout" == "false" ]]
 }
 
 @test "T002: issue number does not bleed into passthrough args" {
@@ -279,6 +280,7 @@ setup() {
 	[[ "${pr_args[0]}" == "--draft" ]]
 	[[ "${pr_args[1]}" == "--label" ]]
 	[[ "${pr_args[2]}" == "bug" ]]
+	[[ "$checkout" == "false" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -325,17 +327,20 @@ setup() {
 # Helpers shared by T009/T010 integration tests
 # ---------------------------------------------------------------------------
 
-# _setup_develop_mocks sets up gh/git/gum mocks that record calls to temp
-# files and return appropriate fake values for the develop workflow.
+# _setup_develop_mocks sets up gh/git/gum/jq mocks that record calls to temp
+# files (passed as arguments) and return appropriate fake values for the full
+# develop workflow.  Callers should use BATS_TEST_TMPDIR for the log paths so
+# bats cleans them up automatically after each test.
 #
-# Usage: _setup_develop_mocks <gh_log_var> <git_log_var>
+# Usage: _setup_develop_mocks <gh_log> <git_log>
 _setup_develop_mocks() {
 	local gh_log="$1"
 	local git_log="$2"
 
 	gh() {
-		# Write each argument on its own line so multiline body args don't
-		# break grep assertions.
+		# Write each argument on its own line so multiline body args (e.g.
+		# --body with an AI-generated markdown string) don't break grep
+		# assertions that use -x for exact-line matching.
 		printf '%s\n' "$@" >>"$gh_log"
 		case "$1 $2" in
 		"issue view") echo '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
@@ -355,11 +360,31 @@ _setup_develop_mocks() {
 	}
 	export -f git
 
+	# jq is called to parse the JSON returned by `gh issue view`.  Mock it so
+	# that tests do not depend on jq being installed in the CI environment.
+	jq() {
+		# $1 is -r, $2 is the filter expression.
+		case "${2:-}" in
+		*title*)    echo "Test Issue";;
+		*labels*)   echo "";;
+		*comments*) echo "";;
+		*body*)     echo "Issue body";;
+		*)          echo "";;
+		esac
+	}
+	export -f jq
+
 	gum() {
 		case "$1" in
 		spin)
+			# Strip everything up to and including the '--' separator to get
+			# the actual command and its arguments.
 			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
 			[[ $# -gt 0 ]] && shift
+			# Intercept the AI generation call (gh_cmd.sh assist) and return a
+			# fake but structurally valid response so _get_title/_get_body work.
+			# All other commands (gh issue view, git fetch, git push, …) are
+			# forwarded to their own mocks via "$@".
 			case "${1:-}" in
 			*/gh_cmd.sh) printf '# Test PR Title\n\n## Plan\n\n- Step 1\n';;
 			*) "$@";;
@@ -376,9 +401,8 @@ _setup_develop_mocks() {
 # ---------------------------------------------------------------------------
 
 @test "T009: checkout path calls gh issue develop with --checkout" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42 --checkout
@@ -389,22 +413,17 @@ _setup_develop_mocks() {
 	grep -q "commit --allow-empty" "$git_log"
 	grep -q "push -u origin HEAD" "$git_log"
 	! grep -q "commit-tree" "$git_log"
-
-	rm -f "$gh_log" "$git_log"
 }
 
 @test "T009: checkout path gh pr create does not include --head" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42 --checkout
 
 	# --head argument should not appear anywhere in the gh calls
 	! grep -qx -- "--head" "$gh_log"
-
-	rm -f "$gh_log" "$git_log"
 }
 
 # ---------------------------------------------------------------------------
@@ -412,9 +431,8 @@ _setup_develop_mocks() {
 # ---------------------------------------------------------------------------
 
 @test "T010: no-checkout path does not call gh issue develop with --checkout" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42
@@ -422,14 +440,11 @@ _setup_develop_mocks() {
 	# gh issue develop was called (develop arg present) but --checkout was not
 	grep -qx "develop" "$gh_log"
 	! grep -qx -- "--checkout" "$gh_log"
-
-	rm -f "$gh_log" "$git_log"
 }
 
 @test "T010: no-checkout path uses git commit-tree workflow" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42
@@ -437,14 +452,11 @@ _setup_develop_mocks() {
 	grep -q "fetch origin 42-test-issue" "$git_log"
 	grep -q "commit-tree" "$git_log"
 	grep -q "push origin def456sha:refs/heads/42-test-issue" "$git_log"
-
-	rm -f "$gh_log" "$git_log"
 }
 
 @test "T010: no-checkout path gh pr create includes --head" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42
@@ -452,20 +464,48 @@ _setup_develop_mocks() {
 	# --head and its value appear as separate lines (one arg per line in mock)
 	grep -qx -- "--head" "$gh_log"
 	grep -qx "42-test-issue" "$gh_log"
-
-	rm -f "$gh_log" "$git_log"
 }
 
 @test "T010: no-checkout path does not call git commit --allow-empty" {
-	local gh_log git_log
-	gh_log=$(mktemp)
-	git_log=$(mktemp)
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
 
 	_gh_issue_develop 42
 
 	! grep -q "commit --allow-empty" "$git_log"
 	! grep -q "push -u origin HEAD" "$git_log"
+}
 
-	rm -f "$gh_log" "$git_log"
+@test "T009: checkout path forwards --base to gh issue develop" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	_gh_issue_develop 42 --checkout --base main
+
+	# --base and its value must reach gh issue develop alongside --checkout
+	grep -qx -- "--checkout" "$gh_log"
+	grep -qx -- "--base" "$gh_log"
+	grep -qx "main" "$gh_log"
+}
+
+@test "T010: no-checkout path fails when gh issue develop returns empty" {
+	local gh_log="$BATS_TEST_TMPDIR/gh.log"
+	local git_log="$BATS_TEST_TMPDIR/git.log"
+	_setup_develop_mocks "$gh_log" "$git_log"
+
+	# Override gh to return empty output for the develop subcommand
+	gh() {
+		printf '%s\n' "$@" >>"$gh_log"
+		case "$1 $2" in
+		"issue view") echo '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
+		"issue develop") ;;
+		"config get") ;;
+		esac
+	}
+	export -f gh
+
+	run _gh_issue_develop 42
+	[[ "$status" -eq 1 ]]
 }
