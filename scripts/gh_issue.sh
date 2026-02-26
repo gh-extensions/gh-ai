@@ -315,7 +315,10 @@ _parse_issue_develop_args() {
 		--base=* | --name=* | --branch-repo=*)
 			gh_issue_args_ref+=("${raw_args[$i]}")
 			;;
-		--checkout | -c) gh_checkout_ref=true ;;
+		--checkout | -c)
+			# shellcheck disable=2034
+			gh_checkout_ref=true
+			;;
 		--head | -H | -B)
 			skip_next=true
 			;;
@@ -498,23 +501,27 @@ _gh_issue_develop() {
 		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${gh_pr_args[@]}"
 	else
 		# git-commit-tree approach: create branch without local checkout
-		local branch_output branch_name
-		branch_output=$(gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
-		branch_name=$(basename "$branch_output")
+		local git_branch_url
+		git_branch_url=$(gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
 
-		git fetch origin "$branch_name"
+		local git_branch_name
+		git_branch_name=$(basename "$git_branch_url")
+		# Fetch the branch
+		git fetch origin "$git_branch_name"
 
-		local tree_sha parent_sha new_commit
-		tree_sha=$(git rev-parse FETCH_HEAD^{tree})
-		parent_sha=$(git rev-parse FETCH_HEAD)
-		new_commit=$(git commit-tree "$tree_sha" -p "$parent_sha" \
-			-m "chore: start work on #$gh_issue_number")
+		local git_tree_sha
+		# shellcheck disable=SC1083
+		git_tree_sha=$(git rev-parse FETCH_HEAD^{tree})
 
-		git push origin "$new_commit:refs/heads/$branch_name"
+		local git_parent_sha
+		git_parent_sha=$(git rev-parse FETCH_HEAD)
+
+		local git_commit_sha
+		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" -m "chore: start work on #$gh_issue_number")
+		git push origin "$git_commit_sha:refs/heads/$git_branch_name"
 
 		# Create the pull request, explicitly naming the head branch
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
-			--head "$branch_name" "${gh_pr_args[@]}"
+		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" --head "$git_branch_name" "${gh_pr_args[@]}"
 	fi
 }
 

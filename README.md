@@ -113,7 +113,8 @@ Develops an issue by creating a branch, generating an AI implementation plan,
 and opening a pull request.
 
 ```bash
-gh ai issue develop 42
+gh ai issue develop 42            # no local branch switch (uses git commit-tree)
+gh ai issue develop 42 --checkout # check out the branch locally
 gh ai issue develop 42 --draft
 gh ai issue develop 42 --base develop
 ```
