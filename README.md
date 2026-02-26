@@ -28,7 +28,7 @@ gh extension install gh-extensions/gh-ai
 gh ai commit [-d <DESCRIPTION>] [GIT_COMMIT_OPTIONS]
 gh ai pr create [-d <DESCRIPTION>] [GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-gh ai pr review [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
+gh ai pr review [-d <DESCRIPTION>] [PR_NUMBER] [GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
@@ -69,11 +69,14 @@ gh ai pr edit 42 -d "fix summary" --add-label bug
 gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 ```
 
-Reviews a pull request with AI-generated feedback.
+Reviews a pull request with AI-generated feedback. Use `-d`/`--description`
+to provide extra context or focus areas that guide the AI review.
 
 ```bash
 gh ai pr review 42
 gh ai pr review 42 --approve
+gh ai pr review -d "focus on security"
+gh ai pr review 42 -d "check error handling" --comment
 gh ai pr review # auto-detects PR for the current branch
 ```
 
