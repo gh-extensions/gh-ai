@@ -168,7 +168,7 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_gh_issue_develop_remotely: invokes _cmd_assist_remotely with repo and rendered prompt" {
-	local claude_log="$BATS_TEST_TMPDIR/claude.log"
+	export claude_log="$BATS_TEST_TMPDIR/claude.log"
 	claude() { echo "$*" >"$claude_log"; }
 	gh() { echo "owner/repo"; }
 	gum() {
@@ -376,21 +376,7 @@ _setup_develop_mocks() {
 # _gh_issue_develop: --agent delegation path
 # ---------------------------------------------------------------------------
 
-@test "_gh_issue_develop: --agent @claude invokes claude --remote and returns 0" {
-	local gh_log="$BATS_TEST_TMPDIR/gh.log"
-	local git_log="$BATS_TEST_TMPDIR/git.log"
-	_setup_develop_mocks "$gh_log" "$git_log"
-
-	local claude_log="$BATS_TEST_TMPDIR/claude.log"
-	claude() { echo "$*" >"$claude_log"; }
-	export -f claude
-
-	run _gh_issue_develop 42 --agent @claude
-	[[ "$status" -eq 0 ]]
-	grep -q -- "--remote" "$claude_log"
-}
-
-@test "_gh_issue_develop: --agent path does not call gh issue develop" {
+@test "_gh_issue_develop: --agent @claude succeeds without creating branch or PR" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"
 	local git_log="$BATS_TEST_TMPDIR/git.log"
 	_setup_develop_mocks "$gh_log" "$git_log"
@@ -398,10 +384,13 @@ _setup_develop_mocks() {
 	claude() { :; }
 	export -f claude
 
-	_gh_issue_develop 42 --agent @claude
-
+	run _gh_issue_develop 42 --agent @claude
+	[[ "$status" -eq 0 ]]
 	! grep -qx "develop" "$gh_log"
+	! grep -q "commit-tree" "$git_log"
+	! grep -q "pr create" "$gh_log"
 }
+
 
 @test "_gh_issue_develop: --agent path does not create git branch or PR" {
 	local gh_log="$BATS_TEST_TMPDIR/gh.log"

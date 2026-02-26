@@ -95,6 +95,10 @@ _cmd_assist_remotely() {
 	@copilot)
 		echo "$prompt" | gh agent-task create -R "$repo" -F -
 		;;
+	*)
+		gum log --level error "Unknown agent '$handle' (supported: @claude, @jules, @copilot)"
+		return 1
+		;;
 	esac
 }
 

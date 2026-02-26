@@ -144,3 +144,9 @@ setup() {
 	[[ "$out" == *"-R"* ]]
 	[[ "$out" == *"owner/repo"* ]]
 }
+
+@test "_cmd_assist_remotely: unknown handle returns error" {
+	run _cmd_assist_remotely @unknown "owner/repo" "my prompt"
+
+	[[ "$status" -eq 1 ]]
+}
