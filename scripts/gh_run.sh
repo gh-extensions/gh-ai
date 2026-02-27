@@ -135,6 +135,10 @@ _gh_run_chat() {
 	local preamble
 	preamble=$(GH_RUN_ID="$gh_run_id" \
 		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl")
+	if [[ -z "$preamble" ]]; then
+		gum log --level error "Failed to render chat preamble"
+		return 1
+	fi
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)

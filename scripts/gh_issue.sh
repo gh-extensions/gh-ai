@@ -538,15 +538,24 @@ _gh_issue_chat() {
 	# Create worktree only if it does not exist; do not auto-merge dev branches
 	if [[ ! -d "$wt_path" ]]; then
 		gum spin --title "Setting up worktree for issue #$gh_issue_number..." -- \
-			git fetch origin "$branch" 2>/dev/null ||
-			gh issue develop "$gh_issue_number" --name "$branch" 2>/dev/null || true
-		git worktree add -B "$branch" "$wt_path" "origin/$branch" 2>/dev/null ||
-			git worktree add -b "$branch" "$wt_path" 2>/dev/null || true
+			bash -c "git fetch origin '$branch' >/dev/null 2>&1 ||
+				gh issue develop '$gh_issue_number' --name '$branch' >/dev/null 2>&1 || true;
+				git worktree add -B '$branch' '$wt_path' 'origin/$branch' >/dev/null 2>&1 ||
+				git worktree add -b '$branch' '$wt_path' >/dev/null 2>&1 || true"
+
+		if [[ ! -d "$wt_path" ]]; then
+			gum log --level error "Failed to create worktree for issue #$gh_issue_number"
+			return 1
+		fi
 	fi
 
 	local preamble
 	preamble=$(GH_ISSUE_NUMBER="$gh_issue_number" \
 		_cmd_render "$_gh_ai_source_dir/templates/gh_issue_chat.tmpl")
+	if [[ -z "$preamble" ]]; then
+		gum log --level error "Failed to render chat preamble"
+		return 1
+	fi
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
