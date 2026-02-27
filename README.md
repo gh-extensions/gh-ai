@@ -2,7 +2,7 @@
 
 A GitHub CLI extension that uses AI to generate commit messages, create and
 edit pull requests with smart titles and descriptions, review code with
-actionable feedback, manage issues from creation through implementation, and
+actionable feedback, manage issues and generate implementation plans, and
 explain CI failures.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
