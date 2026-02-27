@@ -31,35 +31,35 @@ _parse_pr_create_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_pr_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
 		--base | -B)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			git_base_branch_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--base=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			git_base_branch_ref="${raw_args[$i]#--base=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)"
 			return 1
 			;;
 		*)
-			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			gum log --level error "unexpected argument '${raw_args[$i]}'"
 			return 1
 			;;
 		esac
@@ -234,18 +234,18 @@ _parse_pr_edit_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_pr_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr edit)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr edit)"
 			return 1
 			;;
 		*)
@@ -253,7 +253,7 @@ _parse_pr_edit_args() {
 			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
@@ -420,17 +420,27 @@ _parse_pr_explain_args() {
 
 	while [[ $i -lt ${#raw_args[@]} ]]; do
 		case "${raw_args[$i]}" in
+		--)
+			break
+			;;
 		--comment)
 			gh_pr_output_mode_ref="comment"
 			;;
 		--edit)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_output_mode_ref="edit"
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}'"
+			return 1
 			;;
 		*)
 			local arg="${raw_args[$i]#\#}"
 			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
 			fi
 			;;
 		esac
@@ -452,7 +462,7 @@ _parse_pr_explain_args() {
 # Example: _parse_pr_review_args num desc 42 -d "focus on security"
 _parse_pr_review_args() {
 	local -n gh_pr_number_ref="$1"
-	# shellcheck disable=SC2178
+	# shellcheck disable=SC2178 # bash nameref: looks like scalar redefining array, but it's a reference
 	local -n gh_pr_description_ref="$2"
 	shift 2
 
@@ -470,18 +480,18 @@ _parse_pr_review_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_pr_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr review)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr review)"
 			return 1
 			;;
 		*)
@@ -489,7 +499,7 @@ _parse_pr_review_args() {
 			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
@@ -707,7 +717,7 @@ _gh_pr_explain() {
 	output=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				PR_TITLE="$gh_pr_title" PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
+				GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
 					GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -775,7 +785,7 @@ _parse_pr_chat_args() {
 			break
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}'" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}'"
 			return 1
 			;;
 		*)
@@ -783,7 +793,7 @@ _parse_pr_chat_args() {
 			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_pr_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
