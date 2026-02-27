@@ -504,7 +504,7 @@ _parse_issue_chat_args() {
 # branch issue-N (or reuses an existing one), and opens a Claude Code session
 # seeded with the plan. Re-running resumes the previous session.
 #
-# Usage: _gh_issue_chat <ISSUE_NUMBER>
+# Usage: _gh_issue_chat <NUMBER>
 _gh_issue_chat() {
 	case "${1:-}" in
 	--help | -h | help)
