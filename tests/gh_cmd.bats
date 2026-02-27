@@ -292,11 +292,9 @@ setup() {
 
 @test "_cmd_chat: starts new session when sentinel file is absent" {
 	local tmpdir="$BATS_TMPDIR/chat-run-new-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
-	# claude runs on the right side of a pipe (subshell) — use a file to
-	# capture the --session-id value instead of an in-process variable.
 	export _claude_out="$tmpdir/claude-session-id"
 	claude() {
 		local prev=""
@@ -309,7 +307,7 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" \
 		echo "plan content"
 
 	[[ "$(cat "$_claude_out")" == "test-uuid" ]]
@@ -318,13 +316,13 @@ setup() {
 
 @test "_cmd_chat: touches sentinel file after successful new session" {
 	local tmpdir="$BATS_TMPDIR/chat-run-touch-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-xyz"
 
 	claude() { :; }
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" \
 		echo "plan content"
 
 	[[ -f "$session_file" ]]
@@ -332,7 +330,7 @@ setup() {
 
 @test "_cmd_chat: resumes session when sentinel file exists" {
 	local tmpdir="$BATS_TMPDIR/chat-run-resume-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 	touch "$session_file"
 
@@ -347,7 +345,7 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" \
 		echo "plan content"
 
 	[[ "$resume_id" == "test-uuid" ]]
@@ -355,10 +353,9 @@ setup() {
 
 @test "_cmd_chat: passes system prompt when provided" {
 	local tmpdir="$BATS_TMPDIR/chat-run-sysprompt-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
-	# Same subshell issue — capture via file.
 	export _claude_out="$tmpdir/claude-sysprompt"
 	claude() {
 		local prev=""
@@ -371,7 +368,7 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "Do not modify code." "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "Do not modify code." "" \
 		echo "plan"
 
 	[[ "$(cat "$_claude_out")" == "Do not modify code." ]]
@@ -379,7 +376,7 @@ setup() {
 
 @test "_cmd_chat: omits system prompt flag when prompt is empty" {
 	local tmpdir="$BATS_TMPDIR/chat-run-noprompt-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
 	local saw_append=false
@@ -392,7 +389,7 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" \
 		echo "plan"
 
 	[[ "$saw_append" == false ]]
@@ -400,7 +397,7 @@ setup() {
 
 @test "_cmd_chat: errors when provider is not supported" {
 	local tmpdir="$BATS_TMPDIR/chat-provider-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
 	gh() {
@@ -411,14 +408,14 @@ setup() {
 	}
 	export -f gh
 
-	run _cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" echo "plan"
+	run _cmd_chat "$session_file" "issue-42" "test-uuid" "" "" echo "plan"
 
 	[[ "$status" -eq 1 ]]
 }
 
 @test "_cmd_chat: passes --model when model arg is non-empty" {
 	local tmpdir="$BATS_TMPDIR/chat-model-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
 	export _claude_out="$tmpdir/claude-model"
@@ -433,14 +430,14 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "claude-opus-4-5" echo "plan"
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "claude-opus-4-5" echo "plan"
 
 	[[ "$(cat "$_claude_out")" == "claude-opus-4-5" ]]
 }
 
 @test "_cmd_chat: omits --model when no model is configured" {
 	local tmpdir="$BATS_TMPDIR/chat-no-model-test-$$"
-	mkdir -p "$tmpdir/wt"
+	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
 	local saw_model=false
@@ -453,7 +450,7 @@ setup() {
 	}
 	export -f claude
 
-	_cmd_chat "$session_file" "$tmpdir/wt" "test-uuid" "" "" echo "plan"
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" echo "plan"
 
 	[[ "$saw_model" == false ]]
 }

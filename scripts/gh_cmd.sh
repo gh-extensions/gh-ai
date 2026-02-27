@@ -77,19 +77,20 @@ _cmd_assist() {
 # Reads the gh-ai provider from gh config (defaults to anthropic).
 # Returns 1 with an error if the provider is not supported.
 # If the session sentinel file exists, resumes the previous session.
-# Otherwise pipes cmd... into claude to start a new session, then touches
-# the sentinel file on success.
+# Otherwise runs cmd... to capture its output, then starts a new claude
+# session with that output as the initial prompt, and touches the sentinel
+# file on success.
 #
-# Usage: _cmd_chat <session_file> <worktree_path> <session_id> <system_prompt> <model> [cmd...]
+# Usage: _cmd_chat <session_file> <worktree_name> <session_id> <system_prompt> <model> [cmd...]
 #   session_file   — path to the sentinel file (created on first run)
-#   worktree_path  — path to the git worktree to open claude in
+#   worktree_name  — worktree name passed to claude --worktree (e.g. "issue-42")
 #   session_id     — deterministic UUID for --session-id / --resume
 #   system_prompt  — appended system prompt (pass "" to omit)
 #   model          — optional model string (pass "" to let claude use its default)
 #   cmd...         — command whose stdout seeds the initial prompt
 _cmd_chat() {
 	local session_file="$1"
-	local worktree_path="$2"
+	local worktree_name="$2"
 	local session_id="$3"
 	local system_prompt="$4"
 	local agent_model="$5"
@@ -101,7 +102,7 @@ _cmd_chat() {
 
 	case "$agent_provider" in
 	anthropic)
-		local claude_args=(--worktree "$worktree_path")
+		local claude_args=(--worktree "$worktree_name")
 		[[ -n "$agent_model" ]] && claude_args+=(--model "$agent_model")
 		[[ -n "$system_prompt" ]] && claude_args+=(--append-system-prompt "$system_prompt")
 
