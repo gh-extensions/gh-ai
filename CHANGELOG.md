@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/gh-extensions/gh-ai/compare/v0.5.0...v0.6.0) (2026-02-27)
+
+
+### Features
+
+* add envsubst as a required dependency ([894b415](https://github.com/gh-extensions/gh-ai/commit/894b415f1e874cca754c67eb9c4d506d3ca5be5b))
+* replace issue develop with plan command that prints to stdout ([936233e](https://github.com/gh-extensions/gh-ai/commit/936233e6bba929cb22e4441e10388acf834c64f2))
+
 ## [0.5.0](https://github.com/gh-extensions/gh-ai/compare/v0.4.0...v0.5.0) (2026-02-26)
 
 
