@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/gh-extensions/gh-ai/compare/v0.7.0...v0.8.0) (2026-02-27)
+
+
+### Features
+
+* strip leading # from issue and PR numbers in argument parsing ([2489b88](https://github.com/gh-extensions/gh-ai/commit/2489b887b50f0380ad79ab9a64e55ff644c0dc2e))
+
 ## [0.7.0](https://github.com/gh-extensions/gh-ai/compare/v0.6.0...v0.7.0) (2026-02-27)
 
 
