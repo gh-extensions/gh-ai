@@ -25,7 +25,7 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _parse_pr_chat_args _show_pr_chat_help _gh_pr_chat \
-			_get_repo_name _get_git_repo_path _init_claude_session \
+			_get_repo_name _get_git_repo_path _init_chat_session \
 			_git_worktree_sync _cmd_chat _cmd_render
 	)"
 }
