@@ -208,10 +208,13 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf_ai.sh"
 | Context             | Key     | Action                                           |
 | ------------------- | ------- | ------------------------------------------------ |
 | `gh-fzf issue`      | `alt-P` | Generate AI plan for the selected issue          |
+| `gh-fzf issue`      | `alt-D` | Open a Claude Code chat session (tmux only)      |
 | `gh-fzf pr`         | `alt-E` | Explain the selected PR                          |
 | `gh-fzf pr`         | `alt-A` | Approve the selected PR via AI review            |
 | `gh-fzf pr`         | `alt-N` | Request changes on the selected PR via AI review |
+| `gh-fzf pr`         | `alt-R` | Open a Claude Code review session (tmux only)    |
 | `gh-fzf run`        | `alt-E` | Explain the selected workflow run failure        |
+| `gh-fzf run`        | `alt-D` | Open a Claude Code debug session (tmux only)     |
 | `gh-fzf search prs` | `alt-E` | Explain the selected PR                          |
 | `gh-fzf search prs` | `alt-A` | Approve the selected PR via AI review            |
 | `gh-fzf search prs` | `alt-N` | Request changes on the selected PR via AI review |
