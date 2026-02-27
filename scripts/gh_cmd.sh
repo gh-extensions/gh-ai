@@ -67,7 +67,53 @@ _cmd_assist() {
 		;;
 	*)
 		gum log --level error "Unsupported provider '$agent_provider' (supported: anthropic)"
-		exit 1
+		return 1
+		;;
+	esac
+}
+
+# Launch or resume a Claude Code chat session in a worktree
+#
+# Reads the gh-ai provider from gh config (defaults to anthropic).
+# Returns 1 with an error if the provider is not supported.
+# If the session sentinel file exists, resumes the previous session.
+# Otherwise pipes cmd... into claude to start a new session, then touches
+# the sentinel file on success.
+#
+# Usage: _cmd_chat <session_file> <worktree_path> <session_id> <system_prompt> <model> [cmd...]
+#   session_file   — path to the sentinel file (created on first run)
+#   worktree_path  — path to the git worktree to open claude in
+#   session_id     — deterministic UUID for --session-id / --resume
+#   system_prompt  — appended system prompt (pass "" to omit)
+#   model          — optional model string (pass "" to let claude use its default)
+#   cmd...         — command whose stdout seeds the initial prompt
+_cmd_chat() {
+	local session_file="$1"
+	local worktree_path="$2"
+	local session_id="$3"
+	local system_prompt="$4"
+	local agent_model="$5"
+	shift 5
+
+	local agent_provider
+	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)
+	agent_provider="${agent_provider:-anthropic}"
+
+	case "$agent_provider" in
+	anthropic)
+		local claude_args=(--worktree "$worktree_path")
+		[[ -n "$agent_model" ]] && claude_args+=(--model "$agent_model")
+		[[ -n "$system_prompt" ]] && claude_args+=(--append-system-prompt "$system_prompt")
+
+		if [[ -f "$session_file" ]]; then
+			claude "${claude_args[@]}" --resume "$session_id"
+		else
+			"$@" | claude "${claude_args[@]}" --session-id "$session_id" && touch "$session_file"
+		fi
+		;;
+	*)
+		gum log --level error "Unsupported provider '$agent_provider' (supported: anthropic)"
+		return 1
 		;;
 	esac
 }
@@ -136,6 +182,87 @@ _split_on_separator() {
 		_before_ref+=("$1")
 		shift
 	done
+}
+
+# Resolve the current repo's nameWithOwner (e.g. "owner/repo")
+#
+# Writes the result into the nameref; returns 1 and logs an error on failure.
+#
+# Usage: _get_repo_name repo_ref
+_get_repo_name() {
+	local -n _repo_ref="$1"
+	_repo_ref=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
+	if [[ -z "$_repo_ref" ]]; then
+		gum log --level error "Not inside a GitHub repository (gh repo view failed)"
+		return 1
+	fi
+}
+
+# Resolve the git repository root directory
+#
+# Writes the result into the nameref; returns 1 and logs an error on failure.
+#
+# Usage: _get_git_repo_path git_dir_ref
+_get_git_repo_path() {
+	local -n _git_dir_ref="$1"
+	_git_dir_ref=$(git rev-parse --show-toplevel 2>/dev/null || true)
+	if [[ -z "$_git_dir_ref" ]]; then
+		gum log --level error "Not inside a git repository"
+		return 1
+	fi
+}
+
+# Initialise a deterministic chat session
+#
+# Derives a UUID v5 session ID from the repo name and entity key, writes the
+# ID and the sentinel file path into the provided namerefs, and creates the
+# session directory.
+#
+# Usage: _init_claude_session id_ref file_ref <repo_name> <entity_key> <git_dir>
+#   repo_name   — "owner/repo" string
+#   entity_key  — e.g. "I42", "P99", "R12345"
+#   git_dir     — absolute path returned by git rev-parse --show-toplevel
+_init_claude_session() {
+	local -n _id_ref="$1"
+	local -n _file_ref="$2"
+	local repo_name="$3"
+	local entity_key="$4"
+	local git_dir="$5"
+
+	_id_ref=$(uuid -v5 ns:URL "${repo_name}#${entity_key}")
+	local session_dir="$git_dir/.claude/sessions"
+	mkdir -p "$session_dir"
+	_file_ref="$session_dir/$_id_ref"
+}
+
+# Create or fast-forward a worktree for a given branch
+#
+# If the worktree path does not exist, creates it with `git worktree add -B`.
+# If it already exists, fast-forward merges from the remote branch.
+# Returns 1 (with an error message) if the merge would not be fast-forward.
+#
+# Usage: _git_worktree_sync <branch> <path> <remote_branch> <label>
+#   branch         — local branch name (e.g. "pr-99")
+#   path           — absolute worktree path
+#   remote_branch  — remote branch to fetch/merge (e.g. "feature/my-change")
+#   label          — human-readable label for spinner messages
+_git_worktree_sync() {
+	local branch="$1"
+	local wt_path="$2"
+	local remote_branch="$3"
+	local label="$4"
+
+	if [[ ! -d "$wt_path" ]]; then
+		gum spin --title "Fetching $label branch..." -- \
+			git fetch origin "$remote_branch" || true
+		git worktree add -B "$branch" "$wt_path" "origin/$remote_branch"
+	else
+		gum spin --title "Updating $label worktree..." -- \
+			git -C "$wt_path" merge --ff-only "origin/$remote_branch" 2>/dev/null || {
+			gum log --level error "Worktree '$wt_path' has diverged from origin/$remote_branch — resolve manually"
+			return 1
+		}
+	fi
 }
 
 main() {
