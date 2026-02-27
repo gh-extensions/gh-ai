@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/gh-extensions/gh-ai/compare/v0.6.0...v0.7.0) (2026-02-27)
+
+
+### Features
+
+* add optional description flag to issue plan command ([cbfa693](https://github.com/gh-extensions/gh-ai/commit/cbfa693309ea5be0493ffc13554df9c18144fad9))
+
 ## [0.6.0](https://github.com/gh-extensions/gh-ai/compare/v0.5.0...v0.6.0) (2026-02-27)
 
 
