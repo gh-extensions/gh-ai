@@ -17,22 +17,21 @@ gh ai issue - Issue commands with AI assistance
 USAGE:
     gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
     gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
+    gh ai issue plan <ISSUE_NUMBER>
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
-    bodies. Develops issues by creating a branch, generating an implementation
-    plan, and opening a pull request.
+    bodies. Generates implementation plans from issues and prints them to stdout.
 
 COMMANDS:
     create      Create issues with AI-generated content
     edit        Edit an existing issue with AI-generated content
-    develop     Create a branch and PR with an AI implementation plan
+    plan        Generate an AI implementation plan from an issue
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
     gh ai issue edit --help       # Issue edit usage
-    gh ai issue develop --help    # Issue develop usage
+    gh ai issue plan --help       # Issue plan usage
 EOF
 }
 
@@ -263,76 +262,23 @@ _gh_issue_edit() {
 	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${passthrough[@]}"
 }
 
-# Parse issue develop arguments (before -- separator)
+# Parse issue plan arguments
 #
-# Extracts the issue number (first numeric arg), -c/--checkout flag, and
-# gh issue develop scalars (-b/--base, -n/--name, --branch-repo).
-# Unknown flags produce an error with a hint to use --.
+# Extracts the issue number (first numeric positional arg).
+# Rejects all flags with an error message.
 #
-# Example: _parse_issue_develop_args num checkout base name branch_repo 42 -c -b develop
-_parse_issue_develop_args() {
+# Example: _parse_issue_plan_args num 42
+_parse_issue_plan_args() {
 	local -n gh_issue_number_ref="$1"
-	local -n gh_checkout_ref="$2"
-	local -n gh_develop_base_ref="$3"
-	local -n gh_develop_name_ref="$4"
-	local -n gh_develop_branch_repo_ref="$5"
-	shift 5
+	shift
 
 	local raw_args=("$@")
-	local skip_next=false
 	local i=0
 
 	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
-			continue
-		fi
-
 		case "${raw_args[$i]}" in
-		--base | -b)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
-				return 1
-			fi
-			gh_develop_base_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--base=*)
-			# shellcheck disable=SC2034
-			gh_develop_base_ref="${raw_args[$i]#--base=}"
-			;;
-		--name | -n)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
-				return 1
-			fi
-			gh_develop_name_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--name=*)
-			# shellcheck disable=SC2034
-			gh_develop_name_ref="${raw_args[$i]#--name=}"
-			;;
-		--branch-repo)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
-				return 1
-			fi
-			gh_develop_branch_repo_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--branch-repo=*)
-			# shellcheck disable=SC2034
-			gh_develop_branch_repo_ref="${raw_args[$i]#--branch-repo=}"
-			;;
-		# -c mirrors the short form of `gh issue develop --checkout`
-		--checkout | -c)
-			# shellcheck disable=SC2034
-			gh_checkout_ref=true
-			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)" >&2
+			echo "error: unknown flag '${raw_args[$i]}'" >&2
 			return 1
 			;;
 		*)
@@ -348,82 +294,53 @@ _parse_issue_develop_args() {
 	done
 }
 
-# Issue develop help function
+# Issue plan help function
 #
-# Displays help information for the issue develop command
+# Displays help information for the issue plan command
 # including usage examples and available options.
-_show_issue_develop_help() {
+_show_issue_plan_help() {
 	cat <<'EOF'
-gh ai issue develop - Create a branch and PR with an AI implementation plan
+gh ai issue plan - Generate an AI implementation plan from a GitHub issue
 
 USAGE:
-    gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
+    gh ai issue plan <ISSUE_NUMBER>
 
 DESCRIPTION:
-    Creates a development branch from a GitHub issue, generates an AI
-    implementation plan, and opens a pull request with that plan.
-
-    Combines gh issue develop (branch creation) with gh pr create
-    (pull request). Title and body are AI-generated from the issue.
-    Options after -- are passed directly to gh pr create.
-
-BRANCH FLAGS (gh issue develop):
-    -b, --base string          Name of the remote branch to branch from
-    -n, --name string          Name of the branch to create
-        --branch-repo string   Name or URL of the repo for the new branch
-
-WORKFLOW FLAGS:
-    -c, --checkout   Check out the new branch locally after creating it.
-                     Default: branch is created remotely and an initial commit
-                     is added without switching your working tree.
+    Fetches the GitHub issue and generates an AI implementation plan,
+    printing it to stdout. Compose it with any tool using pipes.
 
 EXAMPLES:
-    gh ai issue develop 42
-    gh ai issue develop 42 --checkout
-    gh ai issue develop 42 -b develop -- --draft
-    gh ai issue develop 42 -- --label enhancement --reviewer monalisa
+    gh ai issue plan 42
+    gh ai issue plan 42 | claude
+    gh ai issue plan 42 | pbcopy
+    gh issue develop 42 --checkout && gh ai issue plan 42 | gh pr create --body -
 EOF
 }
 
-# Issue Develop implementation
+# Issue Plan implementation
 #
-# Creates a development branch from an issue, generates an AI implementation
-# plan, and opens a pull request with that plan as the body.
-# Uses native `gh issue develop` for branch creation.
+# Fetches a GitHub issue, generates an AI implementation plan,
+# and prints it to stdout.
 #
-# Usage: _gh_issue_develop <NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- OPTIONS]
-_gh_issue_develop() {
+# Usage: _gh_issue_plan <NUMBER>
+_gh_issue_plan() {
 	case "${1:-}" in
 	--help | -h | help)
-		_show_issue_develop_help
+		_show_issue_plan_help
 		return 0
 		;;
 	esac
 
-	local ai_args=()
-	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
-
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_develop.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_issue_plan.tmpl"
 
 	local gh_issue_number=""
-	local gh_checkout=false
-	local gh_develop_base=""
-	local gh_develop_name=""
-	local gh_develop_branch_repo=""
-	_parse_issue_develop_args gh_issue_number gh_checkout gh_develop_base gh_develop_name gh_develop_branch_repo "${ai_args[@]}"
-
-	# Build gh issue develop args from scalars
-	local gh_issue_args=()
-	[[ -n "$gh_develop_base" ]] && gh_issue_args+=("--base" "$gh_develop_base")
-	[[ -n "$gh_develop_name" ]] && gh_issue_args+=("--name" "$gh_develop_name")
-	[[ -n "$gh_develop_branch_repo" ]] && gh_issue_args+=("--branch-repo" "$gh_develop_branch_repo")
+	_parse_issue_plan_args gh_issue_number "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue develop <ISSUE_NUMBER> [-- OPTIONS]"
+		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER>"
 		return 1
 	fi
 
@@ -460,76 +377,7 @@ _gh_issue_develop() {
 		return 1
 	fi
 
-	local gh_pr_title
-	# Parse title from output
-	if ! gh_pr_title=$(_get_title "$output"); then
-		gum log --level error "Failed to extract title from AI content"
-		return 1
-	fi
-
-	local gh_pr_body
-	# Parse body from output
-	gh_pr_body=$(_get_body "$output")
-
-	# Validate we got body content
-	if [[ -z "$gh_pr_body" ]]; then
-		gum log --level error "Failed to extract body from AI content"
-		return 1
-	fi
-
-	if [ "$gh_checkout" = "true" ]; then
-		# Standard approach: checkout branch locally
-		gum spin --title "Creating Git branch #$gh_issue_number..." -- \
-			gh issue develop "$gh_issue_number" --checkout "${gh_issue_args[@]}"
-
-		# Empty commit so the PR has a diff against the base branch
-		git commit --allow-empty -m "chore: start work on #$gh_issue_number"
-		gum spin --title "Pushing Git initial commit..." -- git push -u origin HEAD
-
-		# Create the pull request
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
-	else
-		# No-checkout approach: create the branch remotely, then add an initial
-		# commit via git commit-tree without switching the local working tree.
-		local gh_develop_url
-		gh_develop_url=$(gum spin --title "Creating Git branch #$gh_issue_number..." -- \
-			gh issue develop "$gh_issue_number" "${gh_issue_args[@]}")
-		if [[ -z "$gh_develop_url" ]]; then
-			gum log --level error "Failed to create development branch for #$gh_issue_number"
-			return 1
-		fi
-
-		# gh issue develop outputs a GitHub web URL ending with /tree/<branch>.
-		# Strip the prefix rather than using basename to handle branch names
-		# that contain '/' (e.g. feature/my-topic).
-		local git_branch_name
-		git_branch_name="${gh_develop_url##*/tree/}"
-		if [[ -z "$git_branch_name" ]]; then
-			gum log --level error "Failed to determine branch name from: $gh_develop_url"
-			return 1
-		fi
-
-		gum spin --title "Fetching Git branch $git_branch_name..." -- \
-			git fetch origin "$git_branch_name"
-
-		local git_tree_sha
-		# shellcheck disable=SC1083  # braces are git rev-parse syntax, not a shell expansion
-		git_tree_sha=$(git rev-parse FETCH_HEAD^{tree})
-
-		local git_parent_sha
-		git_parent_sha=$(git rev-parse FETCH_HEAD)
-
-		local git_commit_sha
-		git_commit_sha=$(git commit-tree "$git_tree_sha" -p "$git_parent_sha" \
-			-m "chore: start work on #$gh_issue_number")
-
-		gum spin --title "Pushing Git initial commit..." -- \
-			git push origin "$git_commit_sha:refs/heads/$git_branch_name"
-
-		# Create the pull request, explicitly naming the head branch
-		gh pr create --title "$gh_pr_title" --body "$gh_pr_body" \
-			--head "$git_branch_name" "${passthrough[@]}"
-	fi
+	printf '%s\n' "$output"
 }
 
 # Issue create help function
@@ -645,7 +493,7 @@ _gh_issue_create() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_issue <subcommand> [OPTIONS]
-# Subcommands: create, edit, develop, help
+# Subcommands: create, edit, plan, help
 _gh_issue() {
 	local subcommand="${1:-}"
 	shift || true
@@ -657,15 +505,15 @@ _gh_issue() {
 	edit)
 		_gh_issue_edit "$@"
 		;;
-	develop)
-		_gh_issue_develop "$@"
+	plan)
+		_gh_issue_plan "$@"
 		;;
 	--help | -h | help | "")
 		_show_issue_help
 		;;
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, edit, develop"
+		gum log --level info "Available commands: create, edit, plan"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		exit 1
 		;;
