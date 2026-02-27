@@ -142,7 +142,9 @@ _gh_run_chat() {
 	local git_branch="run-${gh_run_id}"
 	# shellcheck disable=SC2154
 	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
-	_git_worktree_sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" "run #$gh_run_id" || return 1
+	# shellcheck disable=SC2154
+	gum spin --title "Setting up Git worktree for GitHub workflow run #$gh_run_id..." -- \
+		"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" || return 1
 
 	local preamble
 	# shellcheck disable=SC2154

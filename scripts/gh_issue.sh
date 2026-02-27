@@ -531,11 +531,9 @@ _gh_issue_chat() {
 
 	# Create worktree only if it does not exist; do not auto-merge dev branches
 	if [[ ! -d "$git_worktree_path" ]]; then
+		# shellcheck disable=SC2154
 		gum spin --title "Setting up Git worktree for GitHub issue #$gh_issue_number..." -- \
-			bash -c "git fetch origin '$git_branch' >/dev/null 2>&1 ||
-				gh issue develop '$gh_issue_number' --name '$git_branch' >/dev/null 2>&1 || true;
-				git worktree add -B '$git_branch' '$git_worktree_path' 'origin/$git_branch' >/dev/null 2>&1 ||
-				git worktree add -b '$git_branch' '$git_worktree_path' >/dev/null 2>&1 || true"
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-create "$git_branch" "$git_worktree_path" "$gh_issue_number"
 
 		if [[ ! -d "$git_worktree_path" ]]; then
 			gum log --level error "Failed to create worktree for issue #$gh_issue_number"
