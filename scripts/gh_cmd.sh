@@ -81,18 +81,18 @@ _cmd_assist() {
 # session with that output as the initial prompt, and touches the sentinel
 # file on success.
 #
-# Usage: _cmd_chat <session_file> <worktree_name> <session_id> <system_prompt> <model> [cmd...]
+# Usage: _cmd_chat <session_file> <worktree_name> <session_id> <preamble> <model> [cmd...]
 #   session_file   — path to the sentinel file (created on first run)
 #   worktree_name  — worktree name passed to claude --worktree (e.g. "issue-42")
 #   session_id     — deterministic UUID for --session-id / --resume
-#   system_prompt  — appended system prompt (pass "" to omit)
+#   preamble       — instruction prepended to the initial prompt (required)
 #   model          — optional model string (pass "" to let claude use its default)
 #   cmd...         — command whose stdout seeds the initial prompt
 _cmd_chat() {
 	local session_file="$1"
 	local worktree_name="$2"
 	local session_id="$3"
-	local system_prompt="$4"
+	local preamble="$4"
 	local agent_model="$5"
 	shift 5
 
@@ -104,12 +104,11 @@ _cmd_chat() {
 	anthropic)
 		local claude_args=(--worktree "$worktree_name")
 		[[ -n "$agent_model" ]] && claude_args+=(--model "$agent_model")
-		[[ -n "$system_prompt" ]] && claude_args+=(--append-system-prompt "$system_prompt")
 
 		if [[ -f "$session_file" ]]; then
 			claude "${claude_args[@]}" --resume "$session_id"
 		else
-			"$@" | claude "${claude_args[@]}" --session-id "$session_id" && touch "$session_file"
+			"$@" | claude "${claude_args[@]}" --session-id "$session_id" "$preamble" && touch "$session_file"
 		fi
 		;;
 	*)

@@ -544,7 +544,9 @@ _gh_issue_chat() {
 			git worktree add -b "$branch" "$wt_path" 2>/dev/null || true
 	fi
 
-	local system_prompt="You have been given an implementation plan for GitHub issue #${gh_issue_number}. Present the plan to the user, ask if they want to proceed as-is, refine it, or discuss it further. Only begin implementing once the user explicitly confirms."
+	local preamble
+	preamble=$(GH_ISSUE_NUMBER="$gh_issue_number" \
+		_cmd_render "$_gh_ai_source_dir/templates/gh_issue_chat.tmpl")
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
@@ -552,7 +554,7 @@ _gh_issue_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$branch" "$session_id" "$system_prompt" "$agent_model" \
+	_cmd_chat "$session_file" "$branch" "$session_id" "$preamble" "$agent_model" \
 		gh ai issue plan "$gh_issue_number"
 }
 
