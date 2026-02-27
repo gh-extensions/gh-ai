@@ -59,6 +59,14 @@ setup() {
 	[[ "$description" == "fix typos" ]]
 }
 
+@test "_parse_issue_edit_args: strips leading # from issue number" {
+	local number=""
+	local description=""
+	_parse_issue_edit_args number description "#42" -d "fix typos"
+
+	[[ "$number" == "42" ]]
+}
+
 @test "_parse_issue_edit_args: captures issue number without other flags" {
 	local number=""
 	local description=""

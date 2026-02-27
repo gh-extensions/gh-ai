@@ -121,8 +121,9 @@ _parse_issue_edit_args() {
 			return 1
 			;;
 		*)
-			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_issue_number_ref="${raw_args[$i]}"
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="$arg"
 			else
 				echo "error: unexpected argument '${raw_args[$i]}'" >&2
 				return 1
@@ -302,8 +303,9 @@ _parse_issue_plan_args() {
 			return 1
 			;;
 		*)
-			if [[ -z "$gh_issue_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_issue_number_ref="${raw_args[$i]}"
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="$arg"
 			else
 				echo "error: unexpected argument '${raw_args[$i]}'" >&2
 				return 1

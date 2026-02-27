@@ -249,8 +249,9 @@ _parse_pr_edit_args() {
 			return 1
 			;;
 		*)
-			if [[ -z "$gh_pr_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="${raw_args[$i]}"
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="$arg"
 			else
 				echo "error: unexpected argument '${raw_args[$i]}'" >&2
 				return 1
@@ -427,8 +428,9 @@ _parse_pr_explain_args() {
 			gh_pr_output_mode_ref="edit"
 			;;
 		*)
-			if [[ -z "$gh_pr_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="${raw_args[$i]}"
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="$arg"
 			fi
 			;;
 		esac
@@ -483,8 +485,9 @@ _parse_pr_review_args() {
 			return 1
 			;;
 		*)
-			if [[ -z "$gh_pr_number_ref" && "${raw_args[$i]}" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="${raw_args[$i]}"
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="$arg"
 			else
 				echo "error: unexpected argument '${raw_args[$i]}'" >&2
 				return 1

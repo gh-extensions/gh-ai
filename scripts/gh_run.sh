@@ -19,8 +19,9 @@ _parse_run_explain_args() {
 	local i=0
 
 	while [[ $i -lt ${#args[@]} ]]; do
-		if [[ -z "$gh_run_id_ref" && "${args[$i]}" =~ ^[0-9]+$ ]]; then
-			gh_run_id_ref="${args[$i]}"
+		local arg="${args[$i]#\#}"
+		if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+			gh_run_id_ref="$arg"
 			return 0
 		fi
 		((++i))

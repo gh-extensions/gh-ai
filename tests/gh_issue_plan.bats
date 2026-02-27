@@ -33,6 +33,13 @@ setup() {
 	[[ -z "$description" ]]
 }
 
+@test "_parse_issue_plan_args: strips leading # from issue number" {
+	local number="" description=""
+	_parse_issue_plan_args number description "#42"
+
+	[[ "$number" == "42" ]]
+}
+
 @test "_parse_issue_plan_args: sets description from -d flag" {
 	local number="" description=""
 	_parse_issue_plan_args number description 42 -d "focus on auth"

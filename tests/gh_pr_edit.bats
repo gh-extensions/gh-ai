@@ -59,6 +59,14 @@ setup() {
 	[[ "$description" == "fix summary" ]]
 }
 
+@test "_parse_pr_edit_args: strips leading # from PR number" {
+	local number=""
+	local description=""
+	_parse_pr_edit_args number description "#42" -d "fix summary"
+
+	[[ "$number" == "42" ]]
+}
+
 @test "_parse_pr_edit_args: captures PR number without other flags" {
 	local number=""
 	local description=""
