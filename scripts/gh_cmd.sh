@@ -128,11 +128,11 @@ _cmd_chat() {
 # Example: _get_title "# Fix bug in parser\n\nDescription..."
 # Returns: "Fix bug in parser"
 _get_title() {
-	local ai_content="$1"
+	local content="$1"
 
 	local title
 	# Extract title (first line with # prefix removed)
-	title=$(printf '%s\n' "$ai_content" | head -n 1 | sed 's/^# *//')
+	title=$(printf '%s\n' "$content" | head -n 1 | sed 's/^# *//')
 
 	# Validate we got a title
 	if [[ -z "$title" ]]; then
@@ -147,11 +147,11 @@ _get_title() {
 # Takes everything after the first line of AI content (skipping the title),
 # removes leading blank lines, and prepends a markdownlint directive.
 _get_body() {
-	local ai_content="$1"
+	local content="$1"
 
 	local body
 	# Extract body (skip first line) and remove leading blank lines
-	body=$(printf '%s\n' "$ai_content" | tail -n +2 | sed '/./,$!d')
+	body=$(printf '%s\n' "$content" | tail -n +2 | sed '/./,$!d')
 
 	# Suppress common markdownlint warnings in AI-generated body
 	local footer
@@ -192,9 +192,9 @@ _split_on_separator() {
 #
 # Usage: _get_repo_name repo_ref
 _get_repo_name() {
-	local -n _repo_ref="$1"
-	_repo_ref=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
-	if [[ -z "$_repo_ref" ]]; then
+	local -n _gh_repo_ref="$1"
+	_gh_repo_ref=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
+	if [[ -z "$_gh_repo_ref" ]]; then
 		gum log --level error "Not inside a GitHub repository (gh repo view failed)"
 		return 1
 	fi
@@ -227,12 +227,12 @@ _get_git_repo_path() {
 _init_claude_session() {
 	local -n _id_ref="$1"
 	local -n _file_ref="$2"
-	local repo_name="$3"
-	local entity_key="$4"
-	local git_dir="$5"
+	local git_repo_name="$3"
+	local gh_entity_key="$4"
+	local git_repo_path="$5"
 
-	_id_ref=$(uuid -v5 ns:URL "${repo_name}#${entity_key}")
-	local session_dir="$git_dir/.claude/sessions"
+	_id_ref=$(uuid -v5 ns:URL "${git_repo_name}#${gh_entity_key}")
+	local session_dir="$git_repo_path/.claude/sessions"
 	mkdir -p "$session_dir"
 	_file_ref="$session_dir/$_id_ref"
 }
@@ -249,19 +249,19 @@ _init_claude_session() {
 #   remote_branch  — remote branch to fetch/merge (e.g. "feature/my-change")
 #   label          — human-readable label for spinner messages
 _git_worktree_sync() {
-	local branch="$1"
-	local worktree_path="$2"
-	local remote_branch="$3"
+	local git_branch="$1"
+	local git_worktree_path="$2"
+	local git_remote_branch="$3"
 	local label="$4"
 
-	if [[ ! -d "$worktree_path" ]]; then
+	if [[ ! -d "$git_worktree_path" ]]; then
 		gum spin --title "Fetching $label branch..." -- \
-			git fetch origin "$remote_branch" || true
-		git worktree add -B "$branch" "$worktree_path" "origin/$remote_branch" >/dev/null
+			git fetch origin "$git_remote_branch" || true
+		git worktree add -B "$git_branch" "$git_worktree_path" "origin/$git_remote_branch" >/dev/null
 	else
 		gum spin --title "Updating $label worktree..." -- \
-			git -C "$worktree_path" merge --ff-only "origin/$remote_branch" 2>/dev/null || {
-			gum log --level error "Worktree '$worktree_path' has diverged from origin/$remote_branch — resolve manually"
+			git -C "$git_worktree_path" merge --ff-only "origin/$git_remote_branch" 2>/dev/null || {
+			gum log --level error "Worktree '$git_worktree_path' has diverged from origin/$git_remote_branch — resolve manually"
 			return 1
 		}
 	fi
