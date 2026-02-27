@@ -10,7 +10,7 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 setup() {
 	export _gh_ai_source_dir="$REPO_ROOT"
 
-	gum() { :; }
+	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
 	export -f gum gh
 
