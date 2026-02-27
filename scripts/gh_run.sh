@@ -123,6 +123,15 @@ _gh_run_explain() {
 			gh run view "$gh_run_id" --log || true)
 	fi
 
+	# Truncate log to avoid OS ARG_MAX limits when passing via environment variable.
+	# GitHub Actions logs can be many MBs; AI context windows are finite anyway.
+	local _max_log_bytes=100000
+	if [[ ${#gh_run_log} -gt $_max_log_bytes ]]; then
+		local _tail
+		_tail=$(printf '%s' "$gh_run_log" | tail -c "$_max_log_bytes")
+		gh_run_log="[... log truncated, showing last ${_max_log_bytes} bytes ...]"$'\n'"$_tail"
+	fi
+
 	local agent_model
 	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)
 
