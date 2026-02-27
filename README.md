@@ -178,18 +178,18 @@ that wraps `gh` commands in an interactive fuzzy finder. Source
 `GH_FZF_*_OPTS`.
 
 ```bash
-source "$(gh extension list | awk '/gh-ai/{print $3}')/extras/gh_fzf_ai.sh"
+source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf_ai.sh"
 ```
 
-| Context | Key | Action |
-|---------|-----|--------|
-| `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue |
-| `gh-fzf pr` | `alt-E` | Explain the selected PR |
-| `gh-fzf pr` | `alt-A` | Approve the selected PR via AI review |
-| `gh-fzf pr` | `alt-N` | Request changes on the selected PR via AI review |
-| `gh-fzf run` | `alt-E` | Explain the selected workflow run failure |
-| `gh-fzf search prs` | `alt-E` | Explain the selected PR |
-| `gh-fzf search prs` | `alt-A` | Approve the selected PR via AI review |
+| Context             | Key     | Action                                           |
+| ------------------- | ------- | ------------------------------------------------ |
+| `gh-fzf issue`      | `alt-P` | Generate AI plan for the selected issue          |
+| `gh-fzf pr`         | `alt-E` | Explain the selected PR                          |
+| `gh-fzf pr`         | `alt-A` | Approve the selected PR via AI review            |
+| `gh-fzf pr`         | `alt-N` | Request changes on the selected PR via AI review |
+| `gh-fzf run`        | `alt-E` | Explain the selected workflow run failure        |
+| `gh-fzf search prs` | `alt-E` | Explain the selected PR                          |
+| `gh-fzf search prs` | `alt-A` | Approve the selected PR via AI review            |
 | `gh-fzf search prs` | `alt-N` | Request changes on the selected PR via AI review |
 
 ## License
