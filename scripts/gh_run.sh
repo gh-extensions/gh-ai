@@ -102,7 +102,7 @@ _gh_run_explain() {
 
 	# Fetch run metadata
 	local gh_run_eval
-	gh_run_eval=$(gum spin --title "Fetching GitHub workflow run metadata..." -- \
+	gh_run_eval=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id metadata..." -- \
 		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_run_meta.jq")" || true)
 	if [[ -z "$gh_run_eval" ]]; then
@@ -116,10 +116,10 @@ _gh_run_explain() {
 	# Fetch logs: use --log-failed for failed runs, --log otherwise
 	local gh_run_log
 	if [[ "$gh_run_conclusion" == "failure" ]]; then
-		gh_run_log=$(gum spin --title "Fetching GitHub workflow run failed logs..." -- \
+		gh_run_log=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id failed logs..." -- \
 			gh run view "$gh_run_id" --log-failed || true)
 	else
-		gh_run_log=$(gum spin --title "Fetching GitHub workflow run logs..." -- \
+		gh_run_log=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id logs..." -- \
 			gh run view "$gh_run_id" --log || true)
 	fi
 
@@ -138,7 +138,7 @@ _gh_run_explain() {
 	local output
 	# Generate explanation using assistant run
 	output=$(
-		gum spin --title "Analyzing GitHub workflow run..." -- \
+		gum spin --title "Analyzing GitHub workflow run #$gh_run_id..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GH_RUN_TITLE="$gh_run_title" GH_RUN_CONCLUSION="$gh_run_conclusion" GH_RUN_URL="$gh_run_url" GH_RUN_EVENT="$gh_run_event" GH_RUN_BRANCH="$gh_run_branch" GH_RUN_JOBS="$gh_run_jobs" GH_RUN_LOG="$gh_run_log" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
