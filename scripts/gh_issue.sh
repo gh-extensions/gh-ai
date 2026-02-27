@@ -63,7 +63,7 @@ _parse_issue_create_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_issue_description_ref="${raw_args[$((i + 1))]}"
@@ -73,11 +73,11 @@ _parse_issue_create_args() {
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue create)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue create)"
 			return 1
 			;;
 		*)
-			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			gum log --level error "unexpected argument '${raw_args[$i]}'"
 			return 1
 			;;
 		esac
@@ -110,18 +110,18 @@ _parse_issue_edit_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue edit)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue edit)"
 			return 1
 			;;
 		*)
@@ -129,7 +129,7 @@ _parse_issue_edit_args() {
 			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_issue_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
@@ -292,18 +292,18 @@ _parse_issue_plan_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if ((i + 1 >= ${#raw_args[@]})); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_issue_description_ref="${raw_args[$((i + 1))]}"
 			skip_next=true
 			;;
 		--description=*)
-			# shellcheck disable=SC2034
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}'" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}'"
 			return 1
 			;;
 		*)
@@ -311,7 +311,7 @@ _parse_issue_plan_args() {
 			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_issue_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
@@ -481,7 +481,7 @@ _parse_issue_chat_args() {
 			break
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}'" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}'"
 			return 1
 			;;
 		*)
@@ -489,7 +489,7 @@ _parse_issue_chat_args() {
 			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_issue_number_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;

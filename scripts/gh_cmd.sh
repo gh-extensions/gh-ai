@@ -220,9 +220,12 @@ _get_git_repo_path() {
 # ID and the sentinel file path into the provided namerefs, and creates the
 # session directory.
 #
+# The entity_key prefix (I = issue, P = PR, R = run) disambiguates entities
+# that share the same number within the UUID v5 namespace.
+#
 # Usage: _init_claude_session id_ref file_ref <repo_name> <entity_key> <git_dir>
 #   repo_name   — "owner/repo" string
-#   entity_key  — e.g. "I42", "P99", "R12345"
+#   entity_key  — e.g. "I42", "P99", "R12345" (prefix + number)
 #   git_dir     — absolute path returned by git rev-parse --show-toplevel
 _init_claude_session() {
 	local -n _id_ref="$1"
@@ -232,8 +235,16 @@ _init_claude_session() {
 	local git_repo_path="$5"
 
 	_id_ref=$(uuid -v5 ns:URL "${git_repo_name}#${gh_entity_key}")
+	if [[ -z "$_id_ref" ]]; then
+		gum log --level error "Failed to generate session ID (uuid returned empty)"
+		return 1
+	fi
+
 	local session_dir="$git_repo_path/.claude/sessions"
-	mkdir -p "$session_dir"
+	if ! mkdir -p "$session_dir"; then
+		gum log --level error "Failed to create session directory: $session_dir"
+		return 1
+	fi
 	_file_ref="$session_dir/$_id_ref"
 }
 

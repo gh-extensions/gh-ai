@@ -57,7 +57,7 @@ _parse_commit_args() {
 		case "${raw_args[$i]}" in
 		--description | -d)
 			if (( i + 1 >= ${#raw_args[@]} )); then
-				echo "error: ${raw_args[$i]} requires a value" >&2
+				gum log --level error "${raw_args[$i]} requires a value"
 				return 1
 			fi
 			gh_commit_description_ref="${raw_args[$((i + 1))]}"
@@ -67,11 +67,11 @@ _parse_commit_args() {
 			gh_commit_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}' (use -- to pass flags to git commit)" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to git commit)"
 			return 1
 			;;
 		*)
-			echo "error: unexpected argument '${raw_args[$i]}'" >&2
+			gum log --level error "unexpected argument '${raw_args[$i]}'"
 			return 1
 			;;
 		esac

@@ -15,15 +15,28 @@ _parse_run_explain_args() {
 	local -n gh_run_id_ref="$1"
 	shift
 
-	local args=("$@")
+	local raw_args=("$@")
 	local i=0
 
-	while [[ $i -lt ${#args[@]} ]]; do
-		local arg="${args[$i]#\#}"
-		if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-			gh_run_id_ref="$arg"
-			return 0
-		fi
+	while [[ $i -lt ${#raw_args[@]} ]]; do
+		case "${raw_args[$i]}" in
+		--)
+			break
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}'"
+			return 1
+			;;
+		*)
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_run_id_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
+			fi
+			;;
+		esac
 		((++i))
 	done
 }
@@ -69,7 +82,7 @@ _parse_run_chat_args() {
 			break
 			;;
 		-*)
-			echo "error: unknown flag '${raw_args[$i]}'" >&2
+			gum log --level error "unknown flag '${raw_args[$i]}'"
 			return 1
 			;;
 		*)
@@ -77,7 +90,7 @@ _parse_run_chat_args() {
 			if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
 				gh_run_id_ref="$arg"
 			else
-				echo "error: unexpected argument '${raw_args[$i]}'" >&2
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
 				return 1
 			fi
 			;;
@@ -133,7 +146,7 @@ _gh_run_chat() {
 
 	local preamble
 	preamble=$(
-		# shellcheck disable=SC2034
+		# shellcheck disable=SC2034 # exported to env for _cmd_render template substitution
 		GH_RUN_ID="$gh_run_id"
 		# shellcheck disable=SC2154
 		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
