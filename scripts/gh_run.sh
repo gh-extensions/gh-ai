@@ -119,18 +119,17 @@ _gh_run_chat() {
 	local session_id session_file
 	_init_claude_session session_id session_file "$repo_name" "R${gh_run_id}" "$git_dir"
 
-	local remote_branch
-	remote_branch=$(gh run view "$gh_run_id" --json headBranch -q '.headBranch' 2>/dev/null || true)
-	if [[ -z "$remote_branch" ]]; then
+	local gh_remote_branch
+	gh_remote_branch=$(gh run view "$gh_run_id" --json headBranch -q '.headBranch' 2>/dev/null || true)
+	if [[ -z "$gh_remote_branch" ]]; then
 		gum log --level error "Failed to fetch head branch for run #$gh_run_id"
 		return 1
 	fi
 
-	local branch="run-${gh_run_id}"
+	local git_branch="run-${gh_run_id}"
 	# shellcheck disable=SC2154
-	local git_worktree_path="$git_dir/.claude/worktrees/${branch}"
-
-	_git_worktree_sync "$branch" "$git_worktree_path" "$remote_branch" "run #$gh_run_id" || return 1
+	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
+	_git_worktree_sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" "run #$gh_run_id" || return 1
 
 	local preamble
 	preamble=$(
@@ -150,7 +149,7 @@ _gh_run_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$branch" "$session_id" "$preamble" "$agent_model" \
+	_cmd_chat "$session_file" "$git_branch" "$session_id" "$preamble" "$agent_model" \
 		gh ai run explain "$gh_run_id"
 }
 
