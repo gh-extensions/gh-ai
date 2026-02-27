@@ -336,8 +336,10 @@ FLAGS:
 EXAMPLES:
     gh ai issue plan 42
     gh ai issue plan 42 -d "focus on the auth module"
-    gh ai issue plan 42 | claude
     gh ai issue plan 42 | pbcopy
+    gh ai issue plan 42 | claude
+    gh ai issue plan 42 | jules new
+    gh ai issue plan 42 | gh agent-task create -F -
     gh issue develop 42 --checkout && gh ai issue plan 42 | gh pr create --body -
 EOF
 }
