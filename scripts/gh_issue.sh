@@ -537,7 +537,7 @@ _gh_issue_chat() {
 
 	# Create worktree only if it does not exist; do not auto-merge dev branches
 	if [[ ! -d "$wt_path" ]]; then
-		gum spin --title "Setting up worktree for issue #$gh_issue_number..." -- \
+		gum spin --title "Setting up Git worktree for GitHub issue #$gh_issue_number..." -- \
 			bash -c "git fetch origin '$branch' >/dev/null 2>&1 ||
 				gh issue develop '$gh_issue_number' --name '$branch' >/dev/null 2>&1 || true;
 				git worktree add -B '$branch' '$wt_path' 'origin/$branch' >/dev/null 2>&1 ||
