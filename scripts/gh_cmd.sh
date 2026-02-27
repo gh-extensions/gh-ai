@@ -248,18 +248,18 @@ _init_claude_session() {
 #   label          — human-readable label for spinner messages
 _git_worktree_sync() {
 	local branch="$1"
-	local wt_path="$2"
+	local worktree_path="$2"
 	local remote_branch="$3"
 	local label="$4"
 
-	if [[ ! -d "$wt_path" ]]; then
+	if [[ ! -d "$worktree_path" ]]; then
 		gum spin --title "Fetching $label branch..." -- \
 			git fetch origin "$remote_branch" || true
-		git worktree add -B "$branch" "$wt_path" "origin/$remote_branch"
+		git worktree add -B "$branch" "$worktree_path" "origin/$remote_branch"
 	else
 		gum spin --title "Updating $label worktree..." -- \
-			git -C "$wt_path" merge --ff-only "origin/$remote_branch" 2>/dev/null || {
-			gum log --level error "Worktree '$wt_path' has diverged from origin/$remote_branch — resolve manually"
+			git -C "$worktree_path" merge --ff-only "origin/$remote_branch" 2>/dev/null || {
+			gum log --level error "Worktree '$worktree_path' has diverged from origin/$remote_branch — resolve manually"
 			return 1
 		}
 	fi
