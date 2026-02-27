@@ -552,7 +552,7 @@ _gh_issue_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$wt_path" "$session_id" "$system_prompt" "$agent_model" \
+	_cmd_chat "$session_file" "$branch" "$session_id" "$system_prompt" "$agent_model" \
 		gh ai issue plan "$gh_issue_number"
 }
 
