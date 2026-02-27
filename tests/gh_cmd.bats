@@ -206,19 +206,7 @@ setup() {
 	}
 	export -f git
 
-	gum() {
-		case "$1" in
-		spin)
-			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
-			[[ $# -gt 0 ]] && shift
-			"$@" || true
-			;;
-		log) ;;
-		esac
-	}
-	export -f gum
-
-	_git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch" "PR #99"
+	_git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch"
 
 	[[ "$fetch_called" == true ]]
 	[[ "$worktree_called" == true ]]
@@ -238,19 +226,7 @@ setup() {
 	}
 	export -f git
 
-	gum() {
-		case "$1" in
-		spin)
-			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
-			[[ $# -gt 0 ]] && shift
-			"$@" || true
-			;;
-		log) ;;
-		esac
-	}
-	export -f gum
-
-	_git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch" "PR #99"
+	_git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch"
 
 	[[ "$merge_called" == true ]]
 }
@@ -267,21 +243,7 @@ setup() {
 	}
 	export -f git
 
-	# Do NOT swallow errors with || true so the || { return 1; } block in
-	# _git_worktree_sync fires when git merge --ff-only fails.
-	gum() {
-		case "$1" in
-		spin)
-			while [[ $# -gt 0 && "$1" != "--" ]]; do shift; done
-			[[ $# -gt 0 ]] && shift
-			"$@"
-			;;
-		log) ;;
-		esac
-	}
-	export -f gum
-
-	run _git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch" "PR #99"
+	run _git_worktree_sync "pr-99" "$tmpdir/pr-99" "feature/branch"
 
 	[[ "$status" -eq 1 ]]
 }

@@ -250,32 +250,49 @@ _init_claude_session() {
 
 # Create or fast-forward a worktree for a given branch
 #
-# If the worktree path does not exist, creates it with `git worktree add -B`.
-# If it already exists, fast-forward merges from the remote branch.
-# Returns 1 (with an error message) if the merge would not be fast-forward.
+# If the worktree path does not exist, fetches and creates it with
+# `git worktree add -B`. If it already exists, fast-forward merges
+# from the remote branch. Returns 1 if the merge would not be fast-forward.
 #
-# Usage: _git_worktree_sync <branch> <path> <remote_branch> <label>
+# Usage: _git_worktree_sync <branch> <path> <remote_branch>
 #   branch         — local branch name (e.g. "pr-99")
 #   path           — absolute worktree path
 #   remote_branch  — remote branch to fetch/merge (e.g. "feature/my-change")
-#   label          — human-readable label for spinner messages
 _git_worktree_sync() {
 	local git_branch="$1"
 	local git_worktree_path="$2"
 	local git_remote_branch="$3"
-	local label="$4"
 
 	if [[ ! -d "$git_worktree_path" ]]; then
-		gum spin --title "Fetching $label branch..." -- \
-			git fetch origin "$git_remote_branch" || true
+		git fetch origin "$git_remote_branch" || true
 		git worktree add -B "$git_branch" "$git_worktree_path" "origin/$git_remote_branch" >/dev/null
 	else
-		gum spin --title "Updating $label worktree..." -- \
-			git -C "$git_worktree_path" merge --ff-only "origin/$git_remote_branch" 2>/dev/null || {
+		git -C "$git_worktree_path" merge --ff-only "origin/$git_remote_branch" 2>/dev/null || {
 			gum log --level error "Worktree '$git_worktree_path' has diverged from origin/$git_remote_branch — resolve manually"
 			return 1
 		}
 	fi
+}
+
+# Create a worktree for an issue branch (best-effort)
+#
+# Tries to fetch the branch from origin; if it doesn't exist, uses
+# `gh issue develop` to create it. Then creates the worktree, falling back
+# to a fresh local branch if the remote branch is unavailable.
+#
+# Usage: _git_worktree_create <branch> <path> <issue_number>
+#   branch         — local branch name (e.g. "issue-42")
+#   path           — absolute worktree path
+#   issue_number   — GitHub issue number (for gh issue develop)
+_git_worktree_create() {
+	local git_branch="$1"
+	local git_worktree_path="$2"
+	local gh_issue_number="$3"
+
+	git fetch origin "$git_branch" >/dev/null 2>&1 ||
+		gh issue develop "$gh_issue_number" --name "$git_branch" >/dev/null 2>&1 || true
+	git worktree add -B "$git_branch" "$git_worktree_path" "origin/$git_branch" >/dev/null 2>&1 ||
+		git worktree add -b "$git_branch" "$git_worktree_path" >/dev/null 2>&1 || true
 }
 
 main() {
@@ -289,8 +306,16 @@ main() {
 	assist)
 		_cmd_assist "${2:-}"
 		;;
+	worktree-sync)
+		shift
+		_git_worktree_sync "$@"
+		;;
+	worktree-create)
+		shift
+		_git_worktree_create "$@"
+		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|assist> [args]"
+		gum log --level error "Usage: gh_cmd.sh <render|assist|worktree-sync|worktree-create> [args]"
 		exit 1
 		;;
 	esac

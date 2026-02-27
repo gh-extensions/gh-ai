@@ -835,7 +835,9 @@ _gh_pr_chat() {
 	local git_branch="pr-${gh_pr_number}"
 	# shellcheck disable=SC2154
 	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
-	_git_worktree_sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" "PR #$gh_pr_number" || return 1
+	# shellcheck disable=SC2154
+	gum spin --title "Setting up Git worktree for GitHub pull request #$gh_pr_number..." -- \
+		"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" || return 1
 
 	local preamble
 	preamble=$(GH_PR_NUMBER="$gh_pr_number" \
