@@ -26,7 +26,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _parse_issue_chat_args _show_issue_chat_help _gh_issue_chat \
 			_get_repo_name _get_git_repo_path _init_claude_session \
-			_git_worktree_sync _cmd_chat
+			_git_worktree_sync _cmd_chat _cmd_render
 	)"
 }
 
@@ -129,7 +129,7 @@ _setup_issue_chat_mocks() {
 			[[ $# -gt 0 ]] && shift
 			"$@" || true
 			;;
-		log) ;;
+		log) shift; echo "$@" ;;
 		esac
 	}
 	export -f gum
@@ -201,6 +201,49 @@ _setup_issue_chat_mocks() {
 	run _gh_issue_chat 42
 
 	[[ "$status" -eq 0 ]]
+}
+
+@test "_gh_issue_chat: errors when worktree creation fails" {
+	_setup_issue_chat_mocks
+
+	# Override git so worktree add does not create the directory
+	git() {
+		case "$1 $2" in
+		"rev-parse --show-toplevel") echo "$_test_git_dir" ;;
+		"fetch origin") return 1 ;;
+		"worktree add") return 1 ;;
+		*) ;;
+		esac
+	}
+	export -f git
+
+	gh() {
+		case "$1 $2" in
+		"repo view") echo "owner/repo" ;;
+		"issue develop") return 1 ;;
+		*) ;;
+		esac
+	}
+	export -f gh
+
+	run _gh_issue_chat 42
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"Failed to create worktree"* ]]
+}
+
+@test "_gh_issue_chat: errors when preamble rendering fails" {
+	_setup_issue_chat_mocks
+
+	# Pre-create worktree so we skip worktree setup
+	mkdir -p "$_test_git_dir/.claude/worktrees/issue-42"
+
+	_cmd_render() { :; }
+
+	run _gh_issue_chat 42
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"Failed to render chat preamble"* ]]
 }
 
 @test "_gh_issue_chat: shows help with --help flag" {

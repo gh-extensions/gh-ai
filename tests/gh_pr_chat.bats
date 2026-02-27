@@ -26,7 +26,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _parse_pr_chat_args _show_pr_chat_help _gh_pr_chat \
 			_get_repo_name _get_git_repo_path _init_claude_session \
-			_git_worktree_sync _cmd_chat
+			_git_worktree_sync _cmd_chat _cmd_render
 	)"
 }
 
@@ -128,7 +128,7 @@ _setup_pr_chat_mocks() {
 			[[ $# -gt 0 ]] && shift
 			"$@" || true
 			;;
-		log) ;;
+		log) shift; echo "$@" ;;
 		esac
 	}
 	export -f gum
@@ -197,6 +197,20 @@ _setup_pr_chat_mocks() {
 	run _gh_pr_chat 99
 
 	[[ "$status" -eq 0 ]]
+}
+
+@test "_gh_pr_chat: errors when preamble rendering fails" {
+	_setup_pr_chat_mocks
+
+	# Pre-create worktree so we skip worktree setup
+	mkdir -p "$_test_git_dir/.claude/worktrees/pr-99"
+
+	_cmd_render() { :; }
+
+	run _gh_pr_chat 99
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"Failed to render chat preamble"* ]]
 }
 
 @test "_gh_pr_chat: shows help with --help flag" {

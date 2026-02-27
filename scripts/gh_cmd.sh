@@ -255,7 +255,7 @@ _git_worktree_sync() {
 	if [[ ! -d "$worktree_path" ]]; then
 		gum spin --title "Fetching $label branch..." -- \
 			git fetch origin "$remote_branch" || true
-		git worktree add -B "$branch" "$worktree_path" "origin/$remote_branch"
+		git worktree add -B "$branch" "$worktree_path" "origin/$remote_branch" >/dev/null
 	else
 		gum spin --title "Updating $label worktree..." -- \
 			git -C "$worktree_path" merge --ff-only "origin/$remote_branch" 2>/dev/null || {
