@@ -108,7 +108,8 @@ _cmd_chat() {
 		if [[ -f "$session_file" ]]; then
 			claude "${claude_args[@]}" --resume "$session_id"
 		else
-			preamble="$(printf '%s\n\n' "$preamble")"
+			printf -v preamble '%s\n' "$preamble"
+			# start the agent
 			"$@" | claude "${claude_args[@]}" --session-id "$session_id" "$preamble" && touch "$session_file"
 		fi
 		;;
