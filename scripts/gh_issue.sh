@@ -257,12 +257,6 @@ _gh_issue_edit() {
 	# Parse body from output
 	gh_issue_new_body=$(_get_body "$output")
 
-	# Validate we got body content
-	if [[ -z "$gh_issue_new_body" ]]; then
-		gum log --level error "Failed to extract body from AI content"
-		return 1
-	fi
-
 	# Edit issue with AI-generated content
 	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${passthrough[@]}"
 }
@@ -638,12 +632,6 @@ _gh_issue_create() {
 	# Parse body from output
 	gh_issue_body=$(_get_body "$output")
 
-	# Validate we got body content
-	if [[ -z "$gh_issue_body" ]]; then
-		gum log --level error "Failed to extract body from AI content"
-		return 1
-	fi
-
 	# Create issue with AI-generated content
 	gh issue create --title "$gh_issue_title" --body "$gh_issue_body" "${passthrough[@]}"
 }
@@ -679,7 +667,7 @@ _gh_issue() {
 		gum log --level error "Unknown issue command '$subcommand'"
 		gum log --level info "Available commands: create, edit, plan, chat"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
-		exit 1
+		return 1
 		;;
 	esac
 }

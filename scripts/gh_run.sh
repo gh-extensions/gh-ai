@@ -145,12 +145,9 @@ _gh_run_chat() {
 	_git_worktree_sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" "run #$gh_run_id" || return 1
 
 	local preamble
-	preamble=$(
-		# shellcheck disable=SC2034 # exported to env for _cmd_render template substitution
-		GH_RUN_ID="$gh_run_id"
-		# shellcheck disable=SC2154
-		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
-	)
+	# shellcheck disable=SC2154
+	preamble=$(GH_RUN_ID="$gh_run_id" \
+		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl")
 	if [[ -z "$preamble" ]]; then
 		gum log --level error "Failed to render chat preamble"
 		return 1
@@ -228,14 +225,12 @@ _gh_run_explain() {
 		;;
 	esac
 
-	local args=("$@")
-
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_run_explain.tmpl"
 
 	local gh_run_id=""
-	_parse_run_explain_args gh_run_id "${args[@]}"
+	_parse_run_explain_args gh_run_id "$@"
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
 		gum log --level info "Usage: gh ai run explain <RUN_ID>"
@@ -322,7 +317,7 @@ _gh_run() {
 		gum log --level error "Unknown run command '$subcommand'"
 		gum log --level info "Available commands: explain, chat"
 		gum log --level info "Run 'gh ai run --help' for usage information"
-		exit 1
+		return 1
 		;;
 	esac
 }

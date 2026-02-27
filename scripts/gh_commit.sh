@@ -19,7 +19,7 @@ DESCRIPTION:
     Generates a conventional commit message from staged changes using AI,
     then creates the commit. Options after -- are passed to git commit.
 
-OPTIONS:
+FLAGS:
     -d, --description <TEXT>    Additional context for AI commit message generation
 
 EXAMPLES:
@@ -64,6 +64,7 @@ _parse_commit_args() {
 			skip_next=true
 			;;
 		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_commit_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)

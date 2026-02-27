@@ -160,7 +160,7 @@ _gh_pr_create() {
 
 	local git_log_oneline
 	# shellcheck disable=SC2001
-	git_log_oneline=$(echo "$git_log" | sed 's/^[a-f0-9]* /- /')
+	git_log_oneline=$(printf '%s\n' "$git_log" | sed 's/^[a-f0-9]* /- /')
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
@@ -192,12 +192,6 @@ _gh_pr_create() {
 	local gh_pr_body
 	# Parse body from output
 	gh_pr_body=$(_get_body "$output")
-
-	# Validate we got body content
-	if [[ -z "$gh_pr_body" ]]; then
-		gum log --level error "Failed to extract body from AI content"
-		return 1
-	fi
 
 	# Inject --base into passthrough only if the user explicitly specified it
 	if [[ -n "$user_specified_base" ]]; then
@@ -394,12 +388,6 @@ _gh_pr_edit() {
 	# Parse body from output
 	gh_pr_new_body=$(_get_body "$output")
 
-	# Validate we got body content
-	if [[ -z "$gh_pr_new_body" ]]; then
-		gum log --level error "Failed to extract body from AI content"
-		return 1
-	fi
-
 	# Edit PR with AI-generated content
 	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${passthrough[@]}"
 }
@@ -530,7 +518,7 @@ DESCRIPTION:
     if no number is provided. Options after -- are passed directly to
     gh pr review.
 
-OPTIONS:
+FLAGS:
     -d, --description <TEXT>    Additional context for AI review generation
 
 EXAMPLES:
@@ -666,15 +654,13 @@ _gh_pr_explain() {
 		;;
 	esac
 
-	local args=("$@")
-
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
 
 	local gh_pr_number=""
 	local gh_pr_output_mode=""
-	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "${args[@]}"
+	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
@@ -703,11 +689,15 @@ _gh_pr_explain() {
 		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
 
 	# Fetch PR title and body
-	local gh_pr_title
-	gh_pr_title=$(gh pr view "$gh_pr_number" --json title -q '.title' 2>/dev/null || true)
+	local gh_pr_eval
+	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
+		gh pr view "$gh_pr_number" --json title,body \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
 
-	local gh_pr_body
-	gh_pr_body=$(gh pr view "$gh_pr_number" --json body -q '.body' 2>/dev/null || true)
+	local gh_pr_title gh_pr_body
+	if [[ -n "$gh_pr_eval" ]]; then
+		eval "$gh_pr_eval"
+	fi
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
@@ -934,7 +924,7 @@ _gh_pr() {
 		gum log --level error "Unknown pr command '$subcommand'"
 		gum log --level info "Available commands: create, edit, review, explain, chat"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
-		exit 1
+		return 1
 		;;
 	esac
 }
