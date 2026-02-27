@@ -60,7 +60,7 @@ USAGE:
 COMMANDS:
     pr          Pull request operations (create, edit, review, explain)
     commit      Generate a commit message for staged changes
-    issue       Issue operations (create, edit, develop)
+    issue       Issue operations (create, edit, plan)
     run         Workflow run operations (explain)
 
 SEE ALSO:

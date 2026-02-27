@@ -31,7 +31,7 @@ gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-gh ai issue develop <ISSUE_NUMBER> [-c] [-b BASE] [-n NAME] [--branch-repo REPO] [-- GH_PR_CREATE_OPTIONS]
+gh ai issue plan <ISSUE_NUMBER>
 gh ai run explain <RUN_ID>
 ```
 
@@ -107,14 +107,13 @@ gh ai issue edit 42 -d "fix typos and improve clarity"
 gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
 ```
 
-Develops an issue by creating a branch, generating an AI implementation plan,
-and opening a pull request.
+Generates an AI implementation plan from an issue and prints it to stdout.
 
 ```bash
-gh ai issue develop 42              # branch created remotely, working tree unchanged
-gh ai issue develop 42 --checkout   # also check out the branch locally
-gh ai issue develop 42 -- --draft
-gh ai issue develop 42 -b develop
+gh ai issue plan 42
+gh ai issue plan 42 | claude
+gh ai issue plan 42 | pbcopy
+gh issue develop 42 --checkout && gh ai issue plan 42 | gh pr create --body -
 ```
 
 ### Run
@@ -135,7 +134,7 @@ Override the AI provider and model via `gh config`.
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)                  |
 | `gh-ai.commit.model` |             | Model override for `commit`                        |
 | `gh-ai.pr.model`     |             | Model override for `pr create/edit/review/explain` |
-| `gh-ai.issue.model`  |             | Model override for `issue create/edit/develop`     |
+| `gh-ai.issue.model`  |             | Model override for `issue create/edit/plan`        |
 | `gh-ai.run.model`    |             | Model override for `run explain`                   |
 
 Per-command keys take priority over `gh-ai.model`.
