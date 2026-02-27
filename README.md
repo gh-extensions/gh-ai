@@ -122,7 +122,7 @@ Pipe to an AI agent to implement:
 ```bash
 gh ai issue plan 42 | claude
 gh ai issue plan 42 | jules new
-gh ai issue plan 42 | gh agent-task create -F -
+gh ai issue plan 42 | gh agent-task create --body -
 ```
 
 Full branch + PR workflow:

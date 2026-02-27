@@ -339,7 +339,7 @@ EXAMPLES:
     gh ai issue plan 42 | pbcopy
     gh ai issue plan 42 | claude
     gh ai issue plan 42 | jules new
-    gh ai issue plan 42 | gh agent-task create -F -
+    gh ai issue plan 42 | gh agent-task create --body -
     gh issue develop 42 --checkout && git commit --allow-empty -m "chore: start work on #42" && gh ai issue plan 42 | gh pr create --body -
 EOF
 }
