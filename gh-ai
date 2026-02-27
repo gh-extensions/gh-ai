@@ -8,7 +8,7 @@ _gh_ai_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Verify required dependencies are installed
 #
-# Checks that Bash 4.4+, gh, claude, and gum are available.
+# Checks that Bash 4.4+, gh, claude, gum, and uuid are available.
 # Prints installation instructions and exits if any are missing.
 _check_dependencies() {
 	if [[ "${BASH_VERSINFO[0]}" -lt 4 || ("${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -lt 4) ]]; then
@@ -27,6 +27,9 @@ _check_dependencies() {
 	fi
 	if ! command -v gum &>/dev/null; then
 		missing+=("gum     — https://github.com/charmbracelet/gum")
+	fi
+	if ! command -v uuid &>/dev/null; then
+		missing+=("uuid    — macOS: brew install ossp-uuid")
 	fi
 	if [[ ${#missing[@]} -gt 0 ]]; then
 		echo "gh-ai: missing required dependencies:" >&2
