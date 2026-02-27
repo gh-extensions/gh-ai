@@ -132,7 +132,9 @@ _gh_run_chat() {
 
 	_git_worktree_sync "$branch" "$wt_path" "$remote_branch" "run $gh_run_id" || return 1
 
-	local system_prompt="This is a debug session for GitHub Actions run #${gh_run_id}. Analyze the failure and help fix the issues."
+	local preamble
+	preamble=$(GH_RUN_ID="$gh_run_id" \
+		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl")
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)
@@ -140,7 +142,7 @@ _gh_run_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$branch" "$session_id" "$system_prompt" "$agent_model" \
+	_cmd_chat "$session_file" "$branch" "$session_id" "$preamble" "$agent_model" \
 		gh ai run explain "$gh_run_id"
 }
 

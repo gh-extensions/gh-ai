@@ -838,7 +838,9 @@ _gh_pr_chat() {
 
 	_git_worktree_sync "$branch" "$wt_path" "$remote_branch" "PR #$gh_pr_number" || return 1
 
-	local system_prompt="This is a discussion session for GitHub pull request #${gh_pr_number}. You have been given an overview of the changes. Help analyze and discuss the PR — do not commit or push changes."
+	local preamble
+	preamble=$(GH_PR_NUMBER="$gh_pr_number" \
+		_cmd_render "$_gh_ai_source_dir/templates/gh_pr_chat.tmpl")
 
 	local agent_model
 	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
@@ -846,7 +848,7 @@ _gh_pr_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$branch" "$session_id" "$system_prompt" "$agent_model" \
+	_cmd_chat "$session_file" "$branch" "$session_id" "$preamble" "$agent_model" \
 		gh ai pr explain "$gh_pr_number"
 }
 

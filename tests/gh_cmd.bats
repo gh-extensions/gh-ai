@@ -351,48 +351,19 @@ setup() {
 	[[ "$resume_id" == "test-uuid" ]]
 }
 
-@test "_cmd_chat: passes system prompt when provided" {
-	local tmpdir="$BATS_TMPDIR/chat-run-sysprompt-test-$$"
+@test "_cmd_chat: passes preamble as last positional argument" {
+	local tmpdir="$BATS_TMPDIR/chat-run-preamble-test-$$"
 	mkdir -p "$tmpdir"
 	local session_file="$tmpdir/session-abc"
 
-	export _claude_out="$tmpdir/claude-sysprompt"
-	claude() {
-		local prev=""
-		for arg in "$@"; do
-			if [[ "$prev" == "--append-system-prompt" ]]; then
-				echo "$arg" >"$_claude_out"
-			fi
-			prev="$arg"
-		done
-	}
+	export _claude_out="$tmpdir/claude-last-arg"
+	claude() { echo "${!#}" >"$_claude_out"; }
 	export -f claude
 
-	_cmd_chat "$session_file" "issue-42" "test-uuid" "Do not modify code." "" \
+	_cmd_chat "$session_file" "issue-42" "test-uuid" "IMPORTANT: Do not modify code." "" \
 		echo "plan"
 
-	[[ "$(cat "$_claude_out")" == "Do not modify code." ]]
-}
-
-@test "_cmd_chat: omits system prompt flag when prompt is empty" {
-	local tmpdir="$BATS_TMPDIR/chat-run-noprompt-test-$$"
-	mkdir -p "$tmpdir"
-	local session_file="$tmpdir/session-abc"
-
-	local saw_append=false
-	claude() {
-		for arg in "$@"; do
-			if [[ "$arg" == "--append-system-prompt" ]]; then
-				saw_append=true
-			fi
-		done
-	}
-	export -f claude
-
-	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" \
-		echo "plan"
-
-	[[ "$saw_append" == false ]]
+	[[ "$(cat "$_claude_out")" == "IMPORTANT: Do not modify code." ]]
 }
 
 @test "_cmd_chat: errors when provider is not supported" {
