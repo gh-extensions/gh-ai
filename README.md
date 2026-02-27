@@ -29,10 +29,13 @@ gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
+gh ai pr chat <PR_NUMBER>
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
+gh ai issue chat <ISSUE_NUMBER>
 gh ai run explain <RUN_ID>
+gh ai run chat <RUN_ID>
 ```
 
 ### Commit
@@ -88,6 +91,13 @@ gh ai pr explain 42 --comment    # post as PR comment
 gh ai pr explain 42 --edit       # replace PR description
 ```
 
+Opens a Claude Code review session for a PR in an isolated worktree.
+Re-running the command resumes the previous session.
+
+```bash
+gh ai pr chat 99
+```
+
 ### Issue
 
 Creates a structured GitHub issue from a brief description.
@@ -117,6 +127,13 @@ gh ai issue plan 42 -d "focus on the auth module"
 gh ai issue plan 42 | pbcopy
 ```
 
+Opens a Claude Code session seeded with an implementation plan in an isolated
+worktree. Re-running the command resumes the previous session.
+
+```bash
+gh ai issue chat 42
+```
+
 Pipe to an AI agent to implement:
 
 ```bash
@@ -141,6 +158,13 @@ Analyzes a GitHub Actions workflow run and explains what happened.
 gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 ```
 
+Opens a Claude Code debug session for a workflow run in an isolated worktree.
+Re-running the command resumes the previous session.
+
+```bash
+gh ai run chat 123456
+```
+
 ## Configuration
 
 Override the AI provider and model via `gh config`.
@@ -150,9 +174,9 @@ Override the AI provider and model via `gh config`.
 | `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                          |
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)                  |
 | `gh-ai.commit.model` |             | Model override for `commit`                        |
-| `gh-ai.pr.model`     |             | Model override for `pr create/edit/review/explain` |
-| `gh-ai.issue.model`  |             | Model override for `issue create/edit/plan`        |
-| `gh-ai.run.model`    |             | Model override for `run explain`                   |
+| `gh-ai.pr.model`     |             | Model override for `pr` subcommands                |
+| `gh-ai.issue.model`  |             | Model override for `issue` subcommands             |
+| `gh-ai.run.model`    |             | Model override for `run` subcommands               |
 
 Per-command keys take priority over `gh-ai.model`.
 
