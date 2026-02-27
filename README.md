@@ -198,11 +198,11 @@ gh config set gh-ai.pr.model sonnet
 
 [gh-fzf](https://github.com/gh-extensions/gh-fzf) is a GitHub CLI extension
 that wraps `gh` commands in an interactive fuzzy finder. Source
-`extras/gh_fzf_ai.sh` in your shell config to register `gh-ai` keybinds via
+`extras/gh_fzf.sh` in your shell config to register `gh-ai` keybinds via
 `GH_FZF_*_OPTS`.
 
 ```bash
-source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf_ai.sh"
+source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 ```
 
 | Context             | Key     | Action                                           |
