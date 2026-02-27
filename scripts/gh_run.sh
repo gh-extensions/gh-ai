@@ -130,7 +130,7 @@ _gh_run_chat() {
 	_get_git_repo_path git_dir || return 1
 
 	local session_id session_file
-	_init_claude_session session_id session_file "$repo_name" "R${gh_run_id}" "$git_dir"
+	_init_chat_session session_id session_file "$repo_name" "R${gh_run_id}" "$git_dir"
 
 	local gh_remote_branch
 	gh_remote_branch=$(gh run view "$gh_run_id" --json headBranch -q '.headBranch' 2>/dev/null || true)

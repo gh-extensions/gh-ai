@@ -523,7 +523,7 @@ _gh_issue_chat() {
 	_get_git_repo_path git_dir || return 1
 
 	local session_id session_file
-	_init_claude_session session_id session_file "$repo_name" "I${gh_issue_number}" "$git_dir"
+	_init_chat_session session_id session_file "$repo_name" "I${gh_issue_number}" "$git_dir"
 
 	local git_branch="issue-${gh_issue_number}"
 	# shellcheck disable=SC2154

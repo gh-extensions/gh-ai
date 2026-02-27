@@ -23,7 +23,7 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _split_on_separator _cmd_render _get_title _get_body \
-			_get_repo_name _get_git_repo_path _init_claude_session \
+			_get_repo_name _get_git_repo_path _init_chat_session \
 			_git_worktree_sync _cmd_chat
 	)"
 }
@@ -160,28 +160,28 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _init_claude_session
+# _init_chat_session
 # ---------------------------------------------------------------------------
 
-@test "_init_claude_session: populates session ID and file path" {
+@test "_init_chat_session: populates session ID and file path" {
 	uuid() { echo "deadbeef-dead-beef-dead-beefdeadbeef"; }
 	export -f uuid
 
 	local tmpdir="$BATS_TMPDIR/init-session-test-$$"
 	local id="" file=""
-	_init_claude_session id file "owner/repo" "I42" "$tmpdir"
+	_init_chat_session id file "owner/repo" "I42" "$tmpdir"
 
 	[[ "$id" == "deadbeef-dead-beef-dead-beefdeadbeef" ]]
 	[[ "$file" == "$tmpdir/.claude/sessions/deadbeef-dead-beef-dead-beefdeadbeef" ]]
 }
 
-@test "_init_claude_session: creates session directory" {
+@test "_init_chat_session: creates session directory" {
 	uuid() { echo "deadbeef-dead-beef-dead-beefdeadbeef"; }
 	export -f uuid
 
 	local tmpdir="$BATS_TMPDIR/init-session-mkdir-test-$$"
 	local id="" file=""
-	_init_claude_session id file "owner/repo" "P99" "$tmpdir"
+	_init_chat_session id file "owner/repo" "P99" "$tmpdir"
 
 	[[ -d "$tmpdir/.claude/sessions" ]]
 }

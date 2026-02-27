@@ -223,11 +223,11 @@ _get_git_repo_path() {
 # The entity_key prefix (I = issue, P = PR, R = run) disambiguates entities
 # that share the same number within the UUID v5 namespace.
 #
-# Usage: _init_claude_session id_ref file_ref <repo_name> <entity_key> <git_dir>
+# Usage: _init_chat_session id_ref file_ref <repo_name> <entity_key> <git_dir>
 #   repo_name   — "owner/repo" string
 #   entity_key  — e.g. "I42", "P99", "R12345" (prefix + number)
 #   git_dir     — absolute path returned by git rev-parse --show-toplevel
-_init_claude_session() {
+_init_chat_session() {
 	local -n _id_ref="$1"
 	local -n _file_ref="$2"
 	local git_repo_name="$3"
