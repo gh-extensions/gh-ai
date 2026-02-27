@@ -531,19 +531,19 @@ _gh_issue_chat() {
 	local session_id session_file
 	_init_claude_session session_id session_file "$repo_name" "I${gh_issue_number}" "$git_dir"
 
-	local branch="issue-${gh_issue_number}"
+	local git_branch="issue-${gh_issue_number}"
 	# shellcheck disable=SC2154
-	local wt_path="$git_dir/.claude/worktrees/${branch}"
+	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
 
 	# Create worktree only if it does not exist; do not auto-merge dev branches
-	if [[ ! -d "$wt_path" ]]; then
+	if [[ ! -d "$git_worktree_path" ]]; then
 		gum spin --title "Setting up Git worktree for GitHub issue #$gh_issue_number..." -- \
-			bash -c "git fetch origin '$branch' >/dev/null 2>&1 ||
-				gh issue develop '$gh_issue_number' --name '$branch' >/dev/null 2>&1 || true;
-				git worktree add -B '$branch' '$wt_path' 'origin/$branch' >/dev/null 2>&1 ||
-				git worktree add -b '$branch' '$wt_path' >/dev/null 2>&1 || true"
+			bash -c "git fetch origin '$git_branch' >/dev/null 2>&1 ||
+				gh issue develop '$gh_issue_number' --name '$git_branch' >/dev/null 2>&1 || true;
+				git worktree add -B '$git_branch' '$git_worktree_path' 'origin/$git_branch' >/dev/null 2>&1 ||
+				git worktree add -b '$git_branch' '$git_worktree_path' >/dev/null 2>&1 || true"
 
-		if [[ ! -d "$wt_path" ]]; then
+		if [[ ! -d "$git_worktree_path" ]]; then
 			gum log --level error "Failed to create worktree for issue #$gh_issue_number"
 			return 1
 		fi
@@ -563,7 +563,7 @@ _gh_issue_chat() {
 		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
 	fi
 
-	_cmd_chat "$session_file" "$branch" "$session_id" "$preamble" "$agent_model" \
+	_cmd_chat "$session_file" "$git_branch" "$session_id" "$preamble" "$agent_model" \
 		gh ai issue plan "$gh_issue_number"
 }
 
