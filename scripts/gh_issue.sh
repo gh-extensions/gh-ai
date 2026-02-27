@@ -264,19 +264,39 @@ _gh_issue_edit() {
 
 # Parse issue plan arguments
 #
-# Extracts the issue number (first numeric positional arg).
-# Rejects all flags with an error message.
+# Extracts the issue number (first numeric positional arg) and optional
+# -d/--description value. Unknown flags produce an error.
 #
-# Example: _parse_issue_plan_args num 42
+# Example: _parse_issue_plan_args num desc 42 -d "focus on auth"
 _parse_issue_plan_args() {
 	local -n gh_issue_number_ref="$1"
-	shift
+	local -n gh_issue_description_ref="$2"
+	shift 2
 
 	local raw_args=("$@")
+	local skip_next=false
 	local i=0
 
 	while [[ $i -lt ${#raw_args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
 		case "${raw_args[$i]}" in
+		--description | -d)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				echo "error: ${raw_args[$i]} requires a value" >&2
+				return 1
+			fi
+			gh_issue_description_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034
+			gh_issue_description_ref="${raw_args[$i]#--description=}"
+			;;
 		-*)
 			echo "error: unknown flag '${raw_args[$i]}'" >&2
 			return 1
@@ -303,14 +323,19 @@ _show_issue_plan_help() {
 gh ai issue plan - Generate an AI implementation plan from a GitHub issue
 
 USAGE:
-    gh ai issue plan <ISSUE_NUMBER>
+    gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub issue and generates an AI implementation plan,
     printing it to stdout. Compose it with any tool using pipes.
+    Use -d to provide extra context or constraints that guide the AI.
+
+FLAGS:
+    -d, --description string   Extra context or focus for the plan (optional)
 
 EXAMPLES:
     gh ai issue plan 42
+    gh ai issue plan 42 -d "focus on the auth module"
     gh ai issue plan 42 | claude
     gh ai issue plan 42 | pbcopy
     gh issue develop 42 --checkout && gh ai issue plan 42 | gh pr create --body -
@@ -322,7 +347,7 @@ EOF
 # Fetches a GitHub issue, generates an AI implementation plan,
 # and prints it to stdout.
 #
-# Usage: _gh_issue_plan <NUMBER>
+# Usage: _gh_issue_plan <NUMBER> [-d <DESCRIPTION>]
 _gh_issue_plan() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -336,11 +361,12 @@ _gh_issue_plan() {
 	template_file="$_gh_ai_source_dir/templates/gh_issue_plan.tmpl"
 
 	local gh_issue_number=""
-	_parse_issue_plan_args gh_issue_number "$@"
+	local gh_issue_description=""
+	_parse_issue_plan_args gh_issue_number gh_issue_description "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER>"
+		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
 		return 1
 	fi
 
@@ -365,7 +391,7 @@ _gh_issue_plan() {
 	output=$(
 		gum spin --title "Generating GitHub issue implementation plan..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" \
+				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)

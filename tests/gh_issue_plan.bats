@@ -26,31 +26,61 @@ setup() {
 }
 
 @test "_parse_issue_plan_args: captures issue number from positional arg" {
-	local number=""
-	_parse_issue_plan_args number 42
+	local number="" description=""
+	_parse_issue_plan_args number description 42
 
 	[[ "$number" == "42" ]]
+	[[ -z "$description" ]]
+}
+
+@test "_parse_issue_plan_args: sets description from -d flag" {
+	local number="" description=""
+	_parse_issue_plan_args number description 42 -d "focus on auth"
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "focus on auth" ]]
+}
+
+@test "_parse_issue_plan_args: sets description from --description flag" {
+	local number="" description=""
+	_parse_issue_plan_args number description 42 --description "focus on auth"
+
+	[[ "$description" == "focus on auth" ]]
+}
+
+@test "_parse_issue_plan_args: sets description from --description=value" {
+	local number="" description=""
+	_parse_issue_plan_args number description 42 --description="focus on auth"
+
+	[[ "$description" == "focus on auth" ]]
+}
+
+@test "_parse_issue_plan_args: returns error when -d has no value" {
+	local number="" description=""
+	run _parse_issue_plan_args number description 42 -d
+
+	[[ "$status" -eq 1 ]]
 }
 
 @test "_parse_issue_plan_args: returns error for unknown flags" {
-	local number=""
-	run _parse_issue_plan_args number --draft
+	local number="" description=""
+	run _parse_issue_plan_args number description --draft
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unknown flag '--draft'"* ]]
 }
 
 @test "_parse_issue_plan_args: returns error for unexpected non-numeric args" {
-	local number=""
-	run _parse_issue_plan_args number foo
+	local number="" description=""
+	run _parse_issue_plan_args number description foo
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument 'foo'"* ]]
 }
 
 @test "_parse_issue_plan_args: returns error for second positional arg" {
-	local number=""
-	run _parse_issue_plan_args number 42 99
+	local number="" description=""
+	run _parse_issue_plan_args number description 42 99
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument '99'"* ]]

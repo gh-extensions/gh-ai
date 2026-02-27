@@ -31,7 +31,7 @@ gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-gh ai issue plan <ISSUE_NUMBER>
+gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
 gh ai run explain <RUN_ID>
 ```
 
@@ -108,9 +108,12 @@ gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
 ```
 
 Generates an AI implementation plan from an issue and prints it to stdout.
+Use `-d`/`--description` to provide extra context or constraints that guide
+the AI when writing the plan.
 
 ```bash
 gh ai issue plan 42
+gh ai issue plan 42 -d "focus on the auth module"
 gh ai issue plan 42 | claude
 gh ai issue plan 42 | pbcopy
 gh issue develop 42 --checkout && gh ai issue plan 42 | gh pr create --body -
