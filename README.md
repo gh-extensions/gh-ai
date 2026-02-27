@@ -216,9 +216,6 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 | `gh-fzf pr`         | `alt-R` | Open a Claude Code review session (tmux only)    |
 | `gh-fzf run`        | `alt-E` | Explain the selected workflow run failure        |
 | `gh-fzf run`        | `alt-D` | Open a Claude Code debug session (tmux only)     |
-| `gh-fzf search prs` | `alt-E` | Explain the selected PR                          |
-| `gh-fzf search prs` | `alt-A` | Approve the selected PR via AI review            |
-| `gh-fzf search prs` | `alt-N` | Request changes on the selected PR via AI review |
 
 ## License
 

@@ -22,7 +22,7 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _split_on_separator \
+		declare -f _split_on_separator _cmd_render _get_title _get_body \
 			_get_repo_name _get_git_repo_path _init_claude_session \
 			_git_worktree_sync _cmd_chat
 	)"
@@ -424,4 +424,131 @@ setup() {
 	_cmd_chat "$session_file" "issue-42" "test-uuid" "" "" echo "plan"
 
 	[[ "$saw_model" == false ]]
+}
+
+# ---------------------------------------------------------------------------
+# _cmd_render
+# ---------------------------------------------------------------------------
+
+@test "_cmd_render: substitutes env vars in template" {
+	local tmpdir="$BATS_TMPDIR/render-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Hello ${MY_NAME}, welcome to ${MY_PLACE}.\n' >"$tmpdir/test.tmpl"
+
+	local output
+	output=$(MY_NAME="Alice" MY_PLACE="Wonderland" _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"Hello Alice, welcome to Wonderland."* ]]
+}
+
+@test "_cmd_render: leaves unset vars as empty strings" {
+	local tmpdir="$BATS_TMPDIR/render-unset-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Value: [${UNSET_VAR}]\n' >"$tmpdir/test.tmpl"
+
+	local output
+	output=$(_cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"Value: []"* ]]
+}
+
+@test "_cmd_render: does not re-expand vars inside substituted values" {
+	local tmpdir="$BATS_TMPDIR/render-safe-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Diff: ${GIT_DIFF}\n' >"$tmpdir/test.tmpl"
+
+	local output
+	output=$(GIT_DIFF='contains ${SECRET} token' _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *'contains ${SECRET} token'* ]]
+}
+
+@test "_cmd_render: returns error for missing template file" {
+	run _cmd_render "/nonexistent/template.tmpl"
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "_cmd_render: preserves multiline content in substituted values" {
+	local tmpdir="$BATS_TMPDIR/render-multiline-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Log:\n${MY_LOG}\nEnd.\n' >"$tmpdir/test.tmpl"
+
+	local output
+	output=$(MY_LOG=$'line one\nline two\nline three' _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"line one"* ]]
+	[[ "$output" == *"line two"* ]]
+	[[ "$output" == *"line three"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# _get_title
+# ---------------------------------------------------------------------------
+
+@test "_get_title: extracts title from markdown heading" {
+	local output
+	output=$(_get_title "# Fix bug in parser
+
+Description of the fix.")
+
+	[[ "$output" == "Fix bug in parser" ]]
+}
+
+@test "_get_title: extracts title without heading prefix" {
+	local output
+	output=$(_get_title "Add new feature
+
+Body text here.")
+
+	[[ "$output" == "Add new feature" ]]
+}
+
+@test "_get_title: returns error for empty content" {
+	run _get_title ""
+
+	[[ "$status" -eq 1 ]]
+}
+
+@test "_get_title: strips only the first heading hash" {
+	local output
+	output=$(_get_title "## Sub heading title")
+
+	[[ "$output" == "# Sub heading title" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _get_body
+# ---------------------------------------------------------------------------
+
+@test "_get_body: extracts body after title line with footer" {
+	local output
+	output=$(_get_body "# Title
+
+Body paragraph one.
+
+Body paragraph two.")
+
+	[[ "$output" == *"Body paragraph one."* ]]
+	[[ "$output" == *"Body paragraph two."* ]]
+	[[ "$output" == *"markdownlint-disable-file"* ]]
+}
+
+@test "_get_body: strips leading blank lines" {
+	local output
+	output=$(_get_body "# Title
+
+
+Actual body.")
+
+	# First char of output should not be a newline
+	[[ "${output:0:1}" != $'\n' ]]
+	[[ "$output" == *"Actual body."* ]]
+}
+
+@test "_get_body: returns only footer for title-only content" {
+	local output
+	output=$(_get_body "# Title only")
+
+	[[ "$output" == *"markdownlint-disable-file"* ]]
 }
