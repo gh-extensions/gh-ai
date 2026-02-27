@@ -11,7 +11,7 @@ setup() {
 	export _gh_ai_source_dir="$REPO_ROOT"
 
 	# Mock external commands not under test
-	gum() { :; }
+	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
 	git() { echo ""; }
 	export -f gum gh git
