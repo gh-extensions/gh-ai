@@ -122,19 +122,23 @@ _gh_run_chat() {
 	local remote_branch
 	remote_branch=$(gh run view "$gh_run_id" --json headBranch -q '.headBranch' 2>/dev/null || true)
 	if [[ -z "$remote_branch" ]]; then
-		gum log --level error "Failed to fetch head branch for run $gh_run_id"
+		gum log --level error "Failed to fetch head branch for run #$gh_run_id"
 		return 1
 	fi
 
 	local branch="run-${gh_run_id}"
 	# shellcheck disable=SC2154
-	local wt_path="$git_dir/.claude/worktrees/${branch}"
+	local git_worktree_path="$git_dir/.claude/worktrees/${branch}"
 
-	_git_worktree_sync "$branch" "$wt_path" "$remote_branch" "run $gh_run_id" || return 1
+	_git_worktree_sync "$branch" "$git_worktree_path" "$remote_branch" "run #$gh_run_id" || return 1
 
 	local preamble
-	preamble=$(GH_RUN_ID="$gh_run_id" \
-		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl")
+	preamble=$(
+		# shellcheck disable=SC2034
+		GH_RUN_ID="$gh_run_id"
+		# shellcheck disable=SC2154
+		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
+	)
 	if [[ -z "$preamble" ]]; then
 		gum log --level error "Failed to render chat preamble"
 		return 1
@@ -232,7 +236,7 @@ _gh_run_explain() {
 		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_run_meta.jq")" || true)
 	if [[ -z "$gh_run_eval" ]]; then
-		gum log --level error "Failed to fetch run $gh_run_id"
+		gum log --level error "Failed to fetch run #$gh_run_id"
 		return 1
 	fi
 
