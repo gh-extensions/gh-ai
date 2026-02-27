@@ -2,7 +2,7 @@
 # gh-ai keybinds with gh-fzf via GH_FZF_*_OPTS.
 #
 # Usage: add to ~/.bashrc or ~/.zshrc
-#   source /path/to/extras/gh_fzf_ai.sh
+#   source /path/to/extras/gh_fzf.sh
 #
 # Keybinds added:
 #
