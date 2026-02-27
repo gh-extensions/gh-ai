@@ -211,7 +211,7 @@ _gh_issue_edit() {
 
 	# Fetch issue metadata
 	local gh_issue_eval
-	gh_issue_eval=$(gum spin --title "Fetching GitHub issue metadata..." -- \
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue #$gh_issue_number metadata..." -- \
 		gh issue view "$gh_issue_number" --json title,body,labels,comments \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
 	if [[ -z "$gh_issue_eval" ]]; then
@@ -228,7 +228,7 @@ _gh_issue_edit() {
 	local output
 	# Generate updated issue content using assistant
 	output=$(
-		gum spin --title "Generating updated GitHub issue..." -- \
+		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
@@ -376,7 +376,7 @@ _gh_issue_plan() {
 
 	# Fetch issue metadata
 	local gh_issue_eval
-	gh_issue_eval=$(gum spin --title "Fetching GitHub issue metadata..." -- \
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue #$gh_issue_number metadata..." -- \
 		gh issue view "$gh_issue_number" --json title,body,labels,comments \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
 	if [[ -z "$gh_issue_eval" ]]; then
@@ -393,7 +393,7 @@ _gh_issue_plan() {
 	local output
 	# Generate implementation plan using assistant
 	output=$(
-		gum spin --title "Generating GitHub issue implementation plan..." -- \
+		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
