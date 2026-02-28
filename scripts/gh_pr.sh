@@ -734,129 +734,6 @@ _gh_pr_explain() {
 	esac
 }
 
-# PR chat help function
-#
-# Displays help information for the pr chat command.
-_show_pr_chat_help() {
-	cat <<'EOF'
-gh ai pr chat - Open a Claude Code review session for a pull request
-
-USAGE:
-    gh ai pr chat <PR_NUMBER>
-
-DESCRIPTION:
-    Generates a plain-language explanation of the PR (via gh ai pr explain),
-    creates a git worktree on branch pr-N (fast-forwarded to the PR head),
-    and opens a Claude Code session seeded with that explanation.
-    Re-running the command resumes the previous session.
-    The session is opened in discussion mode — Claude will not commit or push changes.
-
-EXAMPLES:
-    gh ai pr chat 99
-EOF
-}
-
-# Parse PR chat arguments
-#
-# Extracts the PR number (first positional arg, stripping leading #).
-# Unknown flags produce an error.
-#
-# Example: _parse_pr_chat_args num 99
-_parse_pr_chat_args() {
-	local -n gh_pr_number_ref="$1"
-	shift
-
-	local raw_args=("$@")
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		case "${raw_args[$i]}" in
-		--)
-			break
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-}
-
-# PR Chat implementation
-#
-# Generates a plain-language explanation of the PR, creates a git worktree on
-# branch pr-N (synced to the PR head), and opens a Claude Code session seeded
-# with the explanation in discussion mode. Re-running resumes the session.
-#
-# Usage: _gh_pr_chat <PR_NUMBER>
-_gh_pr_chat() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_pr_chat_help
-		return 0
-		;;
-	esac
-
-	local gh_pr_number=""
-	_parse_pr_chat_args gh_pr_number "$@"
-
-	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided"
-		gum log --level info "Usage: gh ai pr chat <PR_NUMBER>"
-		return 1
-	fi
-
-	local repo_name
-	_get_repo_name repo_name || return 1
-
-	local git_dir
-	_get_git_repo_path git_dir || return 1
-
-	local session_id session_file
-	_init_chat_session session_id session_file "$repo_name" "P${gh_pr_number}" "$git_dir"
-
-	local gh_remote_branch
-	gh_remote_branch=$(gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' 2>/dev/null || true)
-	if [[ -z "$gh_remote_branch" ]]; then
-		gum log --level error "Failed to fetch head branch for PR #$gh_pr_number"
-		return 1
-	fi
-
-	local git_branch="pr-${gh_pr_number}"
-	# shellcheck disable=SC2154
-	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
-	# shellcheck disable=SC2154
-	gum spin --title "Setting up Git worktree for GitHub pull request #$gh_pr_number..." -- \
-		"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" || return 1
-
-	local preamble
-	preamble=$(GH_PR_NUMBER="$gh_pr_number" \
-		_cmd_render "$_gh_ai_source_dir/templates/gh_pr_chat.tmpl")
-	if [[ -z "$preamble" ]]; then
-		gum log --level error "Failed to render chat preamble"
-		return 1
-	fi
-
-	local agent_model
-	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
-	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
-	fi
-
-	_cmd_chat "$session_file" "$git_branch" "$session_id" "$preamble" "$agent_model" \
-		gh ai pr explain "$gh_pr_number"
-}
-
 # PR help function
 #
 # Displays comprehensive help information for all PR subcommands
@@ -870,25 +747,21 @@ USAGE:
     gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER] [--comment | --edit]
-    gh ai pr chat <PR_NUMBER>
 
 DESCRIPTION:
     Creates, edits, reviews, and explains GitHub pull requests with AI-generated content.
-    Opens a Claude Code review session seeded with a PR explanation in an isolated worktree.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
     edit        Edit an existing PR with AI-generated content
     review      Review PRs with AI-generated feedback
     explain     Generate a plain-language explanation of a PR
-    chat        Open a Claude Code review session for a PR
 
 SEE ALSO:
     gh ai pr create --help     # Full list of gh pr create options
     gh ai pr edit --help       # Full list of gh pr edit options
     gh ai pr review --help     # Full list of gh pr review options
     gh ai pr explain --help    # PR explain usage
-    gh ai pr chat --help       # PR chat usage
 EOF
 }
 
@@ -898,7 +771,7 @@ EOF
 # Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, edit, review, explain, chat, help
+# Subcommands: create, edit, review, explain, help
 _gh_pr() {
 	local subcommand="${1:-}"
 	shift || true
@@ -916,15 +789,12 @@ _gh_pr() {
 	explain)
 		_gh_pr_explain "$@"
 		;;
-	chat)
-		_gh_pr_chat "$@"
-		;;
 	--help | -h | help | "")
 		_show_pr_help
 		;;
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, edit, review, explain, chat"
+		gum log --level info "Available commands: create, edit, review, explain"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
 		;;

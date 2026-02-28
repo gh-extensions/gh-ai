@@ -18,24 +18,20 @@ USAGE:
     gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
     gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
     gh ai issue plan <ISSUE_NUMBER>
-    gh ai issue chat <ISSUE_NUMBER>
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
     bodies. Generates implementation plans from issues and prints them to stdout.
-    Opens a Claude Code session seeded with an issue plan in an isolated worktree.
 
 COMMANDS:
     create      Create issues with AI-generated content
     edit        Edit an existing issue with AI-generated content
     plan        Generate an AI implementation plan from an issue
-    chat        Open a Claude Code session seeded with an issue plan
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
     gh ai issue edit --help       # Issue edit usage
     gh ai issue plan --help       # Issue plan usage
-    gh ai issue chat --help       # Issue chat usage
 EOF
 }
 
@@ -434,131 +430,6 @@ EXAMPLES:
 EOF
 }
 
-# Issue chat help function
-#
-# Displays help information for the issue chat command.
-_show_issue_chat_help() {
-	cat <<'EOF'
-gh ai issue chat - Open a Claude Code session seeded with an issue plan
-
-USAGE:
-    gh ai issue chat <ISSUE_NUMBER>
-
-DESCRIPTION:
-    Generates an AI implementation plan for the issue (via gh ai issue plan),
-    creates a git worktree on branch issue-N (or reuses an existing one),
-    and opens a Claude Code session seeded with that plan.
-    Claude will present the plan and ask for confirmation before implementing.
-    Re-running the command resumes the previous session.
-
-EXAMPLES:
-    gh ai issue chat 42
-EOF
-}
-
-# Parse issue chat arguments
-#
-# Extracts the issue number (first positional arg, stripping leading #).
-# Unknown flags produce an error.
-#
-# Example: _parse_issue_chat_args num 42
-_parse_issue_chat_args() {
-	local -n gh_issue_number_ref="$1"
-	shift
-
-	local raw_args=("$@")
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		case "${raw_args[$i]}" in
-		--)
-			break
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_issue_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-}
-
-# Issue Chat implementation
-#
-# Generates an implementation plan for the issue, creates a git worktree on
-# branch issue-N (or reuses an existing one), and opens a Claude Code session
-# seeded with the plan. Re-running resumes the previous session.
-#
-# Usage: _gh_issue_chat <NUMBER>
-_gh_issue_chat() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_issue_chat_help
-		return 0
-		;;
-	esac
-
-	local gh_issue_number=""
-	_parse_issue_chat_args gh_issue_number "$@"
-
-	if [[ -z "$gh_issue_number" ]]; then
-		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER>"
-		return 1
-	fi
-
-	local repo_name
-	_get_repo_name repo_name || return 1
-
-	local git_dir
-	_get_git_repo_path git_dir || return 1
-
-	local session_id session_file
-	_init_chat_session session_id session_file "$repo_name" "I${gh_issue_number}" "$git_dir"
-
-	local git_branch="issue-${gh_issue_number}"
-	# shellcheck disable=SC2154
-	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
-
-	# Create worktree only if it does not exist; do not auto-merge dev branches
-	if [[ ! -d "$git_worktree_path" ]]; then
-		# shellcheck disable=SC2154
-		gum spin --title "Setting up Git worktree for GitHub issue #$gh_issue_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-create "$git_branch" "$git_worktree_path" "$gh_issue_number"
-
-		if [[ ! -d "$git_worktree_path" ]]; then
-			gum log --level error "Failed to create worktree for issue #$gh_issue_number"
-			return 1
-		fi
-	fi
-
-	local preamble
-	preamble=$(GH_ISSUE_NUMBER="$gh_issue_number" \
-		_cmd_render "$_gh_ai_source_dir/templates/gh_issue_chat.tmpl")
-	if [[ -z "$preamble" ]]; then
-		gum log --level error "Failed to render chat preamble"
-		return 1
-	fi
-
-	local agent_model
-	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
-	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
-	fi
-
-	_cmd_chat "$session_file" "$git_branch" "$session_id" "$preamble" "$agent_model" \
-		gh ai issue plan "$gh_issue_number"
-}
-
 # Issue Create implementation
 #
 # Creates a GitHub issue with an AI-generated title and structured body.
@@ -640,7 +511,7 @@ _gh_issue_create() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_issue <subcommand> [OPTIONS]
-# Subcommands: create, edit, plan, chat, help
+# Subcommands: create, edit, plan, help
 _gh_issue() {
 	local subcommand="${1:-}"
 	shift || true
@@ -655,15 +526,12 @@ _gh_issue() {
 	plan)
 		_gh_issue_plan "$@"
 		;;
-	chat)
-		_gh_issue_chat "$@"
-		;;
 	--help | -h | help | "")
 		_show_issue_help
 		;;
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, edit, plan, chat"
+		gum log --level info "Available commands: create, edit, plan"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1
 		;;

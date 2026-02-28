@@ -41,130 +41,6 @@ _parse_run_explain_args() {
 	done
 }
 
-# Run chat help function
-#
-# Displays help information for the run chat command.
-_show_run_chat_help() {
-	cat <<'EOF'
-gh ai run chat - Open a Claude Code debug session for a workflow run
-
-USAGE:
-    gh ai run chat <RUN_ID>
-
-DESCRIPTION:
-    Generates an AI explanation of the workflow run (via gh ai run explain),
-    creates a git worktree on the run's head branch (fast-forwarded),
-    and opens a Claude Code session seeded with that explanation.
-    Re-running the command resumes the previous session.
-    The session is focused on analyzing the failure and helping fix issues.
-
-EXAMPLES:
-    gh ai run chat 12345678
-EOF
-}
-
-# Parse run chat arguments
-#
-# Extracts the run ID (first positional arg, stripping leading #).
-# Unknown flags produce an error.
-#
-# Example: _parse_run_chat_args id 12345678
-_parse_run_chat_args() {
-	local -n gh_run_id_ref="$1"
-	shift
-
-	local raw_args=("$@")
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		case "${raw_args[$i]}" in
-		--)
-			break
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_run_id_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-}
-
-# Run Chat implementation
-#
-# Generates an explanation of the workflow run, creates a git worktree on the
-# run's head branch (synced to remote), and opens a Claude Code session seeded
-# with the explanation for debugging. Re-running resumes the session.
-#
-# Usage: _gh_run_chat <RUN_ID>
-_gh_run_chat() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_run_chat_help
-		return 0
-		;;
-	esac
-
-	local gh_run_id=""
-	_parse_run_chat_args gh_run_id "$@"
-
-	if [[ -z "$gh_run_id" ]]; then
-		gum log --level error "No run ID provided"
-		gum log --level info "Usage: gh ai run chat <RUN_ID>"
-		return 1
-	fi
-
-	local repo_name
-	_get_repo_name repo_name || return 1
-
-	local git_dir
-	_get_git_repo_path git_dir || return 1
-
-	local session_id session_file
-	_init_chat_session session_id session_file "$repo_name" "R${gh_run_id}" "$git_dir"
-
-	local gh_remote_branch
-	gh_remote_branch=$(gh run view "$gh_run_id" --json headBranch -q '.headBranch' 2>/dev/null || true)
-	if [[ -z "$gh_remote_branch" ]]; then
-		gum log --level error "Failed to fetch head branch for run #$gh_run_id"
-		return 1
-	fi
-
-	local git_branch="run-${gh_run_id}"
-	# shellcheck disable=SC2154
-	local git_worktree_path="$git_dir/.claude/worktrees/${git_branch}"
-	# shellcheck disable=SC2154
-	gum spin --title "Setting up Git worktree for GitHub workflow run #$gh_run_id..." -- \
-		"$_gh_ai_source_dir/scripts/gh_cmd.sh" worktree-sync "$git_branch" "$git_worktree_path" "$gh_remote_branch" || return 1
-
-	local preamble
-	# shellcheck disable=SC2154
-	preamble=$(GH_RUN_ID="$gh_run_id" \
-		_cmd_render "$_gh_ai_source_dir/templates/gh_run_chat.tmpl")
-	if [[ -z "$preamble" ]]; then
-		gum log --level error "Failed to render chat preamble"
-		return 1
-	fi
-
-	local agent_model
-	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)
-	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
-	fi
-
-	_cmd_chat "$session_file" "$git_branch" "$session_id" "$preamble" "$agent_model" \
-		gh ai run explain "$gh_run_id"
-}
-
 # Run help function
 #
 # Displays comprehensive help information for all run subcommands
@@ -175,19 +51,15 @@ gh ai run - Workflow run commands with AI assistance
 
 USAGE:
     gh ai run explain <RUN_ID>
-    gh ai run chat <RUN_ID>
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs and explains what happened.
-    Opens a Claude Code debug session seeded with a run explanation in an isolated worktree.
 
 COMMANDS:
     explain     Analyze a workflow run and explain failures
-    chat        Open a Claude Code debug session for a workflow run
 
 SEE ALSO:
     gh ai run explain --help    # Run explain usage
-    gh ai run chat --help       # Run chat usage
 EOF
 }
 
@@ -300,7 +172,7 @@ _gh_run_explain() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_run <subcommand> [OPTIONS]
-# Subcommands: explain, chat, help
+# Subcommands: explain, help
 _gh_run() {
 	local subcommand="${1:-}"
 	shift || true
@@ -309,15 +181,12 @@ _gh_run() {
 	explain)
 		_gh_run_explain "$@"
 		;;
-	chat)
-		_gh_run_chat "$@"
-		;;
 	--help | -h | help | "")
 		_show_run_help
 		;;
 	*)
 		gum log --level error "Unknown run command '$subcommand'"
-		gum log --level info "Available commands: explain, chat"
+		gum log --level info "Available commands: explain"
 		gum log --level info "Run 'gh ai run --help' for usage information"
 		return 1
 		;;

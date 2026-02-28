@@ -25,7 +25,6 @@
             gum
             bats
             shellcheck
-            libossp_uuid
           ];
 
           shellHook = ''

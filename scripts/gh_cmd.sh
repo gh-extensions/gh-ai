@@ -72,54 +72,6 @@ _cmd_ask() {
 	esac
 }
 
-# Launch or resume a Claude Code chat session in a worktree
-#
-# Reads the gh-ai provider from gh config (defaults to anthropic).
-# Returns 1 with an error if the provider is not supported.
-# If the session sentinel file exists, resumes the previous session.
-# Otherwise runs cmd... to capture its output, then starts a new claude
-# session with that output as the initial prompt, and touches the sentinel
-# file on success.
-#
-# Usage: _cmd_chat <session_file> <worktree_name> <session_id> <preamble> <model> [cmd...]
-#   session_file   — path to the sentinel file (created on first run)
-#   worktree_name  — worktree name passed to claude --worktree (e.g. "issue-42")
-#   session_id     — deterministic UUID for --session-id / --resume
-#   preamble       — instruction prepended to the initial prompt (required)
-#   model          — optional model string (pass "" to let claude use its default)
-#   cmd...         — command whose stdout seeds the initial prompt
-_cmd_chat() {
-	local session_file="$1"
-	local worktree_name="$2"
-	local session_id="$3"
-	local preamble="$4"
-	local agent_model="$5"
-	shift 5
-
-	local agent_provider
-	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)
-	agent_provider="${agent_provider:-anthropic}"
-
-	case "$agent_provider" in
-	anthropic)
-		local claude_args=(--worktree "$worktree_name")
-		[[ -n "$agent_model" ]] && claude_args+=(--model "$agent_model")
-
-		if [[ -f "$session_file" ]]; then
-			claude "${claude_args[@]}" --resume "$session_id"
-		else
-			printf -v preamble '%s\n' "$preamble"
-			# start the agent
-			"$@" | claude "${claude_args[@]}" --session-id "$session_id" "$preamble" && touch "$session_file"
-		fi
-		;;
-	*)
-		gum log --level error "Unsupported provider '$agent_provider' (supported: anthropic)"
-		return 1
-		;;
-	esac
-}
-
 # Extract title from AI response
 #
 # Gets the title from AI-generated content by taking the first line
@@ -214,87 +166,6 @@ _get_git_repo_path() {
 	fi
 }
 
-# Initialise a deterministic chat session
-#
-# Derives a UUID v5 session ID from the repo name and entity key, writes the
-# ID and the sentinel file path into the provided namerefs, and creates the
-# session directory.
-#
-# The entity_key prefix (I = issue, P = PR, R = run) disambiguates entities
-# that share the same number within the UUID v5 namespace.
-#
-# Usage: _init_chat_session id_ref file_ref <repo_name> <entity_key> <git_dir>
-#   repo_name   — "owner/repo" string
-#   entity_key  — e.g. "I42", "P99", "R12345" (prefix + number)
-#   git_dir     — absolute path returned by git rev-parse --show-toplevel
-_init_chat_session() {
-	local -n _id_ref="$1"
-	local -n _file_ref="$2"
-	local git_repo_name="$3"
-	local gh_entity_key="$4"
-	local git_repo_path="$5"
-
-	_id_ref=$(uuid -v5 ns:URL "${git_repo_name}#${gh_entity_key}")
-	if [[ -z "$_id_ref" ]]; then
-		gum log --level error "Failed to generate session ID (uuid returned empty)"
-		return 1
-	fi
-
-	local session_dir="$git_repo_path/.claude/sessions"
-	if ! mkdir -p "$session_dir"; then
-		gum log --level error "Failed to create session directory: $session_dir"
-		return 1
-	fi
-	_file_ref="$session_dir/$_id_ref"
-}
-
-# Create or fast-forward a worktree for a given branch
-#
-# If the worktree path does not exist, fetches and creates it with
-# `git worktree add -B`. If it already exists, fast-forward merges
-# from the remote branch. Returns 1 if the merge would not be fast-forward.
-#
-# Usage: _git_worktree_sync <branch> <path> <remote_branch>
-#   branch         — local branch name (e.g. "pr-99")
-#   path           — absolute worktree path
-#   remote_branch  — remote branch to fetch/merge (e.g. "feature/my-change")
-_git_worktree_sync() {
-	local git_branch="$1"
-	local git_worktree_path="$2"
-	local git_remote_branch="$3"
-
-	if [[ ! -d "$git_worktree_path" ]]; then
-		git fetch origin "$git_remote_branch" || true
-		git worktree add -B "$git_branch" "$git_worktree_path" "origin/$git_remote_branch" >/dev/null
-	else
-		git -C "$git_worktree_path" merge --ff-only "origin/$git_remote_branch" 2>/dev/null || {
-			gum log --level error "Worktree '$git_worktree_path' has diverged from origin/$git_remote_branch — resolve manually"
-			return 1
-		}
-	fi
-}
-
-# Create a worktree for an issue branch (best-effort)
-#
-# Tries to fetch the branch from origin; if it doesn't exist, uses
-# `gh issue develop` to create it. Then creates the worktree, falling back
-# to a fresh local branch if the remote branch is unavailable.
-#
-# Usage: _git_worktree_create <branch> <path> <issue_number>
-#   branch         — local branch name (e.g. "issue-42")
-#   path           — absolute worktree path
-#   issue_number   — GitHub issue number (for gh issue develop)
-_git_worktree_create() {
-	local git_branch="$1"
-	local git_worktree_path="$2"
-	local gh_issue_number="$3"
-
-	git fetch origin "$git_branch" >/dev/null 2>&1 ||
-		gh issue develop "$gh_issue_number" --name "$git_branch" >/dev/null 2>&1 || true
-	git worktree add -B "$git_branch" "$git_worktree_path" "origin/$git_branch" >/dev/null 2>&1 ||
-		git worktree add -b "$git_branch" "$git_worktree_path" >/dev/null 2>&1 || true
-}
-
 main() {
 	local command
 	command="${1:-}"
@@ -306,16 +177,8 @@ main() {
 	ask)
 		_cmd_ask "${2:-}"
 		;;
-	worktree-sync)
-		shift
-		_git_worktree_sync "$@"
-		;;
-	worktree-create)
-		shift
-		_git_worktree_create "$@"
-		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|ask|worktree-sync|worktree-create> [args]"
+		gum log --level error "Usage: gh_cmd.sh <render|ask> [args]"
 		exit 1
 		;;
 	esac
