@@ -206,7 +206,7 @@ _parse_run_chat_args() {
 			gh_run_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
 			return 1
 			;;
 		*)
@@ -330,7 +330,7 @@ _gh_run_chat() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_run <subcommand> [OPTIONS]
-# Subcommands: explain, help
+# Subcommands: explain, chat, help
 _gh_run() {
 	local subcommand="${1:-}"
 	shift || true

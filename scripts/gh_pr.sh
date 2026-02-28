@@ -519,7 +519,7 @@ DESCRIPTION:
     gh pr review.
 
 FLAGS:
-    -d, --description <TEXT>    Additional context for AI review generation
+    -d, --description string   Additional context for AI review generation
 
 EXAMPLES:
     gh ai pr review 42
@@ -559,7 +559,7 @@ _gh_pr_review() {
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh ai pr review <PR_NUMBER> [-- OPTIONS]"
+		gum log --level info "Usage: gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]"
 		return 1
 	fi
 
@@ -770,7 +770,7 @@ _parse_pr_chat_args() {
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
 			return 1
 			;;
 		*)
@@ -880,10 +880,13 @@ _gh_pr_chat() {
 		gh pr view "$gh_pr_number" --json title,body \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
 
-	local gh_pr_title gh_pr_body
-	if [[ -n "$gh_pr_eval" ]]; then
-		eval "$gh_pr_eval"
+	if [[ -z "$gh_pr_eval" ]]; then
+		gum log --level error "Failed to fetch PR #$gh_pr_number metadata"
+		return 1
 	fi
+
+	local gh_pr_title gh_pr_body
+	eval "$gh_pr_eval"
 
 	# Render context and pipe to agent
 	local preamble
@@ -936,7 +939,7 @@ EOF
 # Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, edit, review, explain, help
+# Subcommands: create, edit, review, explain, chat, help
 _gh_pr() {
 	local subcommand="${1:-}"
 	shift || true

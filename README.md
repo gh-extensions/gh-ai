@@ -27,10 +27,13 @@ gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
+gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
+gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 gh ai run explain <RUN_ID>
+gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 ```
 
 ### Pull Request
@@ -70,6 +73,14 @@ gh ai pr explain 42              # print explanation to stdout
 gh ai pr explain                 # auto-detect PR from current branch
 gh ai pr explain 42 --comment    # post as PR comment
 gh ai pr explain 42 --edit       # replace PR description
+```
+
+Opens an interactive agent session with PR context.
+
+```bash
+gh ai pr chat 42
+gh ai pr chat -d "focus on the security changes"
+gh ai pr chat 42 -- --model sonnet
 ```
 
 ### Issue
@@ -117,6 +128,14 @@ gh issue develop 42 --checkout && \
   gh ai issue plan 42 | gh pr create --body -
 ```
 
+Opens an interactive agent session with issue context.
+
+```bash
+gh ai issue chat 42
+gh ai issue chat 42 -d "focus on the auth module"
+gh ai issue chat 42 -- --model sonnet
+```
+
 ### Run
 
 Analyzes a GitHub Actions workflow run and explains what happened.
@@ -125,13 +144,21 @@ Analyzes a GitHub Actions workflow run and explains what happened.
 gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 ```
 
+Opens an interactive agent session with workflow run context.
+
+```bash
+gh ai run chat 123456
+gh ai run chat 123456 -d "focus on test failures"
+gh ai run chat 123456 -- --model sonnet
+```
+
 ## Configuration
 
 Override the AI agent and model via `gh config`.
 
 | Key              | Default  | Description                            |
 | ---------------- | -------- | -------------------------------------- |
-| `ai.agent`       | `claude` | Agent binary for ask and chat commands |
+| `ai.agent`       | `claude` | Agent binary (used by all commands)    |
 | `ai.model`       | `haiku`  | Model for all commands (fallback)      |
 | `ai.pr.model`    |          | Model override for `pr` subcommands    |
 | `ai.issue.model` |          | Model override for `issue` subcommands |

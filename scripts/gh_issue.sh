@@ -444,7 +444,7 @@ _parse_issue_chat_args() {
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
 			return 1
 			;;
 		*)
@@ -651,7 +651,7 @@ _gh_issue_create() {
 # Shows help for unknown commands.
 #
 # Usage: _gh_issue <subcommand> [OPTIONS]
-# Subcommands: create, edit, plan, help
+# Subcommands: create, edit, plan, chat, help
 _gh_issue() {
 	local subcommand="${1:-}"
 	shift || true
