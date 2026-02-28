@@ -1,8 +1,7 @@
 # gh-ai
 
 A GitHub CLI extension that brings AI to every step of your GitHub workflow.
-Generate commits, craft PRs, plan issues, and debug CI failures — all from
-your terminal.
+Craft PRs, plan issues, and debug CI failures — all from your terminal.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
@@ -23,7 +22,6 @@ gh extension install gh-extensions/gh-ai
 ## Usage
 
 ```bash
-gh ai commit [-d <DESCRIPTION>] [-- GIT_COMMIT_OPTIONS]
 gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
@@ -32,20 +30,6 @@ gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
 gh ai run explain <RUN_ID>
-```
-
-### Commit
-
-Generates a conventional commit message from your staged changes. Use
-`-d`/`--description` to provide extra context or constraints that guide
-the AI when writing the message.
-
-```bash
-git add -p
-gh ai commit
-gh ai commit -d "focus on the security improvements"
-gh ai commit -- --signoff
-gh ai commit -- --no-verify
 ```
 
 ### Pull Request
@@ -148,7 +132,6 @@ Override the AI provider and model via `gh config`.
 | -------------------- | ----------- | -------------------------------------- |
 | `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)              |
 | `gh-ai.model`        | `haiku`     | Model for all commands (fallback)      |
-| `gh-ai.commit.model` |             | Model override for `commit`            |
 | `gh-ai.pr.model`     |             | Model override for `pr` subcommands    |
 | `gh-ai.issue.model`  |             | Model override for `issue` subcommands |
 | `gh-ai.run.model`    |             | Model override for `run` subcommands   |
