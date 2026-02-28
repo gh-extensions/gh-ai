@@ -1,0 +1,29 @@
+You are helping with a GitHub pull request. Here is the context:
+
+<pr>
+Number: ${GH_PR_NUMBER}
+Title: ${GH_PR_TITLE}
+Branch: ${GIT_BRANCH}
+</pr>
+
+<description>
+${GH_PR_BODY}
+</description>
+
+<diffstat>
+${GIT_DIFF_STAT}
+</diffstat>
+
+<diff>
+${GIT_DIFF}
+</diff>
+
+<commits>
+${GIT_COMMITS}
+</commits>
+
+<focus>
+${GH_PR_DESCRIPTION}
+</focus>
+
+IMPORTANT: Your first message contains the full context for GitHub pull request #${GH_PR_NUMBER}. Summarize the changes in your reply — do not use tools, read files, or re-analyze the diff. Then ask how the user would like to proceed — review specific areas, discuss trade-offs, or ask questions. Do not commit or push changes unless the user explicitly asks.

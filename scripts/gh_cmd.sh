@@ -38,16 +38,27 @@ _cmd_render() {
 	}' "$template_file"
 }
 
-# Send a prompt to the AI provider and print the response
+# Resolve the configured agent binary name
 #
-# Reads a prompt from stdin and sends it to the configured AI provider.
+# Reads ai.agent from gh config (default: claude).
+#
+# Usage: _get_agent       # prints binary name to stdout
+_get_agent() {
+	local agent
+	agent=$(gh config get ai.agent 2>/dev/null || true)
+	printf '%s' "${agent:-claude}"
+}
+
+# Send a prompt to the AI agent in non-interactive (prompt) mode
+#
+# Reads a prompt from stdin and sends it to the configured agent binary.
 # Uses the given model or falls back to ai.model / haiku.
+# Currently supports claude as the agent.
 #
 # Usage: echo "prompt" | _cmd_ask [MODEL]
 _cmd_ask() {
-	local agent_provider
-	agent_provider=$(gh config get ai.provider 2>/dev/null || true)
-	agent_provider="${agent_provider:-anthropic}"
+	local agent
+	agent=$(_get_agent)
 
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
@@ -55,8 +66,8 @@ _cmd_ask() {
 		agent_model="${agent_model:-haiku}"
 	fi
 
-	case "$agent_provider" in
-	anthropic)
+	case "$agent" in
+	claude)
 		MAX_THINKING_TOKENS=0 claude -p \
 			--model="$agent_model" \
 			--disable-slash-commands \
@@ -66,10 +77,28 @@ _cmd_ask() {
 			- || true
 		;;
 	*)
-		gum log --level error "Unsupported provider '$agent_provider' (supported: anthropic)"
+		gum log --level error "Unsupported agent '$agent' for ask (supported: claude)"
 		return 1
 		;;
 	esac
+}
+
+# Pipe a preamble into the configured agent binary
+#
+# Resolves ai.agent (default: claude), verifies the binary exists, then
+# pipes the preamble into it. Extra positional args are forwarded to the agent.
+#
+# Usage: _cmd_chat "context preamble" [AGENT_ARGS...]
+_cmd_chat() {
+	local preamble="$1"; shift
+	local agent
+	agent=$(_get_agent)
+	if ! command -v "$agent" &>/dev/null; then
+		gum log --level error "Agent '$agent' not found"
+		gum log --level info "Install it or set: gh config set ai.agent <binary>"
+		return 1
+	fi
+	printf '%s\n' "$preamble" | "$agent" "$@"
 }
 
 # Extract title from AI response
@@ -177,8 +206,12 @@ main() {
 	ask)
 		_cmd_ask "${2:-}"
 		;;
+	chat)
+		shift
+		_cmd_chat "$@"
+		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|ask> [args]"
+		gum log --level error "Usage: gh_cmd.sh <render|ask|chat> [args]"
 		exit 1
 		;;
 	esac

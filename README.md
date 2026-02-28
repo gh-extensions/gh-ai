@@ -126,15 +126,15 @@ gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 
 ## Configuration
 
-Override the AI provider and model via `gh config`.
+Override the AI agent and model via `gh config`.
 
-| Key              | Default     | Description                            |
-| ---------------- | ----------- | -------------------------------------- |
-| `ai.provider`    | `anthropic` | AI provider (`anthropic`)              |
-| `ai.model`       | `haiku`     | Model for all commands (fallback)      |
-| `ai.pr.model`    |             | Model override for `pr` subcommands    |
-| `ai.issue.model` |             | Model override for `issue` subcommands |
-| `ai.run.model`   |             | Model override for `run` subcommands   |
+| Key              | Default  | Description                            |
+| ---------------- | -------- | -------------------------------------- |
+| `ai.agent`       | `claude` | Agent binary for ask and chat commands |
+| `ai.model`       | `haiku`  | Model for all commands (fallback)      |
+| `ai.pr.model`    |          | Model override for `pr` subcommands    |
+| `ai.issue.model` |          | Model override for `issue` subcommands |
+| `ai.run.model`   |          | Model override for `run` subcommands   |
 
 Per-command keys take priority over `ai.model`.
 
@@ -144,6 +144,9 @@ gh config set ai.model haiku
 
 # Use a stronger model for PRs
 gh config set ai.pr.model sonnet
+
+# Use a different agent binary
+gh config set ai.agent claude
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't
@@ -165,11 +168,11 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 
 | Context        | Key     | Action                                           |
 | -------------- | ------- | ------------------------------------------------ |
-| `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue           |
-| `gh-fzf pr`    | `alt-E` | Explain the selected PR                           |
-| `gh-fzf pr`    | `alt-A` | Approve the selected PR via AI review             |
-| `gh-fzf pr`    | `alt-N` | Request changes on the selected PR via AI review  |
-| `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure         |
+| `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue          |
+| `gh-fzf pr`    | `alt-E` | Explain the selected PR                          |
+| `gh-fzf pr`    | `alt-A` | Approve the selected PR via AI review            |
+| `gh-fzf pr`    | `alt-N` | Request changes on the selected PR via AI review |
+| `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
 
 ## License
 

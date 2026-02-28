@@ -57,9 +57,9 @@ USAGE:
     gh ai <command> [subcommand] [options]
 
 COMMANDS:
-    pr          Pull request operations (create, edit, review, explain)
-    issue       Issue operations (create, edit, plan)
-    run         Workflow run operations (explain)
+    pr          Pull request operations (create, edit, review, explain, chat)
+    issue       Issue operations (create, edit, plan, chat)
+    run         Workflow run operations (explain, chat)
 
 SEE ALSO:
     gh ai pr --help        # PR command help

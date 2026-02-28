@@ -22,7 +22,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_explain_args _show_pr_explain_help _gh_pr_explain _cmd_render _cmd_ask
+		declare -f _parse_pr_explain_args _show_pr_explain_help _gh_pr_explain _cmd_render _cmd_ask _get_agent
 	)"
 }
 

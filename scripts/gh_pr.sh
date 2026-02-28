@@ -734,6 +734,167 @@ _gh_pr_explain() {
 	esac
 }
 
+# Parse PR chat arguments
+#
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and -d/--description value. Unknown flags produce an error.
+#
+# Example: _parse_pr_chat_args num desc 42 -d "focus on security"
+_parse_pr_chat_args() {
+	local -n gh_pr_number_ref="$1"
+	local -n gh_pr_description_ref="$2"
+	shift 2
+
+	local raw_args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#raw_args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${raw_args[$i]}" in
+		--description | -d)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				gum log --level error "${raw_args[$i]} requires a value"
+				return 1
+			fi
+			gh_pr_description_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_pr_description_ref="${raw_args[$i]#--description=}"
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}'"
+			return 1
+			;;
+		*)
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_pr_number_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++i))
+	done
+
+	# Auto-detect PR number from current branch if not found in args
+	if [[ -z "$gh_pr_number_ref" ]]; then
+		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+	fi
+}
+
+# PR chat help function
+#
+# Displays help information for the PR chat command
+# including usage examples and available options.
+_show_pr_chat_help() {
+	cat <<'EOF'
+gh ai pr chat - Open an agent session with PR context
+
+USAGE:
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+
+DESCRIPTION:
+    Fetches the GitHub PR metadata and diff, renders it as context, and
+    pipes it into the configured agent binary (default: claude).
+    Auto-detects PR from the current branch if no number is provided.
+    Options after -- are passed directly to the agent.
+
+    Configure the agent: gh config set ai.agent <binary>
+
+FLAGS:
+    -d, --description string   Extra context or focus for the agent (optional)
+
+EXAMPLES:
+    gh ai pr chat 42
+    gh ai pr chat -d "focus on the security changes"
+    gh ai pr chat                    # auto-detect PR from current branch
+    gh ai pr chat 42 -- --model sonnet
+EOF
+}
+
+# PR Chat implementation
+#
+# Fetches a GitHub PR's metadata and diff, renders the context template,
+# and pipes it into the configured agent binary.
+#
+# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+_gh_pr_chat() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_chat_help
+		return 0
+		;;
+	esac
+
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
+
+	local gh_pr_number=""
+	local gh_pr_description=""
+	_parse_pr_chat_args gh_pr_number gh_pr_description "${ai_args[@]}"
+
+	if [[ -z "$gh_pr_number" ]]; then
+		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
+		return 1
+	fi
+
+	# Get PR diff using gh cli (--patch for full patch format)
+	local git_diff
+	git_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
+		gh pr diff "$gh_pr_number" --patch || true)
+	if [[ -z "$git_diff" ]]; then
+		gum log --level error "Failed to get diff for PR #$gh_pr_number"
+		return 1
+	fi
+
+	local git_diff_stat
+	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
+
+	local git_commit_list
+	git_commit_list=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number commits..." -- \
+		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
+
+	local git_branch
+	git_branch=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number branch..." -- \
+		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
+
+	# Fetch PR title and body
+	local gh_pr_eval
+	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
+		gh pr view "$gh_pr_number" --json title,body \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
+
+	local gh_pr_title gh_pr_body
+	if [[ -n "$gh_pr_eval" ]]; then
+		eval "$gh_pr_eval"
+	fi
+
+	# Render context and pipe to agent
+	local preamble
+	preamble=$(
+		GH_PR_NUMBER="$gh_pr_number" GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" GH_PR_DESCRIPTION="$gh_pr_description" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
+
+	_cmd_chat "$preamble" "${passthrough[@]}"
+}
+
 # PR help function
 #
 # Displays comprehensive help information for all PR subcommands
@@ -747,21 +908,25 @@ USAGE:
     gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER] [--comment | --edit]
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
-    Creates, edits, reviews, and explains GitHub pull requests with AI-generated content.
+    Creates, edits, reviews, and explains GitHub pull requests with AI-generated
+    content. Opens agent sessions with PR context.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
     edit        Edit an existing PR with AI-generated content
     review      Review PRs with AI-generated feedback
     explain     Generate a plain-language explanation of a PR
+    chat        Open an agent session with PR context
 
 SEE ALSO:
     gh ai pr create --help     # Full list of gh pr create options
     gh ai pr edit --help       # Full list of gh pr edit options
     gh ai pr review --help     # Full list of gh pr review options
     gh ai pr explain --help    # PR explain usage
+    gh ai pr chat --help       # PR chat usage
 EOF
 }
 
@@ -789,12 +954,15 @@ _gh_pr() {
 	explain)
 		_gh_pr_explain "$@"
 		;;
+	chat)
+		_gh_pr_chat "$@"
+		;;
 	--help | -h | help | "")
 		_show_pr_help
 		;;
 	*)
 		gum log --level error "Unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, edit, review, explain"
+		gum log --level info "Available commands: create, edit, review, explain, chat"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
 		;;

@@ -18,20 +18,24 @@ USAGE:
     gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
     gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
     gh ai issue plan <ISSUE_NUMBER>
+    gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
     bodies. Generates implementation plans from issues and prints them to stdout.
+    Opens agent sessions with issue context.
 
 COMMANDS:
     create      Create issues with AI-generated content
     edit        Edit an existing issue with AI-generated content
     plan        Generate an AI implementation plan from an issue
+    chat        Open an agent session with issue context
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
     gh ai issue edit --help       # Issue edit usage
     gh ai issue plan --help       # Issue plan usage
+    gh ai issue chat --help       # Issue chat usage
 EOF
 }
 
@@ -404,6 +408,142 @@ _gh_issue_plan() {
 	printf '%s\n' "$output"
 }
 
+# Parse issue chat arguments
+#
+# Extracts the issue number (first numeric positional arg) and optional
+# -d/--description value. Unknown flags produce an error.
+#
+# Example: _parse_issue_chat_args num desc 42 -d "focus on auth"
+_parse_issue_chat_args() {
+	local -n gh_issue_number_ref="$1"
+	local -n gh_issue_description_ref="$2"
+	shift 2
+
+	local raw_args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#raw_args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${raw_args[$i]}" in
+		--description | -d)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				gum log --level error "${raw_args[$i]} requires a value"
+				return 1
+			fi
+			gh_issue_description_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_issue_description_ref="${raw_args[$i]#--description=}"
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}'"
+			return 1
+			;;
+		*)
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++i))
+	done
+}
+
+# Issue chat help function
+#
+# Displays help information for the issue chat command
+# including usage examples and available options.
+_show_issue_chat_help() {
+	cat <<'EOF'
+gh ai issue chat - Open an agent session with issue context
+
+USAGE:
+    gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+
+DESCRIPTION:
+    Fetches the GitHub issue metadata, renders it as context, and pipes
+    it into the configured agent binary (default: claude). Options after
+    -- are passed directly to the agent.
+
+    Configure the agent: gh config set ai.agent <binary>
+
+FLAGS:
+    -d, --description string   Extra context or focus for the agent (optional)
+
+EXAMPLES:
+    gh ai issue chat 42
+    gh ai issue chat 42 -d "focus on the auth module"
+    gh ai issue chat 42 -- --model sonnet
+EOF
+}
+
+# Issue Chat implementation
+#
+# Fetches a GitHub issue, renders the context template, and pipes it
+# into the configured agent binary.
+#
+# Usage: _gh_issue_chat <NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+_gh_issue_chat() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_issue_chat_help
+		return 0
+		;;
+	esac
+
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_issue_chat.tmpl"
+
+	local gh_issue_number=""
+	local gh_issue_description=""
+	_parse_issue_chat_args gh_issue_number gh_issue_description "${ai_args[@]}"
+
+	if [[ -z "$gh_issue_number" ]]; then
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
+		return 1
+	fi
+
+	# Fetch issue metadata
+	local gh_issue_eval
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue #$gh_issue_number metadata..." -- \
+		gh issue view "$gh_issue_number" --json title,body,labels,comments \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
+	if [[ -z "$gh_issue_eval" ]]; then
+		gum log --level error "Failed to fetch issue #$gh_issue_number"
+		return 1
+	fi
+
+	local gh_issue_title gh_issue_body gh_issue_labels gh_issue_comments
+	eval "$gh_issue_eval"
+
+	# Render context and pipe to agent
+	local preamble
+	preamble=$(
+		GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
+
+	_cmd_chat "$preamble" "${passthrough[@]}"
+}
+
 # Issue create help function
 #
 # Displays help information for the issue create command
@@ -526,12 +666,15 @@ _gh_issue() {
 	plan)
 		_gh_issue_plan "$@"
 		;;
+	chat)
+		_gh_issue_chat "$@"
+		;;
 	--help | -h | help | "")
 		_show_issue_help
 		;;
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, edit, plan"
+		gum log --level info "Available commands: create, edit, plan, chat"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1
 		;;

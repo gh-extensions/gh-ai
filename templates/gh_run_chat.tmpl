@@ -1,0 +1,24 @@
+You are helping with a GitHub Actions workflow run. Here is the context:
+
+<run>
+ID: ${GH_RUN_ID}
+Title: ${GH_RUN_TITLE}
+Conclusion: ${GH_RUN_CONCLUSION}
+Event: ${GH_RUN_EVENT}
+Branch: ${GH_RUN_BRANCH}
+URL: ${GH_RUN_URL}
+</run>
+
+<jobs>
+${GH_RUN_JOBS}
+</jobs>
+
+<log>
+${GH_RUN_LOG}
+</log>
+
+<focus>
+${GH_RUN_DESCRIPTION}
+</focus>
+
+IMPORTANT: Your first message contains the full context for GitHub Actions run #${GH_RUN_ID}. Analyze the run in your reply — do not use tools, re-fetch logs, or generate a new analysis. Then ask how the user would like to proceed — investigate specific failures, discuss fixes, or start implementing. Only begin making changes once the user explicitly confirms.

@@ -51,15 +51,19 @@ gh ai run - Workflow run commands with AI assistance
 
 USAGE:
     gh ai run explain <RUN_ID>
+    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs and explains what happened.
+    Opens agent sessions with run context.
 
 COMMANDS:
     explain     Analyze a workflow run and explain failures
+    chat        Open an agent session with workflow run context
 
 SEE ALSO:
     gh ai run explain --help    # Run explain usage
+    gh ai run chat --help       # Run chat usage
 EOF
 }
 
@@ -166,6 +170,160 @@ _gh_run_explain() {
 	printf '%s\n' "$output"
 }
 
+# Parse run chat arguments
+#
+# Extracts the run ID (first numeric arg) and optional -d/--description value.
+# Unknown flags produce an error.
+#
+# Example: _parse_run_chat_args id desc 123456 -d "focus on test failures"
+_parse_run_chat_args() {
+	local -n gh_run_id_ref="$1"
+	local -n gh_run_description_ref="$2"
+	shift 2
+
+	local raw_args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#raw_args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${raw_args[$i]}" in
+		--description | -d)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				gum log --level error "${raw_args[$i]} requires a value"
+				return 1
+			fi
+			gh_run_description_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_run_description_ref="${raw_args[$i]#--description=}"
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}'"
+			return 1
+			;;
+		*)
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_run_id_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_run_id_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++i))
+	done
+}
+
+# Run chat help function
+#
+# Displays help information for the run chat command
+# including usage examples and available options.
+_show_run_chat_help() {
+	cat <<'EOF'
+gh ai run chat - Open an agent session with workflow run context
+
+USAGE:
+    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+
+DESCRIPTION:
+    Fetches the GitHub Actions workflow run metadata and logs, renders
+    it as context, and pipes it into the configured agent binary
+    (default: claude). Options after -- are passed directly to the agent.
+
+    Configure the agent: gh config set ai.agent <binary>
+
+FLAGS:
+    -d, --description string   Extra context or focus for the agent (optional)
+
+EXAMPLES:
+    gh ai run chat 123456
+    gh ai run chat 123456 -d "focus on test failures"
+    gh ai run chat 123456 -- --model sonnet
+EOF
+}
+
+# Run Chat implementation
+#
+# Fetches a GitHub Actions workflow run's metadata and logs, renders the
+# context template, and pipes it into the configured agent binary.
+#
+# Usage: _gh_run_chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+_gh_run_chat() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_run_chat_help
+		return 0
+		;;
+	esac
+
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
+
+	local gh_run_id=""
+	local gh_run_description=""
+	_parse_run_chat_args gh_run_id gh_run_description "${ai_args[@]}"
+
+	if [[ -z "$gh_run_id" ]]; then
+		gum log --level error "No run ID provided"
+		gum log --level info "Usage: gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
+		return 1
+	fi
+
+	# Fetch run metadata
+	local gh_run_eval
+	gh_run_eval=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id metadata..." -- \
+		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_run_meta.jq")" || true)
+	if [[ -z "$gh_run_eval" ]]; then
+		gum log --level error "Failed to fetch run #$gh_run_id"
+		return 1
+	fi
+
+	local gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_jobs
+	eval "$gh_run_eval"
+
+	# Fetch logs: use --log-failed for failed runs, --log otherwise
+	local gh_run_log
+	if [[ "$gh_run_conclusion" == "failure" ]]; then
+		gh_run_log=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id failed logs..." -- \
+			gh run view "$gh_run_id" --log-failed || true)
+	else
+		gh_run_log=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id logs..." -- \
+			gh run view "$gh_run_id" --log || true)
+	fi
+
+	# Truncate log to avoid OS ARG_MAX limits when passing via environment variable.
+	local _max_log_bytes=100000
+	if [[ ${#gh_run_log} -gt $_max_log_bytes ]]; then
+		local _tail
+		_tail=$(printf '%s' "$gh_run_log" | tail -c "$_max_log_bytes")
+		gh_run_log="[... log truncated, showing last ${_max_log_bytes} bytes ...]"$'\n'"$_tail"
+	fi
+
+	# Render context and pipe to agent
+	local preamble
+	preamble=$(
+		GH_RUN_ID="$gh_run_id" GH_RUN_TITLE="$gh_run_title" GH_RUN_CONCLUSION="$gh_run_conclusion" GH_RUN_URL="$gh_run_url" GH_RUN_EVENT="$gh_run_event" GH_RUN_BRANCH="$gh_run_branch" GH_RUN_JOBS="$gh_run_jobs" GH_RUN_LOG="$gh_run_log" GH_RUN_DESCRIPTION="$gh_run_description" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
+
+	_cmd_chat "$preamble" "${passthrough[@]}"
+}
+
 # Run subcommand handler
 #
 # Routes run subcommands to their appropriate handler functions.
@@ -181,12 +339,15 @@ _gh_run() {
 	explain)
 		_gh_run_explain "$@"
 		;;
+	chat)
+		_gh_run_chat "$@"
+		;;
 	--help | -h | help | "")
 		_show_run_help
 		;;
 	*)
 		gum log --level error "Unknown run command '$subcommand'"
-		gum log --level info "Available commands: explain"
+		gum log --level info "Available commands: explain, chat"
 		gum log --level info "Run 'gh ai run --help' for usage information"
 		return 1
 		;;
