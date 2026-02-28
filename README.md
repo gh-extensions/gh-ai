@@ -1,9 +1,8 @@
 # gh-ai
 
-A GitHub CLI extension that uses AI to generate commit messages, create and
-edit pull requests with smart titles and descriptions, review code with
-actionable feedback, manage issues and generate implementation plans, and
-explain CI failures.
+A GitHub CLI extension that brings AI to every step of your GitHub workflow.
+Generate commits, craft PRs, plan issues, debug CI failures, and start
+interactive coding sessions — all from your terminal.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
@@ -170,14 +169,14 @@ gh ai run chat 123456
 
 Override the AI provider and model via `gh config`.
 
-| Key                  | Default     | Description                                        |
-| -------------------- | ----------- | -------------------------------------------------- |
-| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)                          |
-| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)                  |
-| `gh-ai.commit.model` |             | Model override for `commit`                        |
-| `gh-ai.pr.model`     |             | Model override for `pr` subcommands                |
-| `gh-ai.issue.model`  |             | Model override for `issue` subcommands             |
-| `gh-ai.run.model`    |             | Model override for `run` subcommands               |
+| Key                  | Default     | Description                            |
+| -------------------- | ----------- | -------------------------------------- |
+| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)              |
+| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)      |
+| `gh-ai.commit.model` |             | Model override for `commit`            |
+| `gh-ai.pr.model`     |             | Model override for `pr` subcommands    |
+| `gh-ai.issue.model`  |             | Model override for `issue` subcommands |
+| `gh-ai.run.model`    |             | Model override for `run` subcommands   |
 
 Per-command keys take priority over `gh-ai.model`.
 
@@ -206,16 +205,16 @@ that wraps `gh` commands in an interactive fuzzy finder. Source
 source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 ```
 
-| Context             | Key     | Action                                           |
-| ------------------- | ------- | ------------------------------------------------ |
-| `gh-fzf issue`      | `alt-P` | Generate AI plan for the selected issue          |
-| `gh-fzf issue`      | `alt-D` | Open a Claude Code chat session (tmux only)      |
-| `gh-fzf pr`         | `alt-E` | Explain the selected PR                          |
-| `gh-fzf pr`         | `alt-A` | Approve the selected PR via AI review            |
-| `gh-fzf pr`         | `alt-N` | Request changes on the selected PR via AI review |
-| `gh-fzf pr`         | `alt-R` | Open a Claude Code review session (tmux only)    |
-| `gh-fzf run`        | `alt-E` | Explain the selected workflow run failure        |
-| `gh-fzf run`        | `alt-D` | Open a Claude Code debug session (tmux only)     |
+| Context        | Key     | Action                                           |
+| -------------- | ------- | ------------------------------------------------ |
+| `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue          |
+| `gh-fzf issue` | `alt-D` | Open a Claude Code chat session (tmux only)      |
+| `gh-fzf pr`    | `alt-E` | Explain the selected PR                          |
+| `gh-fzf pr`    | `alt-A` | Approve the selected PR via AI review            |
+| `gh-fzf pr`    | `alt-N` | Request changes on the selected PR via AI review |
+| `gh-fzf pr`    | `alt-R` | Open a Claude Code review session (tmux only)    |
+| `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
+| `gh-fzf run`   | `alt-D` | Open a Claude Code debug session (tmux only)     |
 
 ## License
 
