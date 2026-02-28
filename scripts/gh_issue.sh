@@ -233,7 +233,7 @@ _gh_issue_edit() {
 	# Generate updated issue content using assistant
 	output=$(
 		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -392,7 +392,7 @@ _gh_issue_plan() {
 	# Generate implementation plan using assistant
 	output=$(
 		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -606,7 +606,7 @@ _gh_issue_create() {
 	# Generate issue content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_LABELS="" GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)

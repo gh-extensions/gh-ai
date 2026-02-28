@@ -169,7 +169,7 @@ _gh_pr_create() {
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -364,7 +364,7 @@ _gh_pr_edit() {
 	# Generate updated PR content using assistant
 	output=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -595,7 +595,7 @@ _gh_pr_review() {
 	# Generate review content using assistant run
 	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" GH_PR_REVIEW_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -706,7 +706,7 @@ _gh_pr_explain() {
 	# Generate explanation using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
 					GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"

@@ -43,8 +43,8 @@ _cmd_render() {
 # Reads a prompt from stdin and sends it to the configured AI provider.
 # Uses the given model or falls back to gh-ai.model / haiku.
 #
-# Usage: echo "prompt" | _cmd_assist [MODEL]
-_cmd_assist() {
+# Usage: echo "prompt" | _cmd_ask [MODEL]
+_cmd_ask() {
 	local agent_provider
 	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)
 	agent_provider="${agent_provider:-anthropic}"
@@ -303,8 +303,8 @@ main() {
 	render)
 		_cmd_render "${2:-}"
 		;;
-	assist)
-		_cmd_assist "${2:-}"
+	ask)
+		_cmd_ask "${2:-}"
 		;;
 	worktree-sync)
 		shift
@@ -315,7 +315,7 @@ main() {
 		_git_worktree_create "$@"
 		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|assist|worktree-sync|worktree-create> [args]"
+		gum log --level error "Usage: gh_cmd.sh <render|ask|worktree-sync|worktree-create> [args]"
 		exit 1
 		;;
 	esac

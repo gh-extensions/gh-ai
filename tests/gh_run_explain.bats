@@ -21,7 +21,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_run.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_run_explain_args _show_run_explain_help _gh_run_explain _cmd_render _cmd_assist
+		declare -f _parse_run_explain_args _show_run_explain_help _gh_run_explain _cmd_render _cmd_ask
 	)"
 }
 

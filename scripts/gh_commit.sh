@@ -139,7 +139,7 @@ _gh_commit() {
 	# Generate commit message using assistant run
 	git_commit_message=$(
 		gum spin --title "Generating Git commit message..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" assist "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GIT_DIFF_STAGED="$git_diff_staged" GIT_DIFF_STAGED_STAT="$git_diff_staged_stat" GIT_BRANCH="$git_branch" GIT_COMMITS="$git_log_oneline" GH_COMMIT_DESCRIPTION="$gh_commit_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
