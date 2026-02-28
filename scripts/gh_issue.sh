@@ -223,7 +223,7 @@ _gh_issue_edit() {
 	eval "$gh_issue_eval"
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
 	local output
 	# Generate updated issue content using assistant
@@ -382,7 +382,7 @@ _gh_issue_plan() {
 	eval "$gh_issue_eval"
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
 	local output
 	# Generate implementation plan using assistant
@@ -471,7 +471,7 @@ _gh_issue_create() {
 	fi
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.issue.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
 	local output
 	# Generate issue content using assistant run

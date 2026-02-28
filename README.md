@@ -128,26 +128,26 @@ gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 
 Override the AI provider and model via `gh config`.
 
-| Key                  | Default     | Description                            |
-| -------------------- | ----------- | -------------------------------------- |
-| `gh-ai.provider`     | `anthropic` | AI provider (`anthropic`)              |
-| `gh-ai.model`        | `haiku`     | Model for all commands (fallback)      |
-| `gh-ai.pr.model`     |             | Model override for `pr` subcommands    |
-| `gh-ai.issue.model`  |             | Model override for `issue` subcommands |
-| `gh-ai.run.model`    |             | Model override for `run` subcommands   |
+| Key              | Default     | Description                            |
+| ---------------- | ----------- | -------------------------------------- |
+| `ai.provider`    | `anthropic` | AI provider (`anthropic`)              |
+| `ai.model`       | `haiku`     | Model for all commands (fallback)      |
+| `ai.pr.model`    |             | Model override for `pr` subcommands    |
+| `ai.issue.model` |             | Model override for `issue` subcommands |
+| `ai.run.model`   |             | Model override for `run` subcommands   |
 
-Per-command keys take priority over `gh-ai.model`.
+Per-command keys take priority over `ai.model`.
 
 ```bash
 # Set the default model
-gh config set gh-ai.model haiku
+gh config set ai.model haiku
 
 # Use a stronger model for PRs
-gh config set gh-ai.pr.model sonnet
+gh config set ai.pr.model sonnet
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't
-> recognize (e.g. `'gh-ai.pr.model' is not a known configuration key`).
+> recognize (e.g. `'ai.pr.model' is not a known configuration key`).
 > This is expected — the values are still saved and used by the extension.
 
 ## Integrations

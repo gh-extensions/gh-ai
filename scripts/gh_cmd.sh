@@ -41,17 +41,17 @@ _cmd_render() {
 # Send a prompt to the AI provider and print the response
 #
 # Reads a prompt from stdin and sends it to the configured AI provider.
-# Uses the given model or falls back to gh-ai.model / haiku.
+# Uses the given model or falls back to ai.model / haiku.
 #
 # Usage: echo "prompt" | _cmd_ask [MODEL]
 _cmd_ask() {
 	local agent_provider
-	agent_provider=$(gh config get gh-ai.provider 2>/dev/null || true)
+	agent_provider=$(gh config get ai.provider 2>/dev/null || true)
 	agent_provider="${agent_provider:-anthropic}"
 
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get gh-ai.model 2>/dev/null || true)
+		agent_model=$(gh config get ai.model 2>/dev/null || true)
 		agent_model="${agent_model:-haiku}"
 	fi
 

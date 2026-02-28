@@ -163,7 +163,7 @@ _gh_pr_create() {
 	git_log_oneline=$(printf '%s\n' "$git_log" | sed 's/^[a-f0-9]* /- /')
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
 	local output
 	# Generate PR content using assistant run
@@ -358,7 +358,7 @@ _gh_pr_edit() {
 		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
 	local output
 	# Generate updated PR content using assistant
@@ -584,7 +584,7 @@ _gh_pr_review() {
 		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
 	local gh_pr_description_context=""
 	if [[ -n "$gh_pr_description" ]]; then
@@ -700,7 +700,7 @@ _gh_pr_explain() {
 	fi
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.pr.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
 	local output
 	# Generate explanation using assistant run

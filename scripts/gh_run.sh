@@ -144,7 +144,7 @@ _gh_run_explain() {
 	fi
 
 	local agent_model
-	agent_model=$(gh config get gh-ai.run.model 2>/dev/null || true)
+	agent_model=$(gh config get ai.run.model 2>/dev/null || true)
 
 	local output
 	# Generate explanation using assistant run
