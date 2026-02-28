@@ -1,7 +1,8 @@
 # gh-ai
 
 A GitHub CLI extension that brings AI to every step of your GitHub workflow.
-Craft PRs, plan issues, and debug CI failures — all from your terminal.
+Generate commits, craft PRs, plan issues, debug CI failures, and start
+interactive coding sessions — all from your terminal.
 
 ![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
 ![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
