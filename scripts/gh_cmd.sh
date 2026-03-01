@@ -30,13 +30,14 @@ _cmd_render() {
 	fi
 
 	awk '
-	function readfile(path,    content, line, first) {
-		content = ""; first = 1
-		while ((getline line < path) > 0) {
-			if (!first) content = content "\n"
-			content = content line; first = 0
+	function readfile(path,    content, line, cmd) {
+		content = ""
+		cmd = "cat " path
+		while ((cmd | getline line) > 0) {
+			if (content != "") content = content "\n"
+			content = content line
 		}
-		close(path)
+		close(cmd)
 		return content
 	}
 	{ content = content $0 "\n" }
