@@ -898,6 +898,10 @@ _gh_pr_chat() {
 		gh_pr_focus="<focus>${gh_pr_description}</focus>"
 	fi
 
+	# Capture current branch for template context
+	local gh_current_branch
+	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
+
 	local preamble
 	preamble=$(
 		GH_PR_NUMBER="$gh_pr_number" \
@@ -908,6 +912,7 @@ _gh_pr_chat() {
 			GH_PR_COMMITS="$gh_pr_commits" \
 			GH_PR_HEAD="$gh_pr_head" \
 			GH_PR_FOCUS="$gh_pr_focus" \
+			GH_CURRENT_BRANCH="$gh_current_branch" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 

@@ -344,6 +344,10 @@ _gh_run_chat() {
 		gh_run_focus="<focus>${gh_run_description}</focus>"
 	fi
 
+	# Capture current branch for template context
+	local gh_current_branch
+	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
+
 	# Render context and pipe to agent
 	local preamble
 	preamble=$(
@@ -356,6 +360,7 @@ _gh_run_chat() {
 			GH_RUN_BRANCH="$gh_run_branch" \
 			GH_RUN_JOBS="$gh_run_jobs" \
 			GH_RUN_LOG="$gh_run_log" \
+			GH_CURRENT_BRANCH="$gh_current_branch" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
