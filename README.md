@@ -231,6 +231,11 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 | `gh-fzf pr`    | `alt-N` | Request changes on the selected PR via AI review |
 | `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
 
+## See Also
+
+- [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
+- [gh-fzf](https://github.com/gh-extensions/gh-fzf) — Fuzzy finder for GitHub CLI
+
 ## License
 
 [MIT](LICENSE) — Copyright (c) 2025 gh-extensions
