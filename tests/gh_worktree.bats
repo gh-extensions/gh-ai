@@ -14,6 +14,8 @@ setup() {
 	# Create a bare "remote" and a worktree-like local clone
 	git init --bare "$BATS_TEST_TMPDIR/remote.git" >/dev/null 2>&1
 	git clone "$BATS_TEST_TMPDIR/remote.git" "$BATS_TEST_TMPDIR/repo" >/dev/null 2>&1
+	git -C "$BATS_TEST_TMPDIR/repo" config user.email "test@test.com"
+	git -C "$BATS_TEST_TMPDIR/repo" config user.name "Test"
 	git -C "$BATS_TEST_TMPDIR/repo" commit --allow-empty -m "initial" >/dev/null 2>&1
 	git -C "$BATS_TEST_TMPDIR/repo" push >/dev/null 2>&1
 
