@@ -3,7 +3,7 @@ You are helping with a GitHub pull request. Here is the context:
 <pr>
 Number: ${GH_PR_NUMBER}
 Title: ${GH_PR_TITLE}
-Branch: ${GIT_BRANCH}
+Branch: ${GH_PR_HEAD}
 </pr>
 
 <description>
@@ -11,19 +11,30 @@ ${GH_PR_BODY}
 </description>
 
 <diffstat>
-${GIT_DIFF_STAT}
+${GH_PR_DIFF_STAT}
 </diffstat>
 
 <diff>
-${GIT_DIFF}
+${GH_PR_DIFF}
 </diff>
 
 <commits>
-${GIT_COMMITS}
+${GH_PR_COMMITS}
 </commits>
 
-<focus>
-${GH_PR_DESCRIPTION}
-</focus>
+${GH_PR_FOCUS}
 
-IMPORTANT: Your first message contains the full context for GitHub pull request #${GH_PR_NUMBER}. Summarize the changes in your reply — do not use tools, read files, or re-analyze the diff. Then ask how the user would like to proceed — review specific areas, discuss trade-offs, or ask questions. Do not commit or push changes unless the user explicitly asks.
+<instructions>
+Do not jump into implementation or change files unless clearly
+instructed to make changes. When the user's intent is ambiguous,
+default to providing information, doing research, and providing
+recommendations rather than taking action. Only proceed with edits,
+modifications, or implementations when the user explicitly requests
+them.
+
+Your first message contains the full context for GitHub pull request
+#${GH_PR_NUMBER}. Summarize the changes in your reply — do not use
+tools, read files, or re-analyze the diff. Then ask how the user
+would like to proceed — review specific areas, discuss trade-offs,
+or ask questions.
+</instructions>

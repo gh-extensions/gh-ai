@@ -20,8 +20,8 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _split_on_separator _cmd_render _get_title _get_body \
-			_get_repo_name _get_git_repo_path
+		declare -f _split_on_separator _cmd_render _parse_title _parse_body \
+			_gh_repo_name _git_repo_path _git_branch_diff _uuidv5
 	)"
 }
 
@@ -109,49 +109,112 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _get_repo_name
+# _gh_repo_name
 # ---------------------------------------------------------------------------
 
-@test "_get_repo_name: sets nameref when gh repo view succeeds" {
+@test "_gh_repo_name: sets nameref when gh repo view succeeds" {
 	gh() { echo "owner/repo"; }
 	export -f gh
 
 	local repo=""
-	_get_repo_name repo
+	_gh_repo_name repo
 
 	[[ "$repo" == "owner/repo" ]]
 }
 
-@test "_get_repo_name: returns error when gh repo view returns empty" {
+@test "_gh_repo_name: returns error when gh repo view returns empty" {
 	gh() { :; }
 	export -f gh
 
 	local repo=""
-	run _get_repo_name repo
+	run _gh_repo_name repo
 
 	[[ "$status" -eq 1 ]]
 }
 
 # ---------------------------------------------------------------------------
-# _get_git_repo_path
+# _git_repo_path
 # ---------------------------------------------------------------------------
 
-@test "_get_git_repo_path: sets nameref when git rev-parse succeeds" {
+@test "_git_repo_path: sets nameref when git rev-parse succeeds" {
 	git() { echo "/home/user/myrepo"; }
 	export -f git
 
 	local dir=""
-	_get_git_repo_path dir
+	_git_repo_path dir
 
 	[[ "$dir" == "/home/user/myrepo" ]]
 }
 
-@test "_get_git_repo_path: returns error when git rev-parse returns empty" {
+@test "_git_repo_path: returns error when git rev-parse returns empty" {
 	git() { :; }
 	export -f git
 
 	local dir=""
-	run _get_git_repo_path dir
+	run _git_repo_path dir
+
+	[[ "$status" -eq 1 ]]
+}
+
+# ---------------------------------------------------------------------------
+# _git_branch_diff
+# ---------------------------------------------------------------------------
+
+@test "_git_branch_diff: populates all four namerefs" {
+	git() {
+		case "$1 $2" in
+		"diff origin/main...feature")
+			if [[ "${*}" == *"--stat"* ]]; then
+				echo " file.sh | 2 +-"
+			else
+				echo "diff --git a/file.sh b/file.sh"
+			fi
+			;;
+		"log --oneline") echo "abc1234 first commit" ;;
+		esac
+	}
+	export -f git
+
+	local diff="" stat="" log="" commits=""
+	_git_branch_diff main feature diff stat log commits
+
+	[[ "$diff" == "diff --git a/file.sh b/file.sh" ]]
+	[[ "$stat" == " file.sh | 2 +-" ]]
+	[[ "$log" == "abc1234 first commit" ]]
+	[[ "$commits" == "- first commit" ]]
+}
+
+@test "_git_branch_diff: falls back to bare branch when origin fails" {
+	git() {
+		case "$*" in
+		*origin/main*)
+			return 1
+			;;
+		"diff main...feature")
+			echo "diff --git a/file.sh b/file.sh"
+			;;
+		"diff main...feature --stat")
+			echo " file.sh | 2 +-"
+			;;
+		"log --oneline main..feature")
+			echo "abc1234 first commit"
+			;;
+		esac
+	}
+	export -f git
+
+	local diff="" stat="" log="" commits=""
+	_git_branch_diff main feature diff stat log commits
+
+	[[ "$diff" == "diff --git a/file.sh b/file.sh" ]]
+}
+
+@test "_git_branch_diff: returns error when diff is empty" {
+	git() { return 1; }
+	export -f git
+
+	local diff="" stat="" log="" commits=""
+	run _git_branch_diff main feature diff stat log commits
 
 	[[ "$status" -eq 1 ]]
 }
@@ -185,10 +248,10 @@ setup() {
 @test "_cmd_render: does not re-expand vars inside substituted values" {
 	local tmpdir="$BATS_TMPDIR/render-safe-test-$$"
 	mkdir -p "$tmpdir"
-	printf 'Diff: ${GIT_DIFF}\n' >"$tmpdir/test.tmpl"
+	printf 'Diff: ${GH_PR_DIFF}\n' >"$tmpdir/test.tmpl"
 
 	local output
-	output=$(GIT_DIFF='contains ${SECRET} token' _cmd_render "$tmpdir/test.tmpl")
+	output=$(GH_PR_DIFF='contains ${SECRET} token' _cmd_render "$tmpdir/test.tmpl")
 
 	[[ "$output" == *'contains ${SECRET} token'* ]]
 }
@@ -213,47 +276,47 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _get_title
+# _parse_title
 # ---------------------------------------------------------------------------
 
-@test "_get_title: extracts title from markdown heading" {
+@test "_parse_title: extracts title from markdown heading" {
 	local output
-	output=$(_get_title "# Fix bug in parser
+	output=$(_parse_title "# Fix bug in parser
 
 Description of the fix.")
 
 	[[ "$output" == "Fix bug in parser" ]]
 }
 
-@test "_get_title: extracts title without heading prefix" {
+@test "_parse_title: extracts title without heading prefix" {
 	local output
-	output=$(_get_title "Add new feature
+	output=$(_parse_title "Add new feature
 
 Body text here.")
 
 	[[ "$output" == "Add new feature" ]]
 }
 
-@test "_get_title: returns error for empty content" {
-	run _get_title ""
+@test "_parse_title: returns error for empty content" {
+	run _parse_title ""
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_get_title: strips only the first heading hash" {
+@test "_parse_title: strips only the first heading hash" {
 	local output
-	output=$(_get_title "## Sub heading title")
+	output=$(_parse_title "## Sub heading title")
 
 	[[ "$output" == "# Sub heading title" ]]
 }
 
 # ---------------------------------------------------------------------------
-# _get_body
+# _parse_body
 # ---------------------------------------------------------------------------
 
-@test "_get_body: extracts body after title line with footer" {
+@test "_parse_body: extracts body after title line with footer" {
 	local output
-	output=$(_get_body "# Title
+	output=$(_parse_body "# Title
 
 Body paragraph one.
 
@@ -264,9 +327,9 @@ Body paragraph two.")
 	[[ "$output" == *"markdownlint-disable-file"* ]]
 }
 
-@test "_get_body: strips leading blank lines" {
+@test "_parse_body: strips leading blank lines" {
 	local output
-	output=$(_get_body "# Title
+	output=$(_parse_body "# Title
 
 
 Actual body.")
@@ -276,9 +339,50 @@ Actual body.")
 	[[ "$output" == *"Actual body."* ]]
 }
 
-@test "_get_body: returns only footer for title-only content" {
+@test "_parse_body: returns only footer for title-only content" {
 	local output
-	output=$(_get_body "# Title only")
+	output=$(_parse_body "# Title only")
 
 	[[ "$output" == *"markdownlint-disable-file"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# _uuidv5
+# ---------------------------------------------------------------------------
+
+@test "_uuidv5: correct UUID for known issue URL" {
+	local output
+	output=$(_uuidv5 "https://github.com/owner/repo/issues/42")
+
+	[[ "$output" == "3c177fbc-2912-59eb-b754-8ff8b6e3021b" ]]
+}
+
+@test "_uuidv5: correct UUID for known PR URL" {
+	local output
+	output=$(_uuidv5 "https://github.com/gh-extensions/gh-ai/pull/7")
+
+	[[ "$output" == "06aecb08-6f37-5c60-807f-2d88b3f2cd2c" ]]
+}
+
+@test "_uuidv5: correct UUID for known run URL" {
+	local output
+	output=$(_uuidv5 "https://github.com/gh-extensions/gh-ai/actions/runs/123456")
+
+	[[ "$output" == "728ca934-ac63-5822-9504-56becd76d3e0" ]]
+}
+
+@test "_uuidv5: different inputs produce different UUIDs" {
+	local uuid1 uuid2
+	uuid1=$(_uuidv5 "https://github.com/owner/repo/issues/1")
+	uuid2=$(_uuidv5 "https://github.com/owner/repo/issues/2")
+
+	[[ "$uuid1" != "$uuid2" ]]
+}
+
+@test "_uuidv5: same input always produces same UUID" {
+	local uuid1 uuid2
+	uuid1=$(_uuidv5 "https://github.com/owner/repo/issues/42")
+	uuid2=$(_uuidv5 "https://github.com/owner/repo/issues/42")
+
+	[[ "$uuid1" == "$uuid2" ]]
 }

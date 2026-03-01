@@ -27,13 +27,13 @@ gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
-gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [--reset] [-- AGENT_OPTIONS]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [--reset] [-- AGENT_OPTIONS]
 gh ai run explain <RUN_ID>
-gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [--reset] [-- AGENT_OPTIONS]
 ```
 
 ### Pull Request
@@ -75,11 +75,14 @@ gh ai pr explain 42 --comment    # post as PR comment
 gh ai pr explain 42 --edit       # replace PR description
 ```
 
-Opens an interactive agent session with PR context.
+Opens an interactive agent session with PR context. Sessions are persistent —
+running the same command again resumes the previous session. Use `--reset` to
+start fresh.
 
 ```bash
 gh ai pr chat 42
 gh ai pr chat -d "focus on the security changes"
+gh ai pr chat 42 --reset           # discard previous session
 gh ai pr chat 42 -- --model sonnet
 ```
 
@@ -128,11 +131,14 @@ gh issue develop 42 --checkout && \
   gh ai issue plan 42 | gh pr create --body -
 ```
 
-Opens an interactive agent session with issue context.
+Opens an interactive agent session with issue context. Sessions are persistent —
+running the same command again resumes the previous session. Use `--reset` to
+start fresh.
 
 ```bash
 gh ai issue chat 42
 gh ai issue chat 42 -d "focus on the auth module"
+gh ai issue chat 42 --reset           # discard previous session
 gh ai issue chat 42 -- --model sonnet
 ```
 
@@ -144,13 +150,30 @@ Analyzes a GitHub Actions workflow run and explains what happened.
 gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 ```
 
-Opens an interactive agent session with workflow run context.
+Opens an interactive agent session with workflow run context. Sessions are
+persistent — running the same command again resumes the previous session.
+Use `--reset` to start fresh.
 
 ```bash
 gh ai run chat 123456
 gh ai run chat 123456 -d "focus on test failures"
+gh ai run chat 123456 --reset           # discard previous session
 gh ai run chat 123456 -- --model sonnet
 ```
+
+## Session Management
+
+Chat commands automatically persist sessions per resource. The first
+invocation creates a new session with a dedicated worktree; subsequent runs
+resume it. Session state is stored in the repository at:
+
+```
+<repo-root>/.claude/sessions/<session-uuid>.json
+```
+
+Use `--reset` to discard the existing session and start fresh. Session
+management is skipped when you pass your own `--resume`, `--session-id`,
+`--continue`, or `-c` after `--`.
 
 ## Configuration
 

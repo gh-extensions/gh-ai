@@ -9,10 +9,17 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
 	export _gh_ai_source_dir="$REPO_ROOT"
+	export HOME="$BATS_TEST_TMPDIR"
 
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
-	export -f gum gh
+	git() {
+		case "$1 $2" in
+		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
+		"rev-parse --abbrev-ref") echo "" ;;
+		esac
+	}
+	export -f gum gh git
 
 	# shellcheck disable=SC2155
 	eval "$(
@@ -21,7 +28,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_issue_chat_args _show_issue_chat_help _gh_issue_chat _cmd_chat _cmd_render _split_on_separator _get_agent
+		declare -f _parse_issue_chat_args _show_issue_chat_help _gh_issue_chat _cmd_chat _cmd_render _split_on_separator _get_agent _uuidv5 _git_repo_path _resolve_session_state _try_resume_chat_session _resolve_chat_session _gh_repo_name
 	)"
 }
 
@@ -30,68 +37,84 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_parse_issue_chat_args: captures issue number from positional arg" {
-	local number="" description=""
-	_parse_issue_chat_args number description 42
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42
 
 	[[ "$number" == "42" ]]
 	[[ -z "$description" ]]
+	[[ -z "$reset" ]]
 }
 
 @test "_parse_issue_chat_args: strips leading # from issue number" {
-	local number="" description=""
-	_parse_issue_chat_args number description "#42"
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset "#42"
 
 	[[ "$number" == "42" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from -d flag" {
-	local number="" description=""
-	_parse_issue_chat_args number description 42 -d "focus on auth"
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42 -d "focus on auth"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "focus on auth" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from --description flag" {
-	local number="" description=""
-	_parse_issue_chat_args number description 42 --description "focus on auth"
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42 --description "focus on auth"
 
 	[[ "$description" == "focus on auth" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from --description=value" {
-	local number="" description=""
-	_parse_issue_chat_args number description 42 --description="focus on auth"
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42 --description="focus on auth"
 
 	[[ "$description" == "focus on auth" ]]
 }
 
+@test "_parse_issue_chat_args: captures --reset flag" {
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42 --reset
+
+	[[ "$number" == "42" ]]
+	[[ "$reset" == "1" ]]
+}
+
+@test "_parse_issue_chat_args: --reset defaults to empty" {
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset 42
+
+	[[ -z "$reset" ]]
+}
+
 @test "_parse_issue_chat_args: returns error when -d has no value" {
-	local number="" description=""
-	run _parse_issue_chat_args number description 42 -d
+	local number="" description="" reset=""
+	run _parse_issue_chat_args number description reset 42 -d
 
 	[[ "$status" -eq 1 ]]
 }
 
 @test "_parse_issue_chat_args: returns error for unknown flags" {
-	local number="" description=""
-	run _parse_issue_chat_args number description --draft
+	local number="" description="" reset=""
+	run _parse_issue_chat_args number description reset --draft
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unknown flag '--draft'"* ]]
 }
 
 @test "_parse_issue_chat_args: returns error for unexpected non-numeric args" {
-	local number="" description=""
-	run _parse_issue_chat_args number description foo
+	local number="" description="" reset=""
+	run _parse_issue_chat_args number description reset foo
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument 'foo'"* ]]
 }
 
 @test "_parse_issue_chat_args: returns error for second positional arg" {
-	local number="" description=""
-	run _parse_issue_chat_args number description 42 99
+	local number="" description="" reset=""
+	run _parse_issue_chat_args number description reset 42 99
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument '99'"* ]]
@@ -116,6 +139,7 @@ setup() {
 _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
+		"repo view") echo "owner/repo" ;;
 		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''" ;;
 		"config get") ;;
 		esac
@@ -135,7 +159,7 @@ _setup_chat_mocks() {
 	export -f gum
 }
 
-@test "_gh_issue_chat: calls _cmd_chat with rendered preamble" {
+@test "_gh_issue_chat: calls _cmd_chat with rendered preamble and session args" {
 	_setup_chat_mocks
 
 	# Mock _cmd_chat to capture what it receives
@@ -150,21 +174,24 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"PREAMBLE:"* ]]
 	[[ "$output" == *"Test Issue"* ]]
+	[[ "$output" == *"--session-id"* ]]
+	[[ "$output" == *"--worktree issue-42"* ]]
 }
 
-@test "_gh_issue_chat: passes args after -- to _cmd_chat" {
+@test "_gh_issue_chat: passes session args before passthrough args" {
 	_setup_chat_mocks
 
 	_cmd_chat() {
 		printf 'PREAMBLE:%s\n' "$1"
 		shift
-		printf 'PASSTHROUGH:%s\n' "$*"
+		printf 'ALLARGS:%s\n' "$*"
 	}
 
 	run _gh_issue_chat 42 -- --model sonnet
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"PASSTHROUGH:--model sonnet"* ]]
+	[[ "$output" == *"--session-id"* ]]
+	[[ "$output" == *"--model sonnet"* ]]
 }
 
 @test "_gh_issue_chat: errors when no issue number provided" {
@@ -178,6 +205,7 @@ _setup_chat_mocks() {
 @test "_gh_issue_chat: errors when issue fetch fails" {
 	gh() {
 		case "$1 $2" in
+		"repo view") echo "owner/repo" ;;
 		"issue view") ;;
 		"config get") ;;
 		esac
@@ -199,6 +227,33 @@ _setup_chat_mocks() {
 	run _gh_issue_chat 42
 
 	[[ "$status" -eq 1 ]]
+}
+
+@test "_gh_issue_chat: resumes session without fetching metadata on second call" {
+	_setup_chat_mocks
+
+	_cmd_chat() {
+		printf 'PREAMBLE:%s\n' "$1"
+		shift
+		printf 'ARGS:%s\n' "$*"
+	}
+
+	# First call creates session
+	run _gh_issue_chat 42
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"--session-id"* ]]
+
+	# Second call should resume with empty preamble
+	_cmd_chat() {
+		printf 'PREAMBLE:%s\n' "$1"
+		shift
+		printf 'ARGS:%s\n' "$*"
+	}
+
+	run _gh_issue_chat 42
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"--resume"* ]]
+	[[ "$output" != *"Test Issue"* ]]
 }
 
 @test "_gh_issue_chat: shows help with --help flag" {
