@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.9.0](https://github.com/gh-extensions/gh-ai/compare/v0.8.0...v0.9.0) (2026-03-01)
+
+
+### Features
+
+* add chat commands for interactive agent sessions ([2d5c26b](https://github.com/gh-extensions/gh-ai/commit/2d5c26b0153b1b83879fff82ef51975f0750526e))
+* add chat subcommands for issue, pr, and run ([2e51030](https://github.com/gh-extensions/gh-ai/commit/2e51030511883d06b95ffe28b7ee0dde862b9a9f))
+* add persistent session management for chat commands ([0814548](https://github.com/gh-extensions/gh-ai/commit/08145486e55437d07ff79da37336c06b0506ed6d))
+* add safe worktree removal with auto-stash and unpushed warnings ([7d20549](https://github.com/gh-extensions/gh-ai/commit/7d205490b2bcf6f9d1c6dc9d7910e12b3b735e2f))
+* capture current branch in pr and run chat templates ([edcdb83](https://github.com/gh-extensions/gh-ai/commit/edcdb831850d01752f8b89ec06c443478a6bf48b))
+* **extras:** add gh-fzf keybindings for gh-ai integration ([16febbf](https://github.com/gh-extensions/gh-ai/commit/16febbf893ceab45f8130993998bf514ef424ec5))
+
+
+### Bug Fixes
+
+* add warning logs when --from-pr flag is used in chat ([c730bec](https://github.com/gh-extensions/gh-ai/commit/c730bec74eb9a213d481e0004886bc19464ef048))
+* configure git identity in gh_worktree.bats setup for CI compatibility ([f81eb74](https://github.com/gh-extensions/gh-ai/commit/f81eb744c3cc87e5771bf3937d02a11508f61d2e))
+* ensure preamble has trailing newlines before passing to claude ([cc9081e](https://github.com/gh-extensions/gh-ai/commit/cc9081e6a273fe2658e13615fe147e19b99bdd02))
+* **extras:** preserve existing GH_FZF_*_OPTS environment variables ([5def927](https://github.com/gh-extensions/gh-ai/commit/5def92721ec3f79f70e44fe54de1c097692370b7))
+* filter out --from-pr flag in _cmd_chat to prevent conflicts ([5dcea3f](https://github.com/gh-extensions/gh-ai/commit/5dcea3fe208a02a904a621616182cee20436fff7))
+* **run:** include workflow run id in spinner messages ([0038fcc](https://github.com/gh-extensions/gh-ai/commit/0038fcc9c722ff93c220a3d4132b6853af9ab1de))
+* use dynamic default branch in gh_worktree.bats setup() ([911d723](https://github.com/gh-extensions/gh-ai/commit/911d72326b569549e3fa553ff61f8c31051d0948))
+* use printf -v to set preamble variable directly ([0705be9](https://github.com/gh-extensions/gh-ai/commit/0705be9e610ae81079d6e16df3231ea860492e24))
+
+
+### Performance Improvements
+
+* **run:** truncate workflow logs to prevent ARG_MAX overflow ([6ec04a3](https://github.com/gh-extensions/gh-ai/commit/6ec04a3633d864dde53e9735514f266435e49980))
+
 ## [0.8.0](https://github.com/gh-extensions/gh-ai/compare/v0.7.0...v0.8.0) (2026-02-27)
 
 
