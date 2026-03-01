@@ -147,19 +147,30 @@ _gh_pr_create() {
 		gh_pr_description_context="<description>${gh_pr_description}</description>"
 	fi
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$context_dir" "pr_log.txt" "$gh_pr_log"
+	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
+
 	local output
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_PR_DIFF="$gh_pr_diff" \
-					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
-					GH_PR_LOG="$gh_pr_log" \
-					GH_PR_COMMITS="$gh_pr_commits" \
+				GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
+					GH_PR_LOG_FILE="$context_dir/pr_log.txt" \
+					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
 					GH_PR_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got PR content
 	if [[ -z "$output" ]]; then
@@ -342,6 +353,14 @@ _gh_pr_edit() {
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
+	_save_context_file "$context_dir" "pr_body.md" "$gh_pr_body"
+
 	local output
 	# Generate updated PR content using assistant
 	output=$(
@@ -349,14 +368,17 @@ _gh_pr_edit() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
-					GH_PR_BODY="$gh_pr_body" \
-					GH_PR_DIFF="$gh_pr_diff" \
-					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
-					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
+					GH_PR_BODY_FILE="$context_dir/pr_body.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got PR content
 	if [[ -z "$output" ]]; then
@@ -582,20 +604,30 @@ _gh_pr_review() {
 		gh_pr_description_context="<description>$gh_pr_description</description>"
 	fi
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
+
 	local gh_pr_body
 	# Generate review content using assistant run
 	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
-					GH_PR_DIFF="$gh_pr_diff" \
-					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
-					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					GH_PR_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got review content
 	if [[ -z "$gh_pr_body" ]]; then
@@ -690,6 +722,13 @@ _gh_pr_explain() {
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
+
 	local output
 	# Generate explanation using assistant run
 	output=$(
@@ -698,13 +737,16 @@ _gh_pr_explain() {
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_BODY="$gh_pr_body" \
-					GH_PR_DIFF="$gh_pr_diff" \
-					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
-					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got explanation content
 	if [[ -z "$output" ]]; then
@@ -902,17 +944,29 @@ _gh_pr_chat() {
 	local gh_current_branch
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
+	# Resolve session directory and create context files
+	local session_id name session_dir
+	session_id=$(_uuidv5 "$gh_pr_url")
+	name=$(printf '%s' "$gh_pr_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
+	local git_root
+	_git_repo_path git_root || return 1
+	session_dir="$git_root/.claude/sessions/$session_id"
+	mkdir -p "$session_dir"
+
+	# Save large context to files
+	_save_context_file "$session_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$session_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$session_dir" "pr_commits.txt" "$gh_pr_commits"
+
 	local preamble
 	preamble=$(
 		GH_PR_NUMBER="$gh_pr_number" \
 			GH_PR_TITLE="$gh_pr_title" \
 			GH_PR_BODY="$gh_pr_body" \
-			GH_PR_DIFF="$gh_pr_diff" \
-			GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
-			GH_PR_COMMITS="$gh_pr_commits" \
 			GH_PR_HEAD="$gh_pr_head" \
 			GH_PR_FOCUS="$gh_pr_focus" \
 			GH_CURRENT_BRANCH="$gh_current_branch" \
+			GH_SESSION_DIR="$session_dir" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 

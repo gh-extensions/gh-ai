@@ -109,7 +109,7 @@ setup() {
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 
 	local session_id="${args[1]}"
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${session_id}.json"
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${session_id}/state.json"
 	[[ -f "$state_file" ]]
 }
 
@@ -183,16 +183,16 @@ setup() {
 	_resolve_chat_session args_run "https://github.com/owner/repo/actions/runs/123456" "" ""
 
 	local sessions_dir="$BATS_TEST_TMPDIR/.claude/sessions"
-	[[ -f "$sessions_dir/${args_issue[1]}.json" ]]
-	[[ -f "$sessions_dir/${args_pr[1]}.json" ]]
-	[[ -f "$sessions_dir/${args_run[1]}.json" ]]
+	[[ -f "$sessions_dir/${args_issue[1]}/state.json" ]]
+	[[ -f "$sessions_dir/${args_pr[1]}/state.json" ]]
+	[[ -f "$sessions_dir/${args_run[1]}/state.json" ]]
 }
 
 @test "_resolve_chat_session: state file contains valid session_id and name" {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}.json"
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
 	content=$(cat "$state_file")
 
@@ -220,7 +220,7 @@ setup() {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch"
 
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}.json"
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
 	content=$(cat "$state_file")
 
@@ -239,7 +239,7 @@ setup() {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}.json"
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
 	content=$(cat "$state_file")
 
@@ -258,7 +258,7 @@ setup() {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}.json"
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
 	content=$(cat "$state_file")
 

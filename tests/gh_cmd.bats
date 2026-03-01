@@ -275,6 +275,74 @@ setup() {
 	[[ "$output" == *"line three"* ]]
 }
 
+# File-backed _cmd_render tests
+# These test the *_FILE env var support for bypassing ARG_MAX
+
+@test "_cmd_render: reads file content from VAR_FILE env var" {
+	local tmpdir="$BATS_TMPDIR/render-file-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Diff:\n${GH_PR_DIFF}\nEnd.\n' >"$tmpdir/test.tmpl"
+	printf 'line one\nline two\nline three' >"$tmpdir/diff.patch"
+
+	local output
+	output=$(GH_PR_DIFF_FILE="$tmpdir/diff.patch" _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"line one"* ]]
+	[[ "$output" == *"line two"* ]]
+	[[ "$output" == *"line three"* ]]
+}
+
+@test "_cmd_render: direct env var takes priority over _FILE" {
+	local tmpdir="$BATS_TMPDIR/render-priority-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Value: ${MY_VAR}\n' >"$tmpdir/test.tmpl"
+	printf 'from file' >"$tmpdir/value.txt"
+
+	local output
+	output=$(MY_VAR="from env" MY_VAR_FILE="$tmpdir/value.txt" _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"Value: from env"* ]]
+	[[ "$output" != *"from file"* ]]
+}
+
+@test "_cmd_render: nonexistent _FILE path produces empty string" {
+	local tmpdir="$BATS_TMPDIR/render-missing-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Value: [${MY_VAR}]\n' >"$tmpdir/test.tmpl"
+
+	local output
+	output=$(MY_VAR_FILE="/nonexistent/file.txt" _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"Value: []"* ]]
+}
+
+@test "_cmd_render: multiline file content preserved in _FILE" {
+	local tmpdir="$BATS_TMPDIR/render-multiline-file-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Content:\n${MY_CONTENT}\nEnd.\n' >"$tmpdir/test.tmpl"
+	printf 'line one\nline two\nline three' >"$tmpdir/content.txt"
+
+	local output
+	output=$(MY_CONTENT_FILE="$tmpdir/content.txt" _cmd_render "$tmpdir/test.tmpl")
+
+	[[ "$output" == *"line one"* ]]
+	[[ "$output" == *"line two"* ]]
+	[[ "$output" == *"line three"* ]]
+}
+
+@test "_cmd_render: patterns in file content not re-expanded" {
+	local tmpdir="$BATS_TMPDIR/render-safety-file-test-$$"
+	mkdir -p "$tmpdir"
+	printf 'Diff:\n${GH_DIFF}\nEnd.\n' >"$tmpdir/test.tmpl"
+	printf 'contains ${SECRET_TOKEN} and ${OTHER} patterns' >"$tmpdir/diff.patch"
+
+	local output
+	output=$(GH_DIFF_FILE="$tmpdir/diff.patch" _cmd_render "$tmpdir/test.tmpl")
+
+	# Patterns from file should be preserved as-is, not re-expanded
+	[[ "$output" == *'contains ${SECRET_TOKEN} and ${OTHER} patterns'* ]]
+}
+
 # ---------------------------------------------------------------------------
 # _parse_title
 # ---------------------------------------------------------------------------

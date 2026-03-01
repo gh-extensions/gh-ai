@@ -138,17 +138,14 @@ _gh_run_explain() {
 			gh run view "$gh_run_id" --log || true)
 	fi
 
-	# Truncate log to avoid OS ARG_MAX limits when passing via environment variable.
-	# GitHub Actions logs can be many MBs; AI context windows are finite anyway.
-	local _max_log_bytes=100000
-	if [[ ${#gh_run_log} -gt $_max_log_bytes ]]; then
-		local _tail
-		_tail=$(printf '%s' "$gh_run_log" | tail -c "$_max_log_bytes")
-		gh_run_log="[... log truncated, showing last ${_max_log_bytes} bytes ...]"$'\n'"$_tail"
-	fi
-
 	local agent_model
 	agent_model=$(gh config get ai.run.model 2>/dev/null || true)
+
+	# Create context directory and save large content to files (no truncation needed)
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "run_jobs.txt" "$gh_run_jobs"
+	_save_context_file "$context_dir" "run_log.txt" "$gh_run_log"
 
 	local output
 	# Generate explanation using assistant run
@@ -160,11 +157,14 @@ _gh_run_explain() {
 					GH_RUN_URL="$gh_run_url" \
 					GH_RUN_EVENT="$gh_run_event" \
 					GH_RUN_BRANCH="$gh_run_branch" \
-					GH_RUN_JOBS="$gh_run_jobs" \
-					GH_RUN_LOG="$gh_run_log" \
+					GH_RUN_JOBS_FILE="$context_dir/run_jobs.txt" \
+					GH_RUN_LOG_FILE="$context_dir/run_log.txt" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got explanation content
 	if [[ -z "$output" ]]; then
@@ -331,14 +331,6 @@ _gh_run_chat() {
 			gh run view "$gh_run_id" --log || true)
 	fi
 
-	# Truncate log to avoid OS ARG_MAX limits when passing via environment variable.
-	local _max_log_bytes=100000
-	if [[ ${#gh_run_log} -gt $_max_log_bytes ]]; then
-		local _tail
-		_tail=$(printf '%s' "$gh_run_log" | tail -c "$_max_log_bytes")
-		gh_run_log="[... log truncated, showing last ${_max_log_bytes} bytes ...]"$'\n'"$_tail"
-	fi
-
 	local gh_run_focus=""
 	if [[ -n "$gh_run_description" ]]; then
 		gh_run_focus="<focus>${gh_run_description}</focus>"
@@ -347,6 +339,19 @@ _gh_run_chat() {
 	# Capture current branch for template context
 	local gh_current_branch
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
+
+	# Resolve session directory and create context files
+	local session_id name session_dir
+	session_id=$(_uuidv5 "$gh_run_url")
+	name=$(printf '%s' "$gh_run_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
+	local git_root
+	_git_repo_path git_root || return 1
+	session_dir="$git_root/.claude/sessions/$session_id"
+	mkdir -p "$session_dir"
+
+	# Save large context to files (no truncation needed with file-backed approach)
+	_save_context_file "$session_dir" "run_jobs.txt" "$gh_run_jobs"
+	_save_context_file "$session_dir" "run_log.txt" "$gh_run_log"
 
 	# Render context and pipe to agent
 	local preamble
@@ -358,9 +363,8 @@ _gh_run_chat() {
 			GH_RUN_URL="$gh_run_url" \
 			GH_RUN_EVENT="$gh_run_event" \
 			GH_RUN_BRANCH="$gh_run_branch" \
-			GH_RUN_JOBS="$gh_run_jobs" \
-			GH_RUN_LOG="$gh_run_log" \
 			GH_CURRENT_BRANCH="$gh_current_branch" \
+			GH_SESSION_DIR="$session_dir" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
