@@ -234,7 +234,13 @@ _gh_issue_edit() {
 	output=$(
 		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_CONTEXT="$gh_issue_context" \
+				GH_ISSUE_NUMBER="$gh_issue_number" \
+					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_BODY="$gh_issue_body" \
+					GH_ISSUE_LABELS="$gh_issue_labels" \
+					GH_ISSUE_COMMENTS="$gh_issue_comments" \
+					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+					GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -248,14 +254,14 @@ _gh_issue_edit() {
 
 	local gh_issue_new_title
 	# Parse title from output
-	if ! gh_issue_new_title=$(_get_title "$output"); then
+	if ! gh_issue_new_title=$(_parse_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local gh_issue_new_body
 	# Parse body from output
-	gh_issue_new_body=$(_get_body "$output")
+	gh_issue_new_body=$(_parse_body "$output")
 
 	# Edit issue with AI-generated content
 	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${passthrough[@]}"
@@ -388,12 +394,22 @@ _gh_issue_plan() {
 	local agent_model
 	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
+	local gh_issue_focus=""
+	if [[ -n "$gh_issue_description" ]]; then
+		gh_issue_focus="<focus>${gh_issue_description}</focus>"
+	fi
+
 	local output
 	# Generate implementation plan using assistant
 	output=$(
 		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+				GH_ISSUE_NUMBER="$gh_issue_number" \
+					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_BODY="$gh_issue_body" \
+					GH_ISSUE_LABELS="$gh_issue_labels" \
+					GH_ISSUE_COMMENTS="$gh_issue_comments" \
+					GH_ISSUE_FOCUS="$gh_issue_focus" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -410,14 +426,15 @@ _gh_issue_plan() {
 
 # Parse issue chat arguments
 #
-# Extracts the issue number (first numeric positional arg) and optional
-# -d/--description value. Unknown flags produce an error.
+# Extracts the issue number (first numeric positional arg), optional
+# -d/--description value, and --reset flag. Unknown flags produce an error.
 #
-# Example: _parse_issue_chat_args num desc 42 -d "focus on auth"
+# Example: _parse_issue_chat_args num desc reset 42 -d "focus on auth"
 _parse_issue_chat_args() {
 	local -n gh_issue_number_ref="$1"
 	local -n gh_issue_description_ref="$2"
-	shift 2
+	local -n gh_issue_reset_ref="$3"
+	shift 3
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -442,6 +459,10 @@ _parse_issue_chat_args() {
 		--description=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_issue_description_ref="${raw_args[$i]#--description=}"
+			;;
+		--reset)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_issue_reset_ref=1
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
@@ -481,10 +502,12 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
+        --reset                Reset session state and start a new session
 
 EXAMPLES:
     gh ai issue chat 42
     gh ai issue chat 42 -d "focus on the auth module"
+    gh ai issue chat 42 --reset
     gh ai issue chat 42 -- --model sonnet
 EOF
 }
@@ -513,12 +536,24 @@ _gh_issue_chat() {
 
 	local gh_issue_number=""
 	local gh_issue_description=""
-	_parse_issue_chat_args gh_issue_number gh_issue_description "${ai_args[@]}"
+	local gh_issue_reset=""
+	_parse_issue_chat_args gh_issue_number gh_issue_description gh_issue_reset "${ai_args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
 		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
 		return 1
+	fi
+
+	# Try to resume existing session before expensive API calls
+	local gh_repo=""
+	_gh_repo_name gh_repo || return 1
+	local gh_issue_url="https://github.com/${gh_repo}/issues/${gh_issue_number}"
+
+	local session_args=()
+	if _try_resume_chat_session session_args "$gh_issue_url" "$gh_issue_reset" "${passthrough[@]}"; then
+		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
+		return
 	fi
 
 	# Fetch issue metadata
@@ -534,14 +569,27 @@ _gh_issue_chat() {
 	local gh_issue_title gh_issue_body gh_issue_labels gh_issue_comments
 	eval "$gh_issue_eval"
 
+	local gh_issue_focus=""
+	if [[ -n "$gh_issue_description" ]]; then
+		gh_issue_focus="<focus>${gh_issue_description}</focus>"
+	fi
+
 	# Render context and pipe to agent
 	local preamble
 	preamble=$(
-		GH_ISSUE_NUMBER="$gh_issue_number" GH_ISSUE_TITLE="$gh_issue_title" GH_ISSUE_BODY="$gh_issue_body" GH_ISSUE_LABELS="$gh_issue_labels" GH_ISSUE_COMMENTS="$gh_issue_comments" GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+		GH_ISSUE_NUMBER="$gh_issue_number" \
+			GH_ISSUE_TITLE="$gh_issue_title" \
+			GH_ISSUE_BODY="$gh_issue_body" \
+			GH_ISSUE_LABELS="$gh_issue_labels" \
+			GH_ISSUE_COMMENTS="$gh_issue_comments" \
+			GH_ISSUE_FOCUS="$gh_issue_focus" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$preamble" "${passthrough[@]}"
+	session_args=()
+	_resolve_chat_session session_args "$gh_issue_url" "$gh_issue_reset" "" "${passthrough[@]}"
+
+	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 
 # Issue create help function
@@ -618,7 +666,9 @@ _gh_issue_create() {
 	output=$(
 		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_ISSUE_DESCRIPTION="$gh_issue_description" GH_ISSUE_LABELS="" GH_ISSUE_CONTEXT="$gh_issue_context" \
+				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+					GH_ISSUE_LABELS="" \
+					GH_ISSUE_CONTEXT="$gh_issue_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -632,14 +682,14 @@ _gh_issue_create() {
 
 	local gh_issue_title
 	# Parse title from output
-	if ! gh_issue_title=$(_get_title "$output"); then
+	if ! gh_issue_title=$(_parse_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local gh_issue_body
 	# Parse body from output
-	gh_issue_body=$(_get_body "$output")
+	gh_issue_body=$(_parse_body "$output")
 
 	# Create issue with AI-generated content
 	gh issue create --title "$gh_issue_title" --body "$gh_issue_body" "${passthrough[@]}"

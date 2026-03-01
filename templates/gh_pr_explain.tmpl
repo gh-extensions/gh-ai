@@ -1,8 +1,9 @@
 Explain what this pull request does in clear, accessible language.
 
 <pr>
+Number: ${GH_PR_NUMBER}
 Title: ${GH_PR_TITLE}
-Branch: ${GIT_BRANCH}
+Branch: ${GH_PR_HEAD}
 </pr>
 
 <current_description>
@@ -10,16 +11,16 @@ ${GH_PR_BODY}
 </current_description>
 
 <diffstat>
-${GIT_DIFF_STAT}
+${GH_PR_DIFF_STAT}
 </diffstat>
 
 <diff>
-${GIT_DIFF}
+${GH_PR_DIFF}
 </diff>
 
 <context>
 <recent_commits>
-${GIT_COMMITS}
+${GH_PR_COMMITS}
 </recent_commits>
 </context>
 

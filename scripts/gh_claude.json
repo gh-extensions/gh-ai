@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${_GH_AI_SOURCE_DIR}/scripts/gh_worktree.sh\" create"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${_GH_AI_SOURCE_DIR}/scripts/gh_worktree.sh\" remove"
+          }
+        ]
+      }
+    ]
+  }
+}

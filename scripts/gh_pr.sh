@@ -135,42 +135,28 @@ _gh_pr_create() {
 			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
 	fi
 
-	# Get diff between base and head
-	local git_diff
-	# shellcheck disable=SC2140
-	git_diff=$(git diff "origin/$git_base_branch"..."$git_head_branch" 2>/dev/null || true)
-	if [[ -z "$git_diff" ]]; then
-		# Fallback: try without origin prefix
-		git_diff=$(git diff "$git_base_branch"..."$git_head_branch" 2>/dev/null || true)
-	fi
-	if [[ -z "$git_diff" ]]; then
-		gum log --level error "Failed to get diff between $git_base_branch and $git_head_branch"
-		return 1
-	fi
-
-	local git_diff_stat
-	# shellcheck disable=SC2140
-	git_diff_stat=$(git diff "origin/$git_base_branch"..."$git_head_branch" --stat 2>/dev/null ||
-		git diff "$git_base_branch"..."$git_head_branch" --stat 2>/dev/null || true)
-
-	local git_log
-	# shellcheck disable=SC2140
-	git_log=$(git log --oneline "origin/$git_base_branch".."$git_head_branch" 2>/dev/null ||
-		git log --oneline "$git_base_branch".."$git_head_branch" 2>/dev/null || true)
-
-	local git_log_oneline
-	# shellcheck disable=SC2001
-	git_log_oneline=$(printf '%s\n' "$git_log" | sed 's/^[a-f0-9]* /- /')
+	local gh_pr_diff="" gh_pr_diff_stat="" gh_pr_log="" gh_pr_commits=""
+	_git_branch_diff "$git_base_branch" "$git_head_branch" \
+		gh_pr_diff gh_pr_diff_stat gh_pr_log gh_pr_commits
 
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+
+	local gh_pr_description_context=""
+	if [[ -n "$gh_pr_description" ]]; then
+		gh_pr_description_context="<description>${gh_pr_description}</description>"
+	fi
 
 	local output
 	# Generate PR content using assistant run
 	output=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_LOG="$git_log" GIT_COMMITS="$git_log_oneline" GH_PR_DESCRIPTION="$gh_pr_description" \
+				GH_PR_DIFF="$gh_pr_diff" \
+					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
+					GH_PR_LOG="$gh_pr_log" \
+					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -184,14 +170,14 @@ _gh_pr_create() {
 
 	local gh_pr_title
 	# Parse title from output
-	if ! gh_pr_title=$(_get_title "$output"); then
+	if ! gh_pr_title=$(_parse_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local gh_pr_body
 	# Parse body from output
-	gh_pr_body=$(_get_body "$output")
+	gh_pr_body=$(_parse_body "$output")
 
 	# Inject --base into passthrough only if the user explicitly specified it
 	if [[ -n "$user_specified_base" ]]; then
@@ -331,31 +317,27 @@ _gh_pr_edit() {
 	# Fetch PR metadata
 	local gh_pr_eval
 	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body \
+		gh pr view "$gh_pr_number" --json title,body,commits \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
 	if [[ -z "$gh_pr_eval" ]]; then
 		gum log --level error "Failed to fetch PR #$gh_pr_number"
 		return 1
 	fi
 
-	local gh_pr_title gh_pr_body
+	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
 	eval "$gh_pr_eval"
 
 	# Get PR diff using gh cli (--patch for full patch format)
-	local git_diff
-	git_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
+	local gh_pr_diff
+	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
 		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$git_diff" ]]; then
+	if [[ -z "$gh_pr_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
 
-	local git_diff_stat
-	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
-
-	local git_commit_list
-	git_commit_list=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number commits..." -- \
-		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
+	local gh_pr_diff_stat
+	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
 
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -365,7 +347,13 @@ _gh_pr_edit() {
 	output=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GH_PR_DESCRIPTION="$gh_pr_description" \
+				GH_PR_NUMBER="$gh_pr_number" \
+					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_BODY="$gh_pr_body" \
+					GH_PR_DIFF="$gh_pr_diff" \
+					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
+					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -379,14 +367,14 @@ _gh_pr_edit() {
 
 	local gh_pr_new_title
 	# Parse title from output
-	if ! gh_pr_new_title=$(_get_title "$output"); then
+	if ! gh_pr_new_title=$(_parse_title "$output"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local gh_pr_new_body
 	# Parse body from output
-	gh_pr_new_body=$(_get_body "$output")
+	gh_pr_new_body=$(_parse_body "$output")
 
 	# Edit PR with AI-generated content
 	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${passthrough[@]}"
@@ -563,25 +551,28 @@ _gh_pr_review() {
 		return 1
 	fi
 
+	# Fetch PR metadata
+	local gh_pr_eval
+	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
+		gh pr view "$gh_pr_number" --json headRefName,commits \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
+
+	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
+	if [[ -n "$gh_pr_eval" ]]; then
+		eval "$gh_pr_eval"
+	fi
+
 	# Get PR diff using gh cli (--patch for full patch format)
-	local git_diff
-	git_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
+	local gh_pr_diff
+	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
 		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$git_diff" ]]; then
+	if [[ -z "$gh_pr_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
 
-	local git_diff_stat
-	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
-
-	local git_commit_list
-	git_commit_list=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number commits..." -- \
-		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
-
-	local git_branch
-	git_branch=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number branch..." -- \
-		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
+	local gh_pr_diff_stat
+	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
 
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -596,7 +587,12 @@ _gh_pr_review() {
 	gh_pr_body=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" GH_PR_REVIEW_DESCRIPTION="$gh_pr_description_context" \
+				GH_PR_NUMBER="$gh_pr_number" \
+					GH_PR_DIFF="$gh_pr_diff" \
+					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
+					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_HEAD="$gh_pr_head" \
+					GH_PR_DESCRIPTION="$gh_pr_description_context" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -668,36 +664,28 @@ _gh_pr_explain() {
 		return 1
 	fi
 
+	# Fetch PR metadata
+	local gh_pr_eval
+	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
+		gh pr view "$gh_pr_number" --json title,body,headRefName,commits \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
+
+	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
+	if [[ -n "$gh_pr_eval" ]]; then
+		eval "$gh_pr_eval"
+	fi
+
 	# Get PR diff using gh cli (--patch for full patch format)
-	local git_diff
-	git_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
+	local gh_pr_diff
+	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
 		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$git_diff" ]]; then
+	if [[ -z "$gh_pr_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
 
-	local git_diff_stat
-	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
-
-	local git_commit_list
-	git_commit_list=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number commits..." -- \
-		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
-
-	local git_branch
-	git_branch=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number branch..." -- \
-		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
-
-	# Fetch PR title and body
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
-
-	local gh_pr_title gh_pr_body
-	if [[ -n "$gh_pr_eval" ]]; then
-		eval "$gh_pr_eval"
-	fi
+	local gh_pr_diff_stat
+	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
 
 	local agent_model
 	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -707,8 +695,13 @@ _gh_pr_explain() {
 	output=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" \
-					GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" \
+				GH_PR_NUMBER="$gh_pr_number" \
+					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_BODY="$gh_pr_body" \
+					GH_PR_DIFF="$gh_pr_diff" \
+					GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
+					GH_PR_COMMITS="$gh_pr_commits" \
+					GH_PR_HEAD="$gh_pr_head" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -736,14 +729,15 @@ _gh_pr_explain() {
 
 # Parse PR chat arguments
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and -d/--description value. Unknown flags produce an error.
+# Extracts the PR number (first numeric arg, with auto-detect fallback),
+# -d/--description value, and --reset flag. Unknown flags produce an error.
 #
-# Example: _parse_pr_chat_args num desc 42 -d "focus on security"
+# Example: _parse_pr_chat_args num desc reset 42 -d "focus on security"
 _parse_pr_chat_args() {
 	local -n gh_pr_number_ref="$1"
 	local -n gh_pr_description_ref="$2"
-	shift 2
+	local -n gh_pr_reset_ref="$3"
+	shift 3
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -768,6 +762,10 @@ _parse_pr_chat_args() {
 		--description=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
+			;;
+		--reset)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_pr_reset_ref=1
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
@@ -813,10 +811,12 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
+        --reset                Reset session state and start a new session
 
 EXAMPLES:
     gh ai pr chat 42
     gh ai pr chat -d "focus on the security changes"
+    gh ai pr chat 42 --reset
     gh ai pr chat                    # auto-detect PR from current branch
     gh ai pr chat 42 -- --model sonnet
 EOF
@@ -846,7 +846,8 @@ _gh_pr_chat() {
 
 	local gh_pr_number=""
 	local gh_pr_description=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description "${ai_args[@]}"
+	local gh_pr_reset=""
+	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_reset "${ai_args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
@@ -854,30 +855,33 @@ _gh_pr_chat() {
 		return 1
 	fi
 
+	# Try to resume existing session before expensive API calls
+	local gh_repo=""
+	_gh_repo_name gh_repo || return 1
+	local gh_pr_url="https://github.com/${gh_repo}/pull/${gh_pr_number}"
+
+	local session_args=()
+	if _try_resume_chat_session session_args "$gh_pr_url" "$gh_pr_reset" "${passthrough[@]}"; then
+		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
+		return
+	fi
+
 	# Get PR diff using gh cli (--patch for full patch format)
-	local git_diff
-	git_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
+	local gh_pr_diff
+	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
 		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$git_diff" ]]; then
+	if [[ -z "$gh_pr_diff" ]]; then
 		gum log --level error "Failed to get diff for PR #$gh_pr_number"
 		return 1
 	fi
 
-	local git_diff_stat
-	git_diff_stat=$(echo "$git_diff" | git apply --stat 2>/dev/null || true)
-
-	local git_commit_list
-	git_commit_list=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number commits..." -- \
-		gh pr view "$gh_pr_number" --json commits -q '.commits[] | "- " + .messageHeadline' || true)
-
-	local git_branch
-	git_branch=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number branch..." -- \
-		gh pr view "$gh_pr_number" --json headRefName -q '.headRefName' || true)
+	local gh_pr_diff_stat
+	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
 
 	# Fetch PR title and body
 	local gh_pr_eval
 	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body \
+		gh pr view "$gh_pr_number" --json title,body,headRefName,commits \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
 
 	if [[ -z "$gh_pr_eval" ]]; then
@@ -885,17 +889,32 @@ _gh_pr_chat() {
 		return 1
 	fi
 
-	local gh_pr_title gh_pr_body
+	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
 	eval "$gh_pr_eval"
 
 	# Render context and pipe to agent
+	local gh_pr_focus=""
+	if [[ -n "$gh_pr_description" ]]; then
+		gh_pr_focus="<focus>${gh_pr_description}</focus>"
+	fi
+
 	local preamble
 	preamble=$(
-		GH_PR_NUMBER="$gh_pr_number" GH_PR_TITLE="$gh_pr_title" GH_PR_BODY="$gh_pr_body" GIT_DIFF="$git_diff" GIT_DIFF_STAT="$git_diff_stat" GIT_COMMITS="$git_commit_list" GIT_BRANCH="$git_branch" GH_PR_DESCRIPTION="$gh_pr_description" \
+		GH_PR_NUMBER="$gh_pr_number" \
+			GH_PR_TITLE="$gh_pr_title" \
+			GH_PR_BODY="$gh_pr_body" \
+			GH_PR_DIFF="$gh_pr_diff" \
+			GH_PR_DIFF_STAT="$gh_pr_diff_stat" \
+			GH_PR_COMMITS="$gh_pr_commits" \
+			GH_PR_HEAD="$gh_pr_head" \
+			GH_PR_FOCUS="$gh_pr_focus" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$preamble" "${passthrough[@]}"
+	session_args=()
+	_resolve_chat_session session_args "$gh_pr_url" "$gh_pr_reset" "$gh_pr_head" "${passthrough[@]}"
+
+	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 
 # PR help function

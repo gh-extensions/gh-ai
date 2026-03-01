@@ -1,21 +1,25 @@
 Review the pull request diff below. Assess the overall approach and design first, then examine individual changes.
 
+<pr>
+Number: ${GH_PR_NUMBER}
+Branch: ${GH_PR_HEAD}
+</pr>
+
 <diffstat>
-${GIT_DIFF_STAT}
+${GH_PR_DIFF_STAT}
 </diffstat>
 
 <diff>
-${GIT_DIFF}
+${GH_PR_DIFF}
 </diff>
 
 <context>
-Branch: ${GIT_BRANCH}
 <recent_commits>
-${GIT_COMMITS}
+${GH_PR_COMMITS}
 </recent_commits>
 </context>
 
-${GH_PR_REVIEW_DESCRIPTION}
+${GH_PR_DESCRIPTION}
 
 <priorities>
 Flag: bugs, security/data-loss issues, guideline violations, performance bottlenecks, missing error handling

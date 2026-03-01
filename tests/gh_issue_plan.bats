@@ -21,7 +21,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_issue_plan_args _show_issue_plan_help _gh_issue_plan _get_title _get_body
+		declare -f _parse_issue_plan_args _show_issue_plan_help _gh_issue_plan _parse_title _parse_body
 	)"
 }
 

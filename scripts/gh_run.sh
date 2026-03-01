@@ -155,7 +155,13 @@ _gh_run_explain() {
 	output=$(
 		gum spin --title "Analyzing GitHub workflow run #$gh_run_id..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_RUN_TITLE="$gh_run_title" GH_RUN_CONCLUSION="$gh_run_conclusion" GH_RUN_URL="$gh_run_url" GH_RUN_EVENT="$gh_run_event" GH_RUN_BRANCH="$gh_run_branch" GH_RUN_JOBS="$gh_run_jobs" GH_RUN_LOG="$gh_run_log" \
+				GH_RUN_TITLE="$gh_run_title" \
+					GH_RUN_CONCLUSION="$gh_run_conclusion" \
+					GH_RUN_URL="$gh_run_url" \
+					GH_RUN_EVENT="$gh_run_event" \
+					GH_RUN_BRANCH="$gh_run_branch" \
+					GH_RUN_JOBS="$gh_run_jobs" \
+					GH_RUN_LOG="$gh_run_log" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -172,14 +178,15 @@ _gh_run_explain() {
 
 # Parse run chat arguments
 #
-# Extracts the run ID (first numeric arg) and optional -d/--description value.
-# Unknown flags produce an error.
+# Extracts the run ID (first numeric arg), optional -d/--description value,
+# and --reset flag. Unknown flags produce an error.
 #
-# Example: _parse_run_chat_args id desc 123456 -d "focus on test failures"
+# Example: _parse_run_chat_args id desc reset 123456 -d "focus on test failures"
 _parse_run_chat_args() {
 	local -n gh_run_id_ref="$1"
 	local -n gh_run_description_ref="$2"
-	shift 2
+	local -n gh_run_reset_ref="$3"
+	shift 3
 
 	local raw_args=("$@")
 	local skip_next=false
@@ -204,6 +211,10 @@ _parse_run_chat_args() {
 		--description=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_run_description_ref="${raw_args[$i]#--description=}"
+			;;
+		--reset)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_run_reset_ref=1
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
@@ -243,10 +254,12 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
+        --reset                Reset session state and start a new session
 
 EXAMPLES:
     gh ai run chat 123456
     gh ai run chat 123456 -d "focus on test failures"
+    gh ai run chat 123456 --reset
     gh ai run chat 123456 -- --model sonnet
 EOF
 }
@@ -275,12 +288,24 @@ _gh_run_chat() {
 
 	local gh_run_id=""
 	local gh_run_description=""
-	_parse_run_chat_args gh_run_id gh_run_description "${ai_args[@]}"
+	local gh_run_reset=""
+	_parse_run_chat_args gh_run_id gh_run_description gh_run_reset "${ai_args[@]}"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
 		gum log --level info "Usage: gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
 		return 1
+	fi
+
+	# Try to resume existing session before expensive API calls
+	local gh_repo=""
+	_gh_repo_name gh_repo || return 1
+	local gh_run_url="https://github.com/${gh_repo}/actions/runs/${gh_run_id}"
+
+	local session_args=()
+	if _try_resume_chat_session session_args "$gh_run_url" "$gh_run_reset" "${passthrough[@]}"; then
+		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
+		return
 	fi
 
 	# Fetch run metadata
@@ -293,7 +318,7 @@ _gh_run_chat() {
 		return 1
 	fi
 
-	local gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_jobs
+	local gh_run_title gh_run_conclusion gh_run_event gh_run_branch gh_run_jobs
 	eval "$gh_run_eval"
 
 	# Fetch logs: use --log-failed for failed runs, --log otherwise
@@ -314,14 +339,30 @@ _gh_run_chat() {
 		gh_run_log="[... log truncated, showing last ${_max_log_bytes} bytes ...]"$'\n'"$_tail"
 	fi
 
+	local gh_run_focus=""
+	if [[ -n "$gh_run_description" ]]; then
+		gh_run_focus="<focus>${gh_run_description}</focus>"
+	fi
+
 	# Render context and pipe to agent
 	local preamble
 	preamble=$(
-		GH_RUN_ID="$gh_run_id" GH_RUN_TITLE="$gh_run_title" GH_RUN_CONCLUSION="$gh_run_conclusion" GH_RUN_URL="$gh_run_url" GH_RUN_EVENT="$gh_run_event" GH_RUN_BRANCH="$gh_run_branch" GH_RUN_JOBS="$gh_run_jobs" GH_RUN_LOG="$gh_run_log" GH_RUN_DESCRIPTION="$gh_run_description" \
+		GH_RUN_ID="$gh_run_id" \
+			GH_RUN_TITLE="$gh_run_title" \
+			GH_RUN_CONCLUSION="$gh_run_conclusion" \
+			GH_RUN_FOCUS="$gh_run_focus" \
+			GH_RUN_URL="$gh_run_url" \
+			GH_RUN_EVENT="$gh_run_event" \
+			GH_RUN_BRANCH="$gh_run_branch" \
+			GH_RUN_JOBS="$gh_run_jobs" \
+			GH_RUN_LOG="$gh_run_log" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$preamble" "${passthrough[@]}"
+	session_args=()
+	_resolve_chat_session session_args "$gh_run_url" "$gh_run_reset" "" "${passthrough[@]}"
+
+	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 
 # Run subcommand handler
