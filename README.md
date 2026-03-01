@@ -8,8 +8,6 @@ Stop context-switching between your editor, browser, and terminal. `gh ai`
 meets you where you already work and handles the tedious parts so you can
 focus on shipping.
 
-If you find this useful, [give it a star](https://github.com/gh-extensions/gh-ai) — it helps others discover the project.
-
 ## Prerequisites
 
 - [Gum](https://github.com/charmbracelet/gum) — macOS: `brew install gum`
