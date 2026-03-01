@@ -47,6 +47,13 @@ _gh_worktree_create() {
 	gh_worktree_path="${gh_worktree_cwd}/.claude/worktrees/${gh_worktree_name}"
 
 	local git_ref="origin/${gh_worktree_remote_ref}"
+
+	# If the worktree is already registered, reuse it instead of failing
+	if git -C "$gh_worktree_cwd" worktree list --porcelain | grep -qx "worktree ${gh_worktree_path}"; then
+		printf '%s\n' "$gh_worktree_path"
+		return 0
+	fi
+
 	git -C "$gh_worktree_cwd" worktree add -B "worktree-${gh_worktree_name}" "$gh_worktree_path" "$git_ref" >&2
 
 	printf '%s\n' "$gh_worktree_path"
