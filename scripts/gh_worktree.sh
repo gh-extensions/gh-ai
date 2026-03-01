@@ -46,27 +46,84 @@ _gh_worktree_create() {
 	printf '%s\n' "$gh_worktree_path"
 }
 
+# Check if a worktree has uncommitted changes (untracked, modified, staged)
+#
+# Returns 0 if dirty, 1 if clean.
+#
+# Usage: _gh_worktree_is_dirty "/path/to/worktree"
+_gh_worktree_is_dirty() {
+	local wt="$1"
+	[[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]
+}
+
+# Check if a worktree has commits not pushed to the upstream branch
+#
+# Returns 0 if there are unpushed commits, 1 otherwise.
+# Falls back to clean when there is no upstream configured.
+#
+# Usage: _gh_worktree_has_unpushed "/path/to/worktree"
+_gh_worktree_has_unpushed() {
+	local wt="$1"
+	local ahead
+	ahead=$(git -C "$wt" rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo "0")
+	[[ "$ahead" -gt 0 ]]
+}
+
 # Remove a git worktree created by _gh_worktree_create
 #
-# Reads JSON from stdin with "worktree_path" field and force-removes
-# the worktree. Silently succeeds if the path does not exist.
+# Reads JSON from stdin with "worktree_path" field. Before removing,
+# checks for uncommitted or unpushed changes. If found, auto-stashes
+# them so they are recoverable from the main repo via `git stash list`.
+#
+# WorktreeRemove hooks have no decision control and cannot be
+# interactive — they run as cleanup side effects. Auto-stash is the
+# safest non-interactive strategy to prevent silent data loss.
+#
+# Silently removes clean worktrees.
+# Silently succeeds if the worktree path does not exist.
 #
 # Stdin: {"worktree_path": "/path/to/repo/.claude/worktrees/issue-42"}
 _gh_worktree_remove() {
 	local worktree_path
 	worktree_path=$(jq -r .worktree_path)
-	git worktree remove -f "$worktree_path" 2>/dev/null || true
+
+	# Nothing to do if the worktree doesn't exist
+	if [[ ! -d "$worktree_path" ]]; then
+		return 0
+	fi
+
+	# Auto-stash dirty changes so they survive worktree removal
+	if _gh_worktree_is_dirty "$worktree_path"; then
+		local wt_name
+		wt_name=$(basename "$worktree_path")
+		# Stage everything (including untracked) so stash captures it all
+		git -C "$worktree_path" add -A
+		git -C "$worktree_path" stash push -m "gh-ai: auto-stash worktree '${wt_name}'" 2>/dev/null || true
+		echo "Auto-stashed uncommitted changes from worktree '${wt_name}' — recover with: git stash list" >&2
+	fi
+
+	# Warn about unpushed commits (stash doesn't help here — they're in the branch reflog)
+	if _gh_worktree_has_unpushed "$worktree_path"; then
+		local branch
+		branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+		echo "Warning: branch '${branch}' has unpushed commits — they remain in the reflog" >&2
+	fi
+
+	git -C "$worktree_path" worktree remove -f "$worktree_path" 2>/dev/null || true
 }
 
-case "${1:-}" in
-create)
-	_gh_worktree_create
-	;;
-remove)
-	_gh_worktree_remove
-	;;
-*)
-	echo "Usage: gh_worktree.sh <create|remove>" >&2
-	exit 1
-	;;
-esac
+# CLI entry point (when executed directly, not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	case "${1:-}" in
+	create)
+		_gh_worktree_create
+		;;
+	remove)
+		_gh_worktree_remove
+		;;
+	*)
+		echo "Usage: gh_worktree.sh <create|remove>" >&2
+		exit 1
+		;;
+	esac
+fi
