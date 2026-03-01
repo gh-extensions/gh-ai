@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.0](https://github.com/gh-extensions/gh-ai/compare/v0.9.0...v0.10.0) (2026-03-01)
+
+
+### Features
+
+* use file-backed variables to bypass ARG_MAX limits ([b5f0c8d](https://github.com/gh-extensions/gh-ai/commit/b5f0c8df73bd39da5757fb6fce60e588df394f56))
+
+
+### Bug Fixes
+
+* use pipe-based file reading in awk to prevent hangs ([5364539](https://github.com/gh-extensions/gh-ai/commit/53645392c165c762c2cf74e49874f7468fabfab6))
+
 ## [0.9.0](https://github.com/gh-extensions/gh-ai/compare/v0.8.0...v0.9.0) (2026-03-01)
 
 
