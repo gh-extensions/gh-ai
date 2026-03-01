@@ -11,12 +11,16 @@ set -euo pipefail
 # Reads the given template file and uses awk to replace ${VAR} tokens with the
 # values of the corresponding environment variables (via ENVIRON[]).
 #
+# File-backed variables: If ENVIRON[VAR] is empty but ENVIRON[VAR_FILE] is set,
+# reads the file content from that path. This allows large content to bypass ARG_MAX.
+#
 # Safety: substitution is a single left-to-right pass — values are never
 # re-scanned, so ${...} patterns inside a substituted value (e.g. in a git
 # diff) are never expanded. Template files use ALL_CAPS variable names
 # (GH_PR_DIFF, GH_ISSUE_*, etc.) that do not overlap with standard shell variables.
 #
 # Usage: MY_VAR="value" _cmd_render template.tmpl
+# Usage: GH_PR_DIFF_FILE="/tmp/diff.patch" _cmd_render template.tmpl
 _cmd_render() {
 	local template_file="$1"
 
@@ -26,12 +30,25 @@ _cmd_render() {
 	fi
 
 	awk '
+	function readfile(path,    content, line, first) {
+		content = ""; first = 1
+		while ((getline line < path) > 0) {
+			if (!first) content = content "\n"
+			content = content line; first = 0
+		}
+		close(path)
+		return content
+	}
 	{ content = content $0 "\n" }
 	END {
 		result = ""; remaining = content
 		while (match(remaining, /\$\{[A-Z_][A-Z0-9_]*\}/)) {
 			varname = substr(remaining, RSTART+2, RLENGTH-3)
-			result = result substr(remaining, 1, RSTART-1) ENVIRON[varname]
+			val = ENVIRON[varname]
+			if (val == "" && ENVIRON[varname "_FILE"] != "") {
+				val = readfile(ENVIRON[varname "_FILE"])
+			}
+			result = result substr(remaining, 1, RSTART-1) val
 			remaining = substr(remaining, RSTART+RLENGTH)
 		}
 		printf "%s%s", result, remaining
@@ -255,6 +272,27 @@ _git_branch_diff() {
 	_commits_ref=$(printf '%s\n' "$_log_ref" | sed 's/^[a-f0-9]* /- /')
 }
 
+# Create a temporary context directory for ask-mode commands
+#
+# Creates a temp directory that can hold large context files. Caller is
+# responsible for cleanup (rm -rf) after use.
+#
+# Usage: _create_context_dir context_dir_ref
+_create_context_dir() {
+	local -n _cdir_ref="$1"
+	_cdir_ref=$(mktemp -d "${TMPDIR:-/tmp}/gh-ai-ctx.XXXXXXXXXX")
+}
+
+# Save content to a named file in a context directory
+#
+# Writes content to a file using printf builtin (no execve, so no ARG_MAX impact).
+#
+# Usage: _save_context_file "/path/to/context/dir" "filename" "content"
+_save_context_file() {
+	local dir="$1" name="$2" content="$3"
+	printf '%s' "$content" > "$dir/$name"
+}
+
 # Generate a UUIDv5 from a name using the NAMESPACE_URL (RFC 4122)
 #
 # Pure bash implementation — uses printf for the 16-byte NAMESPACE_URL raw
@@ -314,10 +352,12 @@ _resolve_session_state() {
 	local git_root
 	_git_repo_path git_root || return 1
 
-	_ss_path="$git_root/.claude/sessions/${_ss_sid}.json"
+	_ss_path="$git_root/.claude/sessions/$_ss_sid"
 
-	if [[ -n "$new_session" && -f "$_ss_path" ]]; then
-		rm -f "$_ss_path"
+	if [[ -n "$new_session" ]]; then
+		# Clean up both old .json format and new directory format
+		rm -f "${_ss_path}.json"
+		rm -rf "$_ss_path"
 	fi
 }
 
@@ -340,7 +380,8 @@ _try_resume_chat_session() {
 	local session_id="" name="" state_file=""
 	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 1
 
-	if [[ -f "$state_file" ]]; then
+	# Check for new directory format first, then fall back to old .json format
+	if [[ -d "$state_file" && -f "$state_file/state.json" ]] || [[ -f "${state_file}.json" ]]; then
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 		return 0
 	fi
@@ -374,9 +415,13 @@ _resolve_chat_session() {
 	local session_id="" name="" state_file=""
 	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 0
 
-	mkdir -p "$(dirname "$state_file")"
+	# Create session directory
+	mkdir -p "$state_file"
 
-	if [[ -f "$state_file" ]]; then
+	local state_json="$state_file/state.json"
+
+	# Check both new and old formats for existing session
+	if [[ -f "$state_json" ]] || [[ -f "${state_file}.json" ]]; then
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 	else
 		# Default to the repository's default branch when no remote ref is provided
@@ -385,7 +430,7 @@ _resolve_chat_session() {
 			remote_ref="${remote_ref:-main}"
 		fi
 		jq -n --arg session_id "$session_id" --arg name "$name" --arg remote_ref "$remote_ref" \
-			'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_file"
+			'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_json"
 		_session_args_ref=(--session-id "$session_id" --worktree "$name")
 	fi
 }

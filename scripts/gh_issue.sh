@@ -229,6 +229,17 @@ _gh_issue_edit() {
 	local agent_model
 	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "issue_body.md" "$gh_issue_body"
+	_save_context_file "$context_dir" "issue_comments.md" "$gh_issue_comments"
+	local render_env=()
+	if [[ -n "$gh_issue_context" ]]; then
+		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
+		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+	fi
+
 	local output
 	# Generate updated issue content using assistant
 	output=$(
@@ -236,14 +247,17 @@ _gh_issue_edit() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
-					GH_ISSUE_BODY="$gh_issue_body" \
+					GH_ISSUE_BODY_FILE="$context_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS="$gh_issue_comments" \
+					GH_ISSUE_COMMENTS_FILE="$context_dir/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					GH_ISSUE_CONTEXT="$gh_issue_context" \
+					"${render_env[@]}" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got issue content
 	if [[ -z "$output" ]]; then
@@ -399,6 +413,12 @@ _gh_issue_plan() {
 		gh_issue_focus="<focus>${gh_issue_description}</focus>"
 	fi
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "issue_body.md" "$gh_issue_body"
+	_save_context_file "$context_dir" "issue_comments.md" "$gh_issue_comments"
+
 	local output
 	# Generate implementation plan using assistant
 	output=$(
@@ -406,13 +426,16 @@ _gh_issue_plan() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
-					GH_ISSUE_BODY="$gh_issue_body" \
+					GH_ISSUE_BODY_FILE="$context_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS="$gh_issue_comments" \
+					GH_ISSUE_COMMENTS_FILE="$context_dir/issue_comments.md" \
 					GH_ISSUE_FOCUS="$gh_issue_focus" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got content
 	if [[ -z "$output" ]]; then
@@ -574,15 +597,27 @@ _gh_issue_chat() {
 		gh_issue_focus="<focus>${gh_issue_description}</focus>"
 	fi
 
+	# Resolve session directory and create context files
+	local session_id name session_dir
+	session_id=$(_uuidv5 "$gh_issue_url")
+	name=$(printf '%s' "$gh_issue_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
+	local git_root
+	_git_repo_path git_root || return 1
+	session_dir="$git_root/.claude/sessions/$session_id"
+	mkdir -p "$session_dir"
+
+	# Save large context to files
+	_save_context_file "$session_dir" "issue_body.md" "$gh_issue_body"
+	_save_context_file "$session_dir" "issue_comments.md" "$gh_issue_comments"
+
 	# Render context and pipe to agent
 	local preamble
 	preamble=$(
 		GH_ISSUE_NUMBER="$gh_issue_number" \
 			GH_ISSUE_TITLE="$gh_issue_title" \
-			GH_ISSUE_BODY="$gh_issue_body" \
 			GH_ISSUE_LABELS="$gh_issue_labels" \
-			GH_ISSUE_COMMENTS="$gh_issue_comments" \
 			GH_ISSUE_FOCUS="$gh_issue_focus" \
+			GH_SESSION_DIR="$session_dir" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
@@ -661,6 +696,15 @@ _gh_issue_create() {
 	local agent_model
 	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
 
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	local render_env=()
+	if [[ -n "$gh_issue_context" ]]; then
+		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
+		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+	fi
+
 	local output
 	# Generate issue content using assistant run
 	output=$(
@@ -668,10 +712,13 @@ _gh_issue_create() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
-					GH_ISSUE_CONTEXT="$gh_issue_context" \
+					"${render_env[@]}" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
 
 	# Validate we got issue content
 	if [[ -z "$output" ]]; then

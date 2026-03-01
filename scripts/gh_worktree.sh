@@ -32,9 +32,15 @@ _gh_worktree_create() {
 	eval "$(printf '%s' "$input" | jq -r "$gh_worktree_jq")"
 
 	# Second pass: overlay remote_ref from the session state file (same jq filter)
-	local session_state_file="${gh_worktree_cwd}/.claude/sessions/${gh_worktree_session_id}.json"
+	# Try new directory format first, then fall back to old .json format
+	local session_state_file="${gh_worktree_cwd}/.claude/sessions/${gh_worktree_session_id}/state.json"
 	if [[ -f "$session_state_file" ]]; then
 		eval "$(jq -r "$gh_worktree_jq" "$session_state_file")"
+	else
+		session_state_file="${gh_worktree_cwd}/.claude/sessions/${gh_worktree_session_id}.json"
+		if [[ -f "$session_state_file" ]]; then
+			eval "$(jq -r "$gh_worktree_jq" "$session_state_file")"
+		fi
 	fi
 
 	local gh_worktree_path
