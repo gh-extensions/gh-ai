@@ -167,13 +167,18 @@ Chat commands automatically persist sessions per resource. The first
 invocation creates a new session with a dedicated worktree; subsequent runs
 resume it. Session state is stored in the repository at:
 
-```
+```text
 <repo-root>/.claude/sessions/<session-uuid>.json
 ```
 
 Use `--new-session` (or `-n`) to discard the existing session and start fresh. Session
 management is skipped when you pass your own `--resume`, `--session-id`,
 `--continue`, or `-c` after `--`.
+
+When a session ends, the worktree is automatically removed. If the worktree
+has uncommitted changes, they are auto-stashed before removal so nothing is
+lost. Recover them with `git stash list` and look for entries prefixed with
+`gh-ai: auto-stash worktree`. Unpushed commits remain in the branch reflog.
 
 ## Configuration
 
