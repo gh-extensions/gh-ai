@@ -258,16 +258,16 @@ _uuidv5() {
 # Shared helper for _try_resume_chat_session and _resolve_chat_session.
 # Validates the resource URL, checks passthrough for user session flags,
 # generates a deterministic session ID, derives the worktree name, resolves
-# the git root, computes the state file path, and handles --reset deletion.
+# the git root, computes the state file path, and handles --new-session deletion.
 #
 # Returns 1 (skip) when URL is empty, user passed session flags, or git root
 # is unavailable.  On success, populates the three namerefs and returns 0.
 #
-# Usage: _resolve_session_state sid_ref name_ref path_ref "$url" "$reset" "${passthrough[@]}"
+# Usage: _resolve_session_state sid_ref name_ref path_ref "$url" "$new_session" "${passthrough[@]}"
 _resolve_session_state() {
 	local -n _ss_sid="$1" _ss_name="$2" _ss_path="$3"
 	local resource_url="$4"
-	local reset="$5"
+	local new_session="$5"
 	shift 5
 
 	if [[ -z "$resource_url" ]]; then
@@ -293,7 +293,7 @@ _resolve_session_state() {
 
 	_ss_path="$git_root/.claude/sessions/${_ss_sid}.json"
 
-	if [[ -n "$reset" && -f "$_ss_path" ]]; then
+	if [[ -n "$new_session" && -f "$_ss_path" ]]; then
 		rm -f "$_ss_path"
 	fi
 }
@@ -302,20 +302,20 @@ _resolve_session_state() {
 #
 # Checks if a session state file exists for the given resource URL and
 # populates session arguments for resumption. Does NOT create new sessions.
-# When reset is non-empty, deletes the existing state file before checking.
+# When new_session is non-empty, deletes the existing state file before checking.
 # Returns 0 if session can be resumed, 1 if a new session is needed.
 #
-# Usage: _try_resume_chat_session session_args_ref "https://github.com/..." "$reset" "${passthrough[@]}"
+# Usage: _try_resume_chat_session session_args_ref "https://github.com/..." "$new_session" "${passthrough[@]}"
 _try_resume_chat_session() {
 	local -n _session_args_ref="$1"
 	local resource_url="$2"
-	local reset="$3"
+	local new_session="$3"
 	shift 3
 
 	_session_args_ref=()
 
 	local session_id="" name="" state_file=""
-	_resolve_session_state session_id name state_file "$resource_url" "$reset" "$@" || return 1
+	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 1
 
 	if [[ -f "$state_file" ]]; then
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
@@ -330,25 +330,26 @@ _try_resume_chat_session() {
 # Manages session state files for chat session persistence. On first run,
 # creates a state file with the session ID, worktree name, and remote ref,
 # then returns --session-id + --worktree. On subsequent runs, returns
-# --resume + --worktree. Silently skips when the URL is empty, the user
-# passed their own session flags, or the git root is unavailable.
+# --resume + --worktree. When new_session is non-empty, deletes the existing
+# state file first. Silently skips when the URL is empty, the user passed
+# their own session flags, or the git root is unavailable.
 #
 # The remote_ref parameter specifies which branch to track in the worktree
 # (e.g. the PR head branch). When empty, defaults to the repository's
 # default branch via origin/HEAD.
 #
-# Usage: _resolve_chat_session session_args_ref "https://github.com/owner/repo/issues/42" "$reset" "$remote_ref" "${passthrough[@]}"
+# Usage: _resolve_chat_session session_args_ref "https://github.com/owner/repo/issues/42" "$new_session" "$remote_ref" "${passthrough[@]}"
 _resolve_chat_session() {
 	local -n _session_args_ref="$1"
 	local resource_url="$2"
-	local reset="$3"
+	local new_session="$3"
 	local remote_ref="$4"
 	shift 4
 
 	_session_args_ref=()
 
 	local session_id="" name="" state_file=""
-	_resolve_session_state session_id name state_file "$resource_url" "$reset" "$@" || return 0
+	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 0
 
 	mkdir -p "$(dirname "$state_file")"
 

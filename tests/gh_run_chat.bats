@@ -74,19 +74,27 @@ setup() {
 	[[ "$description" == "focus on test failures" ]]
 }
 
-@test "_parse_run_chat_args: captures --reset flag" {
-	local id="" description="" reset=""
-	_parse_run_chat_args id description reset 12345678 --reset
+@test "_parse_run_chat_args: captures --new-session flag" {
+	local id="" description="" new_session=""
+	_parse_run_chat_args id description new_session 12345678 --new-session
 
 	[[ "$id" == "12345678" ]]
-	[[ "$reset" == "1" ]]
+	[[ "$new_session" == "1" ]]
 }
 
-@test "_parse_run_chat_args: --reset defaults to empty" {
-	local id="" description="" reset=""
-	_parse_run_chat_args id description reset 12345678
+@test "_parse_run_chat_args: captures -n flag" {
+	local id="" description="" new_session=""
+	_parse_run_chat_args id description new_session 12345678 -n
 
-	[[ -z "$reset" ]]
+	[[ "$id" == "12345678" ]]
+	[[ "$new_session" == "1" ]]
+}
+
+@test "_parse_run_chat_args: --new-session defaults to empty" {
+	local id="" description="" new_session=""
+	_parse_run_chat_args id description new_session 12345678
+
+	[[ -z "$new_session" ]]
 }
 
 @test "_parse_run_chat_args: returns error when -d has no value" {

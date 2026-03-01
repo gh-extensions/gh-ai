@@ -730,13 +730,13 @@ _gh_pr_explain() {
 # Parse PR chat arguments
 #
 # Extracts the PR number (first numeric arg, with auto-detect fallback),
-# -d/--description value, and --reset flag. Unknown flags produce an error.
+# -d/--description value, and -n/--new-session flag. Unknown flags produce an error.
 #
-# Example: _parse_pr_chat_args num desc reset 42 -d "focus on security"
+# Example: _parse_pr_chat_args num desc new_session 42 -d "focus on security"
 _parse_pr_chat_args() {
 	local -n gh_pr_number_ref="$1"
 	local -n gh_pr_description_ref="$2"
-	local -n gh_pr_reset_ref="$3"
+	local -n gh_pr_new_session_ref="$3"
 	shift 3
 
 	local raw_args=("$@")
@@ -763,9 +763,9 @@ _parse_pr_chat_args() {
 			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_pr_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--reset)
+		--new-session | -n)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_reset_ref=1
+			gh_pr_new_session_ref=1
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
@@ -811,12 +811,12 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
-        --reset                Reset session state and start a new session
+    -n, --new-session          Start a new session
 
 EXAMPLES:
     gh ai pr chat 42
     gh ai pr chat -d "focus on the security changes"
-    gh ai pr chat 42 --reset
+    gh ai pr chat 42 --new-session
     gh ai pr chat                    # auto-detect PR from current branch
     gh ai pr chat 42 -- --model sonnet
 EOF
@@ -846,8 +846,8 @@ _gh_pr_chat() {
 
 	local gh_pr_number=""
 	local gh_pr_description=""
-	local gh_pr_reset=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_reset "${ai_args[@]}"
+	local gh_pr_new_session=""
+	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "${ai_args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No PR number provided and could not detect PR for current branch"
@@ -861,7 +861,7 @@ _gh_pr_chat() {
 	local gh_pr_url="https://github.com/${gh_repo}/pull/${gh_pr_number}"
 
 	local session_args=()
-	if _try_resume_chat_session session_args "$gh_pr_url" "$gh_pr_reset" "${passthrough[@]}"; then
+	if _try_resume_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "${passthrough[@]}"; then
 		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
 		return
 	fi
@@ -912,7 +912,7 @@ _gh_pr_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_pr_url" "$gh_pr_reset" "$gh_pr_head" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "$gh_pr_head" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

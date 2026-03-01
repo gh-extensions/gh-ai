@@ -179,13 +179,13 @@ _gh_run_explain() {
 # Parse run chat arguments
 #
 # Extracts the run ID (first numeric arg), optional -d/--description value,
-# and --reset flag. Unknown flags produce an error.
+# and -n/--new-session flag. Unknown flags produce an error.
 #
-# Example: _parse_run_chat_args id desc reset 123456 -d "focus on test failures"
+# Example: _parse_run_chat_args id desc new_session 123456 -d "focus on test failures"
 _parse_run_chat_args() {
 	local -n gh_run_id_ref="$1"
 	local -n gh_run_description_ref="$2"
-	local -n gh_run_reset_ref="$3"
+	local -n gh_run_new_session_ref="$3"
 	shift 3
 
 	local raw_args=("$@")
@@ -212,9 +212,9 @@ _parse_run_chat_args() {
 			# shellcheck disable=SC2034 # nameref: set by caller
 			gh_run_description_ref="${raw_args[$i]#--description=}"
 			;;
-		--reset)
+		--new-session | -n)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_run_reset_ref=1
+			gh_run_new_session_ref=1
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
@@ -254,12 +254,12 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
-        --reset                Reset session state and start a new session
+    -n, --new-session          Start a new session
 
 EXAMPLES:
     gh ai run chat 123456
     gh ai run chat 123456 -d "focus on test failures"
-    gh ai run chat 123456 --reset
+    gh ai run chat 123456 --new-session
     gh ai run chat 123456 -- --model sonnet
 EOF
 }
@@ -288,8 +288,8 @@ _gh_run_chat() {
 
 	local gh_run_id=""
 	local gh_run_description=""
-	local gh_run_reset=""
-	_parse_run_chat_args gh_run_id gh_run_description gh_run_reset "${ai_args[@]}"
+	local gh_run_new_session=""
+	_parse_run_chat_args gh_run_id gh_run_description gh_run_new_session "${ai_args[@]}"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
@@ -303,7 +303,7 @@ _gh_run_chat() {
 	local gh_run_url="https://github.com/${gh_repo}/actions/runs/${gh_run_id}"
 
 	local session_args=()
-	if _try_resume_chat_session session_args "$gh_run_url" "$gh_run_reset" "${passthrough[@]}"; then
+	if _try_resume_chat_session session_args "$gh_run_url" "$gh_run_new_session" "${passthrough[@]}"; then
 		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
 		return
 	fi
@@ -360,7 +360,7 @@ _gh_run_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_run_url" "$gh_run_reset" "" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

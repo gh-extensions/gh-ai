@@ -55,7 +55,7 @@ setup() {
 	[[ "${resume_args[3]}" == "issue-42" ]]
 }
 
-@test "_try_resume_chat_session: returns 1 after --reset deletes state file" {
+@test "_try_resume_chat_session: returns 1 after --new-session deletes state file" {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 
@@ -129,7 +129,7 @@ setup() {
 	[[ "${args2[3]}" == "issue-42" ]]
 }
 
-@test "_resolve_chat_session: --reset deletes existing state and returns --session-id" {
+@test "_resolve_chat_session: --new-session deletes existing state and returns --session-id" {
 	local args=()
 	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" ""
 

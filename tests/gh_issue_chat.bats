@@ -74,19 +74,27 @@ setup() {
 	[[ "$description" == "focus on auth" ]]
 }
 
-@test "_parse_issue_chat_args: captures --reset flag" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42 --reset
+@test "_parse_issue_chat_args: captures --new-session flag" {
+	local number="" description="" new_session=""
+	_parse_issue_chat_args number description new_session 42 --new-session
 
 	[[ "$number" == "42" ]]
-	[[ "$reset" == "1" ]]
+	[[ "$new_session" == "1" ]]
 }
 
-@test "_parse_issue_chat_args: --reset defaults to empty" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42
+@test "_parse_issue_chat_args: captures -n flag" {
+	local number="" description="" new_session=""
+	_parse_issue_chat_args number description new_session 42 -n
 
-	[[ -z "$reset" ]]
+	[[ "$number" == "42" ]]
+	[[ "$new_session" == "1" ]]
+}
+
+@test "_parse_issue_chat_args: --new-session defaults to empty" {
+	local number="" description="" new_session=""
+	_parse_issue_chat_args number description new_session 42
+
+	[[ -z "$new_session" ]]
 }
 
 @test "_parse_issue_chat_args: returns error when -d has no value" {
