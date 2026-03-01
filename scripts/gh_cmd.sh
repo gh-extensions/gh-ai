@@ -106,10 +106,12 @@ _cmd_chat() {
 		fi
 		case "$arg" in
 		--from-pr)
+			gum log --level warn "--from-pr is not compatible with gh-ai session management; ignoring"
 			skip_next=true
 			continue
 			;;
 		--from-pr=*)
+			gum log --level warn "--from-pr is not compatible with gh-ai session management; ignoring"
 			continue
 			;;
 		esac
