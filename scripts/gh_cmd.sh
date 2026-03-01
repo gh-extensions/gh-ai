@@ -95,6 +95,27 @@ _cmd_ask() {
 _cmd_chat() {
 	local preamble="$1"
 	shift
+
+	# Drop --from-pr; it conflicts with gh-ai's own session management
+	local args=()
+	local skip_next=false
+	for arg in "$@"; do
+		if [[ "$skip_next" == true ]]; then
+			skip_next=false
+			continue
+		fi
+		case "$arg" in
+		--from-pr)
+			skip_next=true
+			continue
+			;;
+		--from-pr=*)
+			continue
+			;;
+		esac
+		args+=("$arg")
+	done
+
 	local agent
 	agent=$(_get_agent)
 	if ! command -v "$agent" &>/dev/null; then
@@ -105,7 +126,7 @@ _cmd_chat() {
 	# shellcheck disable=SC2154
 	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
 	local settings_file="$_gh_ai_source_dir/scripts/gh_claude.json"
-	printf '%s\n' "$preamble" | "$agent" --settings "$settings_file" "$@"
+	printf '%s\n' "$preamble" | "$agent" --settings "$settings_file" "${args[@]}"
 }
 
 # Extract title from AI response
