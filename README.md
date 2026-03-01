@@ -1,11 +1,14 @@
 # gh-ai
 
-A GitHub CLI extension that brings AI to every step of your GitHub workflow.
-Generate commits, craft PRs, plan issues, debug CI failures, and start
-interactive coding sessions — all from your terminal.
+Your AI-powered copilot for the GitHub CLI. Draft pull requests, plan issue
+implementations, review code, debug CI failures, and drop into interactive
+coding sessions — without leaving the terminal.
 
-![License](https://img.shields.io/github/license/gh-extensions/gh-ai)
-![Version](https://img.shields.io/github/v/release/gh-extensions/gh-ai)
+Stop context-switching between your editor, browser, and terminal. `gh ai`
+meets you where you already work and handles the tedious parts so you can
+focus on shipping.
+
+If you find this useful, [give it a star](https://github.com/gh-extensions/gh-ai) — it helps others discover the project.
 
 ## Prerequisites
 
@@ -82,7 +85,7 @@ running the same command again resumes the previous session. Use `--new-session`
 ```bash
 gh ai pr chat 42
 gh ai pr chat -d "focus on the security changes"
-gh ai pr chat 42 -n                # start a new session
+gh ai pr chat 42 -n # start a new session
 gh ai pr chat 42 -- --model sonnet
 ```
 
