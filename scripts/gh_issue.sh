@@ -291,10 +291,10 @@ _gh_issue_edit() {
 	_create_context_dir context_dir
 	_save_context_file "$context_dir" "issue_body.md" "$gh_issue_body"
 	_save_context_file "$context_dir" "issue_comments.md" "$gh_issue_comments"
-	local render_env=()
+	local gh_context_file=""
 	if [[ -n "$gh_issue_context" ]]; then
 		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
-		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+		gh_context_file="$context_dir/issue_context.md"
 	fi
 
 	local output
@@ -308,7 +308,7 @@ _gh_issue_edit() {
 					GH_ISSUE_LABELS="$gh_issue_labels" \
 					GH_ISSUE_COMMENTS_FILE="$context_dir/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					"${render_env[@]}" \
+					GH_ISSUE_CONTEXT_FILE="$gh_context_file" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -436,10 +436,10 @@ _gh_issue_comment() {
 	_create_context_dir context_dir
 	_save_context_file "$context_dir" "issue_body.md" "$gh_issue_body"
 	_save_context_file "$context_dir" "issue_comments.md" "$gh_issue_comments"
-	local render_env=()
+	local gh_context_file=""
 	if [[ -n "$gh_issue_context" ]]; then
 		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
-		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+		gh_context_file="$context_dir/issue_context.md"
 	fi
 
 	local output
@@ -453,7 +453,7 @@ _gh_issue_comment() {
 					GH_ISSUE_LABELS="$gh_issue_labels" \
 					GH_ISSUE_COMMENTS_FILE="$context_dir/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					"${render_env[@]}" \
+					GH_ISSUE_CONTEXT_FILE="$gh_context_file" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -890,10 +890,10 @@ _gh_issue_create() {
 	# Create context directory and save large content to files
 	local context_dir
 	_create_context_dir context_dir
-	local render_env=()
+	local gh_context_file=""
 	if [[ -n "$gh_issue_context" ]]; then
 		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
-		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+		gh_context_file="$context_dir/issue_context.md"
 	fi
 
 	local output
@@ -903,7 +903,7 @@ _gh_issue_create() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
-					"${render_env[@]}" \
+					GH_ISSUE_CONTEXT_FILE="$gh_context_file" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
