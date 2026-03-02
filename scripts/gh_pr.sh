@@ -1143,9 +1143,8 @@ _gh_pr_chat() {
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
 	# Resolve session directory and create context files
-	local session_id name session_dir
+	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_pr_url")
-	name=$(printf '%s' "$gh_pr_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"

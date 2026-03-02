@@ -341,9 +341,8 @@ _gh_run_chat() {
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
 	# Resolve session directory and create context files
-	local session_id name session_dir
+	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_run_url")
-	name=$(printf '%s' "$gh_run_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"
@@ -369,7 +368,7 @@ _gh_run_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "$gh_run_branch" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

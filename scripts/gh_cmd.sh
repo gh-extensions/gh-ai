@@ -381,8 +381,14 @@ _try_resume_chat_session() {
 	local session_id="" name="" state_file=""
 	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 1
 
-	# Check for new directory format first, then fall back to old .json format
-	if [[ -d "$state_file" && -f "$state_file/state.json" ]] || [[ -f "${state_file}.json" ]]; then
+	# Read name from stored state — it may differ from the URL-derived default
+	# (e.g. when the session was created with a branch name as the worktree name)
+	if [[ -d "$state_file" && -f "$state_file/state.json" ]]; then
+		name=$(jq -r '.name' "$state_file/state.json")
+		_session_args_ref=(--resume "$session_id" --worktree "$name")
+		return 0
+	elif [[ -f "${state_file}.json" ]]; then
+		name=$(jq -r '.name' "${state_file}.json")
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 		return 0
 	fi
@@ -422,11 +428,18 @@ _resolve_chat_session() {
 	local state_json="$state_file/state.json"
 
 	# Check both new and old formats for existing session
-	if [[ -f "$state_json" ]] || [[ -f "${state_file}.json" ]]; then
+	if [[ -f "$state_json" ]]; then
+		name=$(jq -r '.name' "$state_json")
+		_session_args_ref=(--resume "$session_id" --worktree "$name")
+	elif [[ -f "${state_file}.json" ]]; then
+		name=$(jq -r '.name' "${state_file}.json")
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 	else
-		# Default to the repository's default branch when no remote ref is provided
-		if [[ -z "$remote_ref" ]]; then
+		# New session: use remote_ref (sanitized) as worktree name when provided,
+		# otherwise keep the URL-derived name (e.g. issue-42) and resolve default branch
+		if [[ -n "$remote_ref" ]]; then
+			name=$(printf '%s' "$remote_ref" | tr '/' '-')
+		else
 			remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')
 			remote_ref="${remote_ref:-main}"
 		fi
