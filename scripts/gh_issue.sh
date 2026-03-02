@@ -789,9 +789,8 @@ _gh_issue_chat() {
 	fi
 
 	# Resolve session directory and create context files
-	local session_id name session_dir
+	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_issue_url")
-	name=$(printf '%s' "$gh_issue_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"

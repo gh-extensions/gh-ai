@@ -579,7 +579,7 @@ _gh_pr_review() {
 		gh pr view "$gh_pr_number" --json headRefName,commits \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
 
-	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
+	local gh_pr_head gh_pr_commits
 	if [[ -n "$gh_pr_eval" ]]; then
 		eval "$gh_pr_eval"
 	fi
@@ -784,7 +784,7 @@ _gh_pr_comment() {
 		return 1
 	fi
 
-	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits gh_pr_comments
+	local gh_pr_title gh_pr_body gh_pr_comments
 	eval "$gh_pr_eval"
 
 	local agent_model
