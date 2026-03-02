@@ -15,7 +15,7 @@ _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 #
 # Reads JSON from stdin with "name", "cwd", and "session_id" fields.
 # Looks up the session state file to resolve the remote ref to track.
-# The local branch is named worktree-<name>.
+# The local branch is named <name> (e.g. issue-42).
 #
 # Stdin:  {"name": "issue-42", "cwd": "/path/to/repo", "session_id": "uuid"}
 # Stdout: worktree path (e.g. /path/to/repo/.claude/worktrees/issue-42)
@@ -58,7 +58,13 @@ _gh_worktree_create() {
 	# This is necessary when the branch has never been fetched (e.g. on first session start).
 	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
 
-	git -C "$gh_worktree_cwd" worktree add -B "worktree-${gh_worktree_name}" "$gh_worktree_path" "$git_ref" >&2
+	# If the branch already exists locally (e.g. previous session removed the worktree but kept
+	# the branch), reuse it as-is. Otherwise create a new branch from the remote ref.
+	if git -C "$gh_worktree_cwd" show-ref --verify --quiet "refs/heads/${gh_worktree_name}"; then
+		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${gh_worktree_name}" >&2
+	else
+		git -C "$gh_worktree_cwd" worktree add -b "${gh_worktree_name}" "$gh_worktree_path" "$git_ref" >&2
+	fi
 
 	printf '%s\n' "$gh_worktree_path"
 }

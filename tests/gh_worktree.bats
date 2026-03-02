@@ -21,7 +21,7 @@ setup() {
 
 	# Create a worktree off the clone
 	WORKTREE_PATH="$BATS_TEST_TMPDIR/repo/.claude/worktrees/issue-1"
-	git -C "$BATS_TEST_TMPDIR/repo" worktree add -B worktree-issue-1 "$WORKTREE_PATH" HEAD >/dev/null 2>&1
+	git -C "$BATS_TEST_TMPDIR/repo" worktree add -b issue-1 "$WORKTREE_PATH" HEAD >/dev/null 2>&1
 	local _main_branch
 	_main_branch=$(git -C "$BATS_TEST_TMPDIR/repo" rev-parse --abbrev-ref HEAD)
 	git -C "$WORKTREE_PATH" branch --set-upstream-to="origin/${_main_branch}" >/dev/null 2>&1
