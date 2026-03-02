@@ -17,23 +17,27 @@ gh ai issue - Issue commands with AI assistance
 USAGE:
     gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
     gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
     gh ai issue plan <ISSUE_NUMBER>
     gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
-    bodies. Generates implementation plans from issues and prints them to stdout.
+    bodies. Posts AI-generated comments on existing issues. Generates
+    implementation plans from issues and prints them to stdout.
     Opens agent sessions with issue context.
 
 COMMANDS:
     create      Create issues with AI-generated content
     edit        Edit an existing issue with AI-generated content
+    comment     Post an AI-generated comment on an existing issue
     plan        Generate an AI implementation plan from an issue
     chat        Open an agent session with issue context
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
     gh ai issue edit --help       # Issue edit usage
+    gh ai issue comment --help    # Issue comment usage
     gh ai issue plan --help       # Issue plan usage
     gh ai issue chat --help       # Issue chat usage
 EOF
@@ -122,6 +126,59 @@ _parse_issue_edit_args() {
 			;;
 		-*)
 			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue edit)"
+			return 1
+			;;
+		*)
+			local arg="${raw_args[$i]#\#}"
+			if [[ -z "$gh_issue_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
+				gh_issue_number_ref="$arg"
+			else
+				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++i))
+	done
+}
+
+# Parse issue comment arguments (before -- separator)
+#
+# Extracts the issue number (first numeric positional arg) and -d/--description value.
+# Unknown flags produce an error with a hint to use --.
+#
+# Example: _parse_issue_comment_args num desc 42 -d "post a status update"
+_parse_issue_comment_args() {
+	local -n gh_issue_number_ref="$1"
+	local -n gh_issue_description_ref="$2"
+	shift 2
+
+	local raw_args=("$@")
+	local skip_next=false
+	local i=0
+
+	while [[ $i -lt ${#raw_args[@]} ]]; do
+		if [ "$skip_next" = true ]; then
+			skip_next=false
+			((++i))
+			continue
+		fi
+
+		case "${raw_args[$i]}" in
+		--description | -d)
+			if ((i + 1 >= ${#raw_args[@]})); then
+				gum log --level error "${raw_args[$i]} requires a value"
+				return 1
+			fi
+			gh_issue_description_ref="${raw_args[$((i + 1))]}"
+			skip_next=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			gh_issue_description_ref="${raw_args[$i]#--description=}"
+			;;
+		-*)
+			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh issue comment)"
 			return 1
 			;;
 		*)
@@ -279,6 +336,140 @@ _gh_issue_edit() {
 
 	# Edit issue with AI-generated content
 	gh issue edit "$gh_issue_number" --title "$gh_issue_new_title" --body "$gh_issue_new_body" "${passthrough[@]}"
+}
+
+# Issue comment help function
+#
+# Displays help information for the issue comment command
+# including usage examples and available options.
+_show_issue_comment_help() {
+	cat <<'EOF'
+gh ai issue comment - Post an AI-generated comment on an existing issue
+
+USAGE:
+    gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+
+DESCRIPTION:
+    Posts an AI-generated comment on an existing GitHub issue. Fetches the
+    current issue content and existing comments for context, generates the
+    comment body via AI, and posts it. Supports piped stdin as additional
+    context. Options after -- are passed directly to gh issue comment.
+
+FLAGS:
+    -d, --description string   Instructions for the comment (required)
+
+EXAMPLES:
+    gh ai issue comment 42 -d "post a status update: implementation is in progress"
+    gh ai issue comment 42 -d "acknowledge the report and ask for more details"
+    gh ai issue comment 42 -d "summarize the discussion so far"
+    echo "error: connection refused" | gh ai issue comment 42 -d "add this error as context"
+    some_command 2>&1 | gh ai issue comment 42 -d "add the output as context"
+    gh ai issue comment 42 -d "acknowledge the report" -- --edit
+EOF
+}
+
+# Issue Comment implementation
+#
+# Posts an AI-generated comment on an existing GitHub issue.
+# Fetches the current issue, renders a prompt template with the
+# description and issue context, sends it to the AI provider,
+# and posts the comment.
+# Supports piped stdin as additional context.
+#
+# Usage: _gh_issue_comment <NUMBER> -d <DESCRIPTION> [-- OPTIONS]
+_gh_issue_comment() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_issue_comment_help
+		return 0
+		;;
+	esac
+
+	local ai_args=()
+	local passthrough=()
+	_split_on_separator ai_args passthrough "$@"
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_issue_comment.tmpl"
+
+	local gh_issue_number=""
+	local gh_issue_description=""
+	_parse_issue_comment_args gh_issue_number gh_issue_description "${ai_args[@]}"
+
+	if [[ -z "$gh_issue_number" ]]; then
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		return 1
+	fi
+
+	if [[ -z "$gh_issue_description" ]]; then
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		return 1
+	fi
+
+	# Read piped stdin context if available
+	local gh_issue_context=""
+	if [[ ! -t 0 ]]; then
+		gh_issue_context=$(cat)
+	fi
+
+	# Fetch issue metadata
+	local gh_issue_eval
+	gh_issue_eval=$(gum spin --title "Fetching GitHub issue #$gh_issue_number metadata..." -- \
+		gh issue view "$gh_issue_number" --json title,body,labels,comments \
+		-q "$(<"$_gh_ai_source_dir/scripts/gh_issue_meta.jq")" || true)
+	if [[ -z "$gh_issue_eval" ]]; then
+		gum log --level error "Failed to fetch issue #$gh_issue_number"
+		return 1
+	fi
+
+	local gh_issue_title gh_issue_body gh_issue_labels gh_issue_comments
+	eval "$gh_issue_eval"
+
+	local agent_model
+	agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
+
+	# Create context directory and save large content to files
+	local context_dir
+	_create_context_dir context_dir
+	_save_context_file "$context_dir" "issue_body.md" "$gh_issue_body"
+	_save_context_file "$context_dir" "issue_comments.md" "$gh_issue_comments"
+	local render_env=()
+	if [[ -n "$gh_issue_context" ]]; then
+		_save_context_file "$context_dir" "issue_context.md" "$gh_issue_context"
+		render_env+=(GH_ISSUE_CONTEXT_FILE="$context_dir/issue_context.md")
+	fi
+
+	local output
+	# Generate comment using assistant
+	output=$(
+		gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
+				GH_ISSUE_NUMBER="$gh_issue_number" \
+					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_BODY_FILE="$context_dir/issue_body.md" \
+					GH_ISSUE_LABELS="$gh_issue_labels" \
+					GH_ISSUE_COMMENTS_FILE="$context_dir/issue_comments.md" \
+					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
+					"${render_env[@]}" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Clean up temp context directory
+	rm -rf "$context_dir"
+
+	# Validate we got comment content
+	if [[ -z "$output" ]]; then
+		gum log --level error "Failed to generate comment"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	# Post comment with AI-generated content
+	gh issue comment "$gh_issue_number" --body "$output" "${passthrough[@]}"
 }
 
 # Parse issue plan arguments
@@ -760,6 +951,9 @@ _gh_issue() {
 	edit)
 		_gh_issue_edit "$@"
 		;;
+	comment)
+		_gh_issue_comment "$@"
+		;;
 	plan)
 		_gh_issue_plan "$@"
 		;;
@@ -771,7 +965,7 @@ _gh_issue() {
 		;;
 	*)
 		gum log --level error "Unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, edit, plan, chat"
+		gum log --level info "Available commands: create, edit, plan, chat, comment"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1
 		;;
