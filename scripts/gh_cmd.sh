@@ -29,7 +29,7 @@ _cmd_render() {
 		return 1
 	fi
 
-	awk -f "$_gh_ai_source_dir/scripts/gh_render.awk" "$template_file"
+	awk -f "$(dirname "${BASH_SOURCE[0]}")/gh_render.awk" "$template_file"
 }
 
 # Resolve the configured agent binary name
