@@ -25,7 +25,7 @@ _gh_worktree_create() {
 	gh_worktree_jq=$(<"$_script_dir/gh_worktree.jq")
 
 	# First pass: extract name, cwd, session_id from Claude's hook JSON
-	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main"
+	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main" gh_worktree_branch=""
 	eval "$(jq -r "$gh_worktree_jq")"
 
 	# Second pass: overlay remote_ref from the session state file (same jq filter)
@@ -56,13 +56,16 @@ _gh_worktree_create() {
 	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
 
 	# Determine which local branch to check out in this worktree.
-	# Prefer remote_ref so the worktree sits directly on the upstream branch (e.g. the
-	# PR head branch), enabling a plain `git push` to update it. Fall back to the
-	# worktree name when remote_ref is already checked out in another worktree (e.g. main
-	# in the root), creating a fresh branch from origin/remote_ref instead.
-	local branch_name="$gh_worktree_remote_ref"
+	# PR sessions store an explicit branch (the PR head) so the worktree sits directly
+	# on it and `git push` updates the PR without extra flags.
+	# Issue/run sessions have no explicit branch, so a fresh branch named after the
+	# worktree is created from origin/remote_ref (e.g. issue-99 from origin/main,
+	# run-123 from origin/feature/login).
+	# If the desired branch is already checked out in another worktree, fall back to
+	# the worktree name to avoid a git error.
+	local branch_name="${gh_worktree_branch:-$gh_worktree_name}"
 	if git -C "$gh_worktree_cwd" worktree list --porcelain \
-		| grep -qx "branch refs/heads/${gh_worktree_remote_ref}"; then
+		| grep -qx "branch refs/heads/${branch_name}"; then
 		branch_name="$gh_worktree_name"
 	fi
 

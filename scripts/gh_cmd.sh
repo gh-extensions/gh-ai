@@ -405,21 +405,22 @@ _try_resume_chat_session() {
 # state file first. Silently skips when the URL is empty, the user passed
 # their own session flags, or the git root is unavailable.
 #
-# The remote_ref parameter specifies which branch to track in the worktree
-# (e.g. the PR head branch). When empty, defaults to the repository's
-# default branch via origin/HEAD.
+# The remote_ref parameter specifies the base branch for the worktree
+# (e.g. the PR head branch, run branch, or empty for repo default).
+# When empty, defaults to the repository's default branch via origin/HEAD.
 #
-# The worktree_name parameter overrides the worktree name. When empty:
-#   - if remote_ref is set, the sanitized branch name is used (e.g. "feature-branch")
-#   - otherwise the URL-derived name is used (e.g. "issue-42", "run-22561875823")
+# The use_ref_as_branch flag (non-empty = true) writes a "branch" field to the
+# session state so _gh_worktree_create checks out remote_ref directly (PR
+# behaviour). When empty, the worktree creates a fresh branch named after the
+# worktree (issue/run behaviour).
 #
-# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$worktree_name" "${passthrough[@]}"
+# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$use_ref_as_branch" "${passthrough[@]}"
 _resolve_chat_session() {
 	local -n _session_args_ref="$1"
 	local resource_url="$2"
 	local new_session="$3"
 	local remote_ref="$4"
-	local worktree_name="$5"
+	local use_ref_as_branch="$5"
 	shift 5
 
 	_session_args_ref=()
@@ -440,17 +441,24 @@ _resolve_chat_session() {
 		name=$(jq -r '.name' "${state_file}.json")
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 	else
-		# New session: name is always URL-derived (worktree_name overrides only when set).
-		# remote_ref controls which branch to track — never influences the name.
-		if [[ -n "$worktree_name" ]]; then
-			name="$worktree_name"
-		fi
+		# New session: name is always URL-derived; remote_ref is the base branch.
 		if [[ -z "$remote_ref" ]]; then
 			remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')
 			remote_ref="${remote_ref:-main}"
 		fi
-		jq -n --arg session_id "$session_id" --arg name "$name" --arg remote_ref "$remote_ref" \
-			'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_json"
+		if [[ -n "$use_ref_as_branch" ]]; then
+			# PR: store branch so the worktree checks out remote_ref directly,
+			# enabling `git push` to update the PR without extra flags.
+			jq -n --arg session_id "$session_id" --arg name "$name" \
+				--arg remote_ref "$remote_ref" --arg branch "$remote_ref" \
+				'{session_id: $session_id, name: $name, remote_ref: $remote_ref, branch: $branch}' >"$state_json"
+		else
+			# Issue/run: no branch field; worktree creates a fresh branch named
+			# after the worktree (e.g. issue-99, run-123) from origin/remote_ref.
+			jq -n --arg session_id "$session_id" --arg name "$name" \
+				--arg remote_ref "$remote_ref" \
+				'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_json"
+		fi
 		_session_args_ref=(--session-id "$session_id" --worktree "$name")
 	fi
 }

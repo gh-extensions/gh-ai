@@ -227,6 +227,28 @@ setup() {
 	[[ "$content" == *'"remote_ref": "feat-my-branch"'* ]]
 }
 
+@test "_resolve_chat_session: state file contains branch when use_ref_as_branch is set" {
+	local args=()
+	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "1"
+
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
+	local content
+	content=$(cat "$state_file")
+
+	[[ "$content" == *'"branch": "feat-my-branch"'* ]]
+}
+
+@test "_resolve_chat_session: state file has no branch when use_ref_as_branch is unset" {
+	local args=()
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
+	local content
+	content=$(cat "$state_file")
+
+	[[ "$content" != *'"branch"'* ]]
+}
+
 @test "_resolve_chat_session: state file contains default remote_ref when not provided" {
 	git() {
 		case "$1 $2" in
