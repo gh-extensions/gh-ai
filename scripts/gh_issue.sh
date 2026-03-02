@@ -788,19 +788,15 @@ _gh_issue_chat() {
 		gh_issue_focus="<focus>${gh_issue_description}</focus>"
 	fi
 
-	# Resolve session directory and create context files
+	# Compute session directory path for preamble and context files
 	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_issue_url")
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"
-	mkdir -p "$session_dir"
 
-	# Save large context to files
-	_save_context_file "$session_dir" "issue_body.md" "$gh_issue_body"
-	_save_context_file "$session_dir" "issue_comments.md" "$gh_issue_comments"
-
-	# Render context and pipe to agent
+	# Render context — session_dir path is embedded as a string;
+	# files are written after _resolve_chat_session creates the directory.
 	local preamble
 	preamble=$(
 		GH_ISSUE_NUMBER="$gh_issue_number" \
@@ -813,6 +809,11 @@ _gh_issue_chat() {
 
 	session_args=()
 	_resolve_chat_session session_args "$gh_issue_url" "$gh_issue_new_session" "" "" "" "${passthrough[@]}"
+
+	# Save context files after _resolve_chat_session has created (or recreated)
+	# the session directory — this ensures --new-session doesn't wipe them.
+	_save_context_file "$session_dir" "issue_body.md" "$gh_issue_body"
+	_save_context_file "$session_dir" "issue_comments.md" "$gh_issue_comments"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

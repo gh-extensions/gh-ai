@@ -340,19 +340,15 @@ _gh_run_chat() {
 	local gh_current_branch
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
-	# Resolve session directory and create context files
+	# Compute session directory path for preamble and context files
 	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_run_url")
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"
-	mkdir -p "$session_dir"
 
-	# Save large context to files (no truncation needed with file-backed approach)
-	_save_context_file "$session_dir" "run_jobs.txt" "$gh_run_jobs"
-	_save_context_file "$session_dir" "run_log.txt" "$gh_run_log"
-
-	# Render context and pipe to agent
+	# Render context — session_dir path is embedded as a string;
+	# files are written after _resolve_chat_session creates the directory.
 	local preamble
 	preamble=$(
 		GH_RUN_ID="$gh_run_id" \
@@ -369,6 +365,11 @@ _gh_run_chat() {
 
 	session_args=()
 	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "$gh_run_branch" "" "$gh_run_sha" "${passthrough[@]}"
+
+	# Save context files after _resolve_chat_session has created (or recreated)
+	# the session directory — this ensures --new-session doesn't wipe them.
+	_save_context_file "$session_dir" "run_jobs.txt" "$gh_run_jobs"
+	_save_context_file "$session_dir" "run_log.txt" "$gh_run_log"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

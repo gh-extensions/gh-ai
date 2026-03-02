@@ -1142,19 +1142,15 @@ _gh_pr_chat() {
 	local gh_current_branch
 	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
 
-	# Resolve session directory and create context files
+	# Compute session directory path for preamble and context files
 	local session_id session_dir
 	session_id=$(_uuidv5 "$gh_pr_url")
 	local git_root
 	_git_repo_path git_root || return 1
 	session_dir="$git_root/.claude/sessions/$session_id"
-	mkdir -p "$session_dir"
 
-	# Save large context to files
-	_save_context_file "$session_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$session_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$session_dir" "pr_commits.txt" "$gh_pr_commits"
-
+	# Render context — session_dir path is embedded as a string;
+	# files are written after _resolve_chat_session creates the directory.
 	local preamble
 	preamble=$(
 		GH_PR_NUMBER="$gh_pr_number" \
@@ -1169,6 +1165,12 @@ _gh_pr_chat() {
 
 	session_args=()
 	_resolve_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "$gh_pr_head" "$gh_pr_head" "" "${passthrough[@]}"
+
+	# Save context files after _resolve_chat_session has created (or recreated)
+	# the session directory — this ensures --new-session doesn't wipe them.
+	_save_context_file "$session_dir" "pr_diff.patch" "$gh_pr_diff"
+	_save_context_file "$session_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
+	_save_context_file "$session_dir" "pr_commits.txt" "$gh_pr_commits"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
