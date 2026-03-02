@@ -1132,6 +1132,11 @@ _gh_pr_chat() {
 	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
 	eval "$gh_pr_eval"
 
+	if [[ -z "$gh_pr_head" ]]; then
+		gum log --level error "Could not determine head branch for PR #$gh_pr_number"
+		return 1
+	fi
+
 	# Render context and pipe to agent
 	local gh_pr_focus=""
 	if [[ -n "$gh_pr_description" ]]; then

@@ -330,6 +330,11 @@ _gh_run_chat() {
 		gh_run_log=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id logs..." -- \
 			gh run view "$gh_run_id" --log || true)
 	fi
+	if [[ -z "$gh_run_log" ]]; then
+		gum log --level error "No logs available for run #$gh_run_id"
+		gum log --level info "Logs may still be streaming, have expired, or the run may not have started yet"
+		return 1
+	fi
 
 	local gh_run_focus=""
 	if [[ -n "$gh_run_description" ]]; then
