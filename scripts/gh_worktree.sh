@@ -25,7 +25,7 @@ _gh_worktree_create() {
 	gh_worktree_jq=$(<"$_script_dir/gh_worktree.jq")
 
 	# First pass: extract name, cwd, session_id from Claude's hook JSON
-	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main" gh_worktree_branch=""
+	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main" gh_worktree_branch="" gh_worktree_sha=""
 	eval "$(jq -r "$gh_worktree_jq")"
 
 	# Second pass: overlay remote_ref from the session state file (same jq filter)
@@ -43,17 +43,19 @@ _gh_worktree_create() {
 	local gh_worktree_path
 	gh_worktree_path="${gh_worktree_cwd}/.claude/worktrees/${gh_worktree_name}"
 
-	local git_ref="origin/${gh_worktree_remote_ref}"
-
 	# If the worktree is already registered, reuse it instead of failing
 	if git -C "$gh_worktree_cwd" worktree list --porcelain | grep -qx "worktree ${gh_worktree_path}"; then
 		printf '%s\n' "$gh_worktree_path"
 		return 0
 	fi
 
-	# Ensure the remote tracking branch is available locally before creating the worktree.
-	# This is necessary when the branch has never been fetched (e.g. on first session start).
+	# Fetch the remote branch to ensure the SHA (or branch tip) is available locally.
 	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
+
+	# Use the pinned SHA when present (run sessions), otherwise the branch tip.
+	# Pinning to a SHA guarantees the worktree always starts from the exact commit
+	# that triggered the run, regardless of how far the branch has since moved.
+	local git_ref="${gh_worktree_sha:-origin/${gh_worktree_remote_ref}}"
 
 	# Determine which local branch to check out in this worktree.
 	# PR sessions store an explicit branch (the PR head) so the worktree sits directly

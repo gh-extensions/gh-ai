@@ -415,14 +415,20 @@ _try_resume_chat_session() {
 # When empty, the worktree creates a fresh branch named after the worktree
 # from origin/remote_ref (issue/run behaviour).
 #
-# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$branch" "${passthrough[@]}"
+# The sha parameter pins the worktree base to a specific commit. When set
+# (e.g. the run's headSha), the worktree is created from that exact commit
+# rather than the current tip of remote_ref. remote_ref is still used to
+# fetch the branch so the SHA is reachable locally.
+#
+# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$branch" "$sha" "${passthrough[@]}"
 _resolve_chat_session() {
 	local -n _session_args_ref="$1"
 	local resource_url="$2"
 	local new_session="$3"
 	local remote_ref="$4"
 	local branch="$5"
-	shift 5
+	local sha="$6"
+	shift 6
 
 	_session_args_ref=()
 
@@ -453,9 +459,16 @@ _resolve_chat_session() {
 			jq -n --arg session_id "$session_id" --arg name "$name" \
 				--arg remote_ref "$remote_ref" --arg branch "$branch" \
 				'{session_id: $session_id, name: $name, remote_ref: $remote_ref, branch: $branch}' >"$state_json"
+		elif [[ -n "$sha" ]]; then
+			# Run: pin to the exact commit that triggered the run so the agent
+			# always works on the code that actually failed, regardless of how
+			# far the branch has moved. remote_ref is kept for fetching.
+			jq -n --arg session_id "$session_id" --arg name "$name" \
+				--arg remote_ref "$remote_ref" --arg sha "$sha" \
+				'{session_id: $session_id, name: $name, remote_ref: $remote_ref, sha: $sha}' >"$state_json"
 		else
-			# Issue/run: no branch field; worktree creates a fresh branch named
-			# after the worktree (e.g. issue-99, run-123) from origin/remote_ref.
+			# Issue: no branch or sha; worktree creates a fresh branch named
+			# after the worktree (e.g. issue-99) from origin/remote_ref.
 			jq -n --arg session_id "$session_id" --arg name "$name" \
 				--arg remote_ref "$remote_ref" \
 				'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_json"

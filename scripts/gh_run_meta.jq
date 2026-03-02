@@ -3,6 +3,7 @@
 "gh_run_url=" + (.url // "" | @sh),
 "gh_run_event=" + (.event // "" | @sh),
 "gh_run_branch=" + (.headBranch // "" | @sh),
+"gh_run_sha=" + (.headSha // "" | @sh),
 "gh_run_jobs=" + (
   [.jobs[] |
     "- \(.name): \(.conclusion // .status)" +

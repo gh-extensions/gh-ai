@@ -43,7 +43,7 @@ setup() {
 @test "_try_resume_chat_session: returns 0 when state file exists" {
 	# Create state file first via _resolve_chat_session
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local resume_args=()
 	_try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" ""
@@ -57,7 +57,7 @@ setup() {
 
 @test "_try_resume_chat_session: returns 1 after --new-session deletes state file" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local resume_args=()
 	if _try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" "1"; then
@@ -79,7 +79,7 @@ setup() {
 @test "_try_resume_chat_session: returns 1 when user passes --resume in passthrough" {
 	# Create state file first
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local resume_args=()
 	if _try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" "" --resume "custom-id"; then
@@ -95,7 +95,7 @@ setup() {
 
 @test "_resolve_chat_session: first call returns --session-id and --worktree" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	[[ ${#args[@]} -eq 4 ]]
 	[[ "${args[0]}" == "--session-id" ]]
@@ -106,7 +106,7 @@ setup() {
 
 @test "_resolve_chat_session: creates state file on first call" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local session_id="${args[1]}"
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${session_id}/state.json"
@@ -115,12 +115,12 @@ setup() {
 
 @test "_resolve_chat_session: second call returns --resume with same session ID" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local first_id="${args[1]}"
 
 	local args2=()
-	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	[[ ${#args2[@]} -eq 4 ]]
 	[[ "${args2[0]}" == "--resume" ]]
@@ -131,10 +131,10 @@ setup() {
 
 @test "_resolve_chat_session: --new-session deletes existing state and returns --session-id" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local args2=()
-	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "1" "" ""
+	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "1" "" "" ""
 
 	[[ ${#args2[@]} -eq 4 ]]
 	[[ "${args2[0]}" == "--session-id" ]]
@@ -143,44 +143,44 @@ setup() {
 
 @test "_resolve_chat_session: skips when user passes --resume in passthrough" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" --resume "some-uuid"
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --resume "some-uuid"
 
 	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "_resolve_chat_session: skips when user passes --session-id in passthrough" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" --session-id "some-uuid"
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --session-id "some-uuid"
 
 	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "_resolve_chat_session: skips when user passes --continue in passthrough" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" --continue
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --continue
 
 	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "_resolve_chat_session: skips when user passes -c in passthrough" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" -c
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" -c
 
 	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "_resolve_chat_session: skips silently when URL is empty" {
 	local args=()
-	_resolve_chat_session args "" "" "" ""
+	_resolve_chat_session args "" "" "" "" ""
 
 	[[ ${#args[@]} -eq 0 ]]
 }
 
 @test "_resolve_chat_session: all resource types use sessions/ directory" {
 	local args_issue=() args_pr=() args_run=()
-	_resolve_chat_session args_issue "https://github.com/owner/repo/issues/42" "" "" ""
-	_resolve_chat_session args_pr "https://github.com/owner/repo/pull/7" "" "" ""
-	_resolve_chat_session args_run "https://github.com/owner/repo/actions/runs/123456" "" "" ""
+	_resolve_chat_session args_issue "https://github.com/owner/repo/issues/42" "" "" "" ""
+	_resolve_chat_session args_pr "https://github.com/owner/repo/pull/7" "" "" "" ""
+	_resolve_chat_session args_run "https://github.com/owner/repo/actions/runs/123456" "" "" "" ""
 
 	local sessions_dir="$BATS_TEST_TMPDIR/.claude/sessions"
 	[[ -f "$sessions_dir/${args_issue[1]}/state.json" ]]
@@ -190,7 +190,7 @@ setup() {
 
 @test "_resolve_chat_session: state file contains valid session_id and name" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
@@ -204,21 +204,21 @@ setup() {
 @test "_resolve_chat_session: derives worktree name from URL segments" {
 	local args=()
 
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 	[[ "${args[3]}" == "issue-42" ]]
 
 	args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "" "" ""
 	[[ "${args[3]}" == "pull-7" ]]
 
 	args=()
-	_resolve_chat_session args "https://github.com/owner/repo/actions/runs/123456" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/actions/runs/123456" "" "" "" ""
 	[[ "${args[3]}" == "run-123456" ]]
 }
 
 @test "_resolve_chat_session: state file contains remote_ref when provided" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" ""
+	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
@@ -229,7 +229,7 @@ setup() {
 
 @test "_resolve_chat_session: state file contains branch when branch is set" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "feat-my-branch"
+	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "feat-my-branch" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
@@ -238,9 +238,32 @@ setup() {
 	[[ "$content" == *'"branch": "feat-my-branch"'* ]]
 }
 
+@test "_resolve_chat_session: state file contains sha when sha is set" {
+	local args=()
+	_resolve_chat_session args "https://github.com/owner/repo/actions/runs/123456" "" "main" "" "abc1234def5678901234567890123456789012ab"
+
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
+	local content
+	content=$(cat "$state_file")
+
+	[[ "$content" == *'"sha": "abc1234def5678901234567890123456789012ab"'* ]]
+	[[ "$content" != *'"branch"'* ]]
+}
+
+@test "_resolve_chat_session: state file has no sha when sha is empty" {
+	local args=()
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
+
+	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
+	local content
+	content=$(cat "$state_file")
+
+	[[ "$content" != *'"sha"'* ]]
+}
+
 @test "_resolve_chat_session: state file has no branch when use_ref_as_branch is unset" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
@@ -259,7 +282,7 @@ setup() {
 	export -f git
 
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
@@ -278,7 +301,7 @@ setup() {
 	export -f git
 
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" ""
+	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content

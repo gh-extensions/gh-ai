@@ -311,14 +311,14 @@ _gh_run_chat() {
 	# Fetch run metadata
 	local gh_run_eval
 	gh_run_eval=$(gum spin --title "Fetching GitHub workflow run #$gh_run_id metadata..." -- \
-		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,jobs \
+		gh run view "$gh_run_id" --json displayTitle,conclusion,url,event,headBranch,headSha,jobs \
 		-q "$(<"$_gh_ai_source_dir/scripts/gh_run_meta.jq")" || true)
 	if [[ -z "$gh_run_eval" ]]; then
 		gum log --level error "Failed to fetch run #$gh_run_id"
 		return 1
 	fi
 
-	local gh_run_title gh_run_conclusion gh_run_event gh_run_branch gh_run_jobs
+	local gh_run_title gh_run_conclusion gh_run_event gh_run_branch gh_run_sha gh_run_jobs
 	eval "$gh_run_eval"
 
 	# Fetch logs: use --log-failed for failed runs, --log otherwise
@@ -368,7 +368,7 @@ _gh_run_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "$gh_run_branch" "" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "$gh_run_branch" "" "$gh_run_sha" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

@@ -204,9 +204,9 @@ be pushed with a plain `git push` to update the PR — no extra flags needed.
 The agent can commit work-in-progress there and you can open a PR from it
 when ready.
 
-**Run chat** starts a fresh branch from the exact branch that triggered the
-failing run, so the agent's fix targets the right code. Push the branch and
-open a PR to land the fix.
+**Run chat** starts a fresh branch pinned to the run's exact `headSha` — the
+commit that actually triggered the failure — regardless of how far the branch
+has moved since. Push the branch and open a PR to land the fix.
 
 ## Configuration
 
