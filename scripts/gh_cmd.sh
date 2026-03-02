@@ -4,6 +4,8 @@
 
 set -euo pipefail
 
+_script_dir=$(dirname "${BASH_SOURCE[0]}")
+
 # Core utility functions for gh-ai
 
 # Render a template file by substituting ${VAR} placeholders with env var values
@@ -29,7 +31,7 @@ _cmd_render() {
 		return 1
 	fi
 
-	awk -f "$(dirname "${BASH_SOURCE[0]}")/gh_render.awk" "$template_file"
+	awk -f "$_script_dir/gh_render.awk" "$template_file"
 }
 
 # Resolve the configured agent binary name
