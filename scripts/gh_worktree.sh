@@ -54,6 +54,10 @@ _gh_worktree_create() {
 		return 0
 	fi
 
+	# Ensure the remote tracking branch is available locally before creating the worktree.
+	# This is necessary when the branch has never been fetched (e.g. on first session start).
+	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
+
 	git -C "$gh_worktree_cwd" worktree add -B "worktree-${gh_worktree_name}" "$gh_worktree_path" "$git_ref" >&2
 
 	printf '%s\n' "$gh_worktree_path"
