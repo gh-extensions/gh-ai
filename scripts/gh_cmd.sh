@@ -146,7 +146,7 @@ _cmd_chat() {
 	# shellcheck disable=SC2154
 	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
 	local settings_file="$_gh_ai_source_dir/scripts/gh_claude.json"
-	printf '%s\n' "$preamble" | "$agent" --settings "$settings_file" "${args[@]}"
+	printf '%s\n' "$preamble" | cat -s | "$agent" --settings "$settings_file" "${args[@]}"
 }
 
 # Extract title from AI response
