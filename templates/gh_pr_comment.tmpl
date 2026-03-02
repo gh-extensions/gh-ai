@@ -1,4 +1,5 @@
-Write a GitHub pull request comment based on the description below.
+Write a conversational GitHub pull request comment that fulfils the request below.
+Do not write a code review — produce a natural, targeted comment for the PR conversation.
 
 <pull_request>
 Number: ${GH_PR_NUMBER}
@@ -14,11 +15,14 @@ ${GH_PR_COMMENTS}
 ${GH_PR_CONTEXT}
 </context>
 
+<request>
 ${GH_PR_DESCRIPTION}
+</request>
 
 <format>
-- Body: GitHub-flavored Markdown; reference code as `file.ext:line` when relevant
-- Be specific and actionable; omit sections that do not apply; do not write "N/A"
+- Body: GitHub-flavored Markdown
+- Match the tone and scope of the request — keep it concise and conversational
+- Omit sections that do not apply; do not write "N/A"
 - Output only the comment body, no preamble or meta-commentary
 - Wrap prose paragraphs at 120 characters; do not wrap headings, code blocks, inline code, or URLs
 </format>
