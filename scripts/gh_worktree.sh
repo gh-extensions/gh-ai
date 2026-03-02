@@ -21,15 +21,12 @@ _script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Stdout: worktree path (e.g. /path/to/repo/.claude/worktrees/issue-42)
 # Stderr: git worktree add output
 _gh_worktree_create() {
-	local input
-	input=$(cat)
-
 	local gh_worktree_jq
 	gh_worktree_jq=$(<"$_script_dir/gh_worktree.jq")
 
 	# First pass: extract name, cwd, session_id from Claude's hook JSON
 	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main"
-	eval "$(printf '%s' "$input" | jq -r "$gh_worktree_jq")"
+	eval "$(jq -r "$gh_worktree_jq")"
 
 	# Second pass: overlay remote_ref from the session state file (same jq filter)
 	# Try new directory format first, then fall back to old .json format
