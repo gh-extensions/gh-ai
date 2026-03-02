@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-_script_dir=$(dirname "${BASH_SOURCE[0]}")
+_gh_cmd_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Core utility functions for gh-ai
 
@@ -31,7 +31,7 @@ _cmd_render() {
 		return 1
 	fi
 
-	awk -f "$_script_dir/gh_render.awk" "$template_file"
+	awk -f "$_gh_cmd_dir/gh_render.awk" "$template_file"
 }
 
 # Resolve the configured agent binary name
