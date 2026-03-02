@@ -1,0 +1,24 @@
+Write a GitHub pull request comment based on the description below.
+
+<pull_request>
+Number: ${GH_PR_NUMBER}
+Title: ${GH_PR_TITLE}
+Body: ${GH_PR_BODY}
+</pull_request>
+
+<comments>
+${GH_PR_COMMENTS}
+</comments>
+
+<context>
+${GH_PR_CONTEXT}
+</context>
+
+${GH_PR_DESCRIPTION}
+
+<format>
+- Body: GitHub-flavored Markdown; reference code as `file.ext:line` when relevant
+- Be specific and actionable; omit sections that do not apply; do not write "N/A"
+- Output only the comment body, no preamble or meta-commentary
+- Wrap prose paragraphs at 120 characters; do not wrap headings, code blocks, inline code, or URLs
+</format>
