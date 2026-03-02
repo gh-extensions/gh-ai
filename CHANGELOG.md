@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.11.0](https://github.com/gh-extensions/gh-ai/compare/v0.10.0...v0.11.0) (2026-03-02)
+
+
+### Features
+
+* add gh ai issue comment command ([eeb421b](https://github.com/gh-extensions/gh-ai/commit/eeb421b69047f37563b55ec63f11fd86ce5ee77a))
+* add gh ai pr comment subcommand ([12a8067](https://github.com/gh-extensions/gh-ai/commit/12a8067380522e637e4c002a76f0762ddc7466e7))
+* pin run chat sessions to exact commit that triggered failure ([a57c392](https://github.com/gh-extensions/gh-ai/commit/a57c392ef4c9290e5b7858f6705a31f6da6b38fd))
+
+
+### Bug Fixes
+
+* add validation for required variables in gh_pr and gh_run scripts ([b2a2fc4](https://github.com/gh-extensions/gh-ai/commit/b2a2fc46e00f4777a56fbd72933cba3f30afb316))
+* drop worktree- prefix from local branch names ([2579e51](https://github.com/gh-extensions/gh-ai/commit/2579e5190efb23ece5a0eb7a35b00687c7fb732c))
+* fetch remote branch before creating worktree ([f48f437](https://github.com/gh-extensions/gh-ai/commit/f48f4376bbc070965d66373a3102a96704af8a5e))
+* replace cat with jq to avoid WorktreeCreate hook deadlock ([5a8e622](https://github.com/gh-extensions/gh-ai/commit/5a8e6220a58afd59d7cb296d4f11acca1b94d53b))
+* reuse existing worktree in WorktreeCreate hook ([a9d01a4](https://github.com/gh-extensions/gh-ai/commit/a9d01a4ca313a6298ec4db7681384a21fd9c5cc9))
+* set upstream tracking on newly created worktree branches ([4886d3f](https://github.com/gh-extensions/gh-ai/commit/4886d3f497fa15adee108e00a5cc23b8002b5c46))
+* squeeze blank lines in preamble before passing to agent ([01a138b](https://github.com/gh-extensions/gh-ai/commit/01a138b9db8c70ea1a5a3574d223f5d458eb86d6))
+* steer gh ai pr comment toward conversational output ([962429b](https://github.com/gh-extensions/gh-ai/commit/962429b12f443a23f519b6f18d4e333cd21de4cf))
+* use URL-derived worktree name for run chat sessions ([972e7d4](https://github.com/gh-extensions/gh-ai/commit/972e7d44a4c04edc12b8e7d83ca74078e2f66227))
+* wrap GH_PR_DESCRIPTION in &lt;description&gt; tag in pr create template ([faef97e](https://github.com/gh-extensions/gh-ai/commit/faef97e0f951fe80f5b83f360021550083037cf6))
+
 ## [0.10.0](https://github.com/gh-extensions/gh-ai/compare/v0.9.0...v0.10.0) (2026-03-01)
 
 
