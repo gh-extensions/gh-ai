@@ -165,15 +165,16 @@ gh ai run chat 123456 -- --model sonnet
 ## Session Management
 
 Chat commands automatically persist sessions per resource. The first
-invocation creates a new session with a dedicated worktree; subsequent runs
-resume it. Session state is stored in the repository at:
+invocation creates a new session with a dedicated worktree and a local branch
+named after the resource (e.g. `issue-42`, `pr-42`); subsequent runs resume
+it. Session state is stored in the repository at:
 
 ```text
-<repo-root>/.claude/sessions/<session-uuid>.json
+<repo-root>/.claude/sessions/<session-uuid>/state.json
 ```
 
-Use `--new-session` (or `-n`) to discard the existing session and start fresh. Session
-management is skipped when you pass your own `--resume`, `--session-id`,
+Use `--new-session` (or `-n`) to discard the existing session and start fresh.
+Session management is skipped when you pass your own `--resume`, `--session-id`,
 `--continue`, or `-c` after `--`.
 
 When a session ends, the worktree is automatically removed. If the worktree
