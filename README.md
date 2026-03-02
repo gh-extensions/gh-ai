@@ -121,7 +121,7 @@ Pipe to an AI agent to implement:
 ```bash
 gh ai issue plan 42 | claude
 gh ai issue plan 42 | jules new
-gh ai issue plan 42 | gh agent-task create --body -
+gh ai issue plan 42 | gh agent-task create -F -
 ```
 
 Full branch + PR workflow:
@@ -181,7 +181,7 @@ ISSUE_NUMBER="${ISSUE_URL##*/}"
 gh ai issue plan "$ISSUE_NUMBER" | jules new
 
 # — or — hand off to Copilot
-gh ai issue plan "$ISSUE_NUMBER" | gh agent-task create --body -
+gh ai issue plan "$ISSUE_NUMBER" | gh agent-task create -F -
 ```
 
 ## Session Management
@@ -213,11 +213,11 @@ edit, and commit files without touching your working tree or switching branches.
 
 The worktree name and branch strategy depend on the resource type:
 
-| Command | Worktree name | Branch |
-| ------- | ------------- | ------ |
-| `gh ai pr chat 42` | `pull-42` | Checks out the PR head branch directly |
-| `gh ai issue chat 42` | `issue-42` | Creates a new `issue-42` branch from `origin/<default>` |
-| `gh ai run chat 123` | `run-123` | Creates a new `run-123` branch from `origin/<run's branch>` |
+| Command               | Worktree name | Branch                                                      |
+| --------------------- | ------------- | ----------------------------------------------------------- |
+| `gh ai pr chat 42`    | `pull-42`     | Checks out the PR head branch directly                      |
+| `gh ai issue chat 42` | `issue-42`    | Creates a new `issue-42` branch from `origin/<default>`     |
+| `gh ai run chat 123`  | `run-123`     | Creates a new `run-123` branch from `origin/<run's branch>` |
 
 **PR chat** checks out the PR's head branch so any commit the agent makes can
 be pushed with a plain `git push` to update the PR — no extra flags needed.
