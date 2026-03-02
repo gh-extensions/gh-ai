@@ -227,9 +227,9 @@ setup() {
 	[[ "$content" == *'"remote_ref": "feat-my-branch"'* ]]
 }
 
-@test "_resolve_chat_session: state file contains branch when use_ref_as_branch is set" {
+@test "_resolve_chat_session: state file contains branch when branch is set" {
 	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "1"
+	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "feat-my-branch"
 
 	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
 	local content
