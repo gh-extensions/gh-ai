@@ -70,6 +70,9 @@ _gh_worktree_create() {
 		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${branch_name}" >&2
 	else
 		git -C "$gh_worktree_cwd" worktree add -b "${branch_name}" "$gh_worktree_path" "$git_ref" >&2
+		# Set upstream so _gh_worktree_has_unpushed works from the start.
+		# The developer can override this later with `git push -u origin <branch>`.
+		git -C "$gh_worktree_path" branch --set-upstream-to="$git_ref" >&2 || true
 	fi
 
 	printf '%s\n' "$gh_worktree_path"
