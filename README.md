@@ -162,6 +162,28 @@ gh ai run chat 123456 -n                # start a new session
 gh ai run chat 123456 -- --model sonnet
 ```
 
+## Recipes
+
+**Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
+
+Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
+each PR in the issue body. Capture the issue number, generate an implementation
+plan, and hand it off to Jules or Copilot to execute.
+
+```bash
+ISSUE_URL=$(
+  gh pr list --search "author:app/dependabot is:pr" --json number,title \
+    | gh ai issue create -d "Consolidate Dependabot PRs into a single update"
+)
+ISSUE_NUMBER="${ISSUE_URL##*/}"
+
+# Hand off to Jules
+gh ai issue plan "$ISSUE_NUMBER" | jules new
+
+# — or — hand off to Copilot
+gh ai issue plan "$ISSUE_NUMBER" | gh agent-task create --body -
+```
+
 ## Session Management
 
 Chat commands automatically persist sessions per resource. The first
