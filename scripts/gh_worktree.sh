@@ -55,12 +55,21 @@ _gh_worktree_create() {
 	# This is necessary when the branch has never been fetched (e.g. on first session start).
 	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
 
-	# If the branch already exists locally (e.g. previous session removed the worktree but kept
-	# the branch), reuse it as-is. Otherwise create a new branch from the remote ref.
-	if git -C "$gh_worktree_cwd" show-ref --verify --quiet "refs/heads/${gh_worktree_name}"; then
-		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${gh_worktree_name}" >&2
+	# Determine which local branch to check out in this worktree.
+	# Prefer remote_ref so the worktree sits directly on the upstream branch (e.g. the
+	# PR head branch), enabling a plain `git push` to update it. Fall back to the
+	# worktree name when remote_ref is already checked out in another worktree (e.g. main
+	# in the root), creating a fresh branch from origin/remote_ref instead.
+	local branch_name="$gh_worktree_remote_ref"
+	if git -C "$gh_worktree_cwd" worktree list --porcelain \
+		| grep -qx "branch refs/heads/${gh_worktree_remote_ref}"; then
+		branch_name="$gh_worktree_name"
+	fi
+
+	if git -C "$gh_worktree_cwd" show-ref --verify --quiet "refs/heads/${branch_name}"; then
+		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${branch_name}" >&2
 	else
-		git -C "$gh_worktree_cwd" worktree add -b "${gh_worktree_name}" "$gh_worktree_path" "$git_ref" >&2
+		git -C "$gh_worktree_cwd" worktree add -b "${branch_name}" "$gh_worktree_path" "$git_ref" >&2
 	fi
 
 	printf '%s\n' "$gh_worktree_path"

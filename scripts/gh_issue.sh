@@ -813,7 +813,7 @@ _gh_issue_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_issue_url" "$gh_issue_new_session" "" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_issue_url" "$gh_issue_new_session" "" "" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }

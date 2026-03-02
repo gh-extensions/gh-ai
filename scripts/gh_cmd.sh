@@ -409,13 +409,18 @@ _try_resume_chat_session() {
 # (e.g. the PR head branch). When empty, defaults to the repository's
 # default branch via origin/HEAD.
 #
-# Usage: _resolve_chat_session session_args_ref "https://github.com/owner/repo/issues/42" "$new_session" "$remote_ref" "${passthrough[@]}"
+# The worktree_name parameter overrides the worktree name. When empty:
+#   - if remote_ref is set, the sanitized branch name is used (e.g. "feature-branch")
+#   - otherwise the URL-derived name is used (e.g. "issue-42", "run-22561875823")
+#
+# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$worktree_name" "${passthrough[@]}"
 _resolve_chat_session() {
 	local -n _session_args_ref="$1"
 	local resource_url="$2"
 	local new_session="$3"
 	local remote_ref="$4"
-	shift 4
+	local worktree_name="$5"
+	shift 5
 
 	_session_args_ref=()
 
@@ -435,11 +440,12 @@ _resolve_chat_session() {
 		name=$(jq -r '.name' "${state_file}.json")
 		_session_args_ref=(--resume "$session_id" --worktree "$name")
 	else
-		# New session: use remote_ref (sanitized) as worktree name when provided,
-		# otherwise keep the URL-derived name (e.g. issue-42) and resolve default branch
-		if [[ -n "$remote_ref" ]]; then
-			name=$(printf '%s' "$remote_ref" | tr '/' '-')
-		else
+		# New session: name is always URL-derived (worktree_name overrides only when set).
+		# remote_ref controls which branch to track — never influences the name.
+		if [[ -n "$worktree_name" ]]; then
+			name="$worktree_name"
+		fi
+		if [[ -z "$remote_ref" ]]; then
 			remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')
 			remote_ref="${remote_ref:-main}"
 		fi

@@ -368,7 +368,7 @@ _gh_run_chat() {
 	)
 
 	session_args=()
-	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "" "${passthrough[@]}"
+	_resolve_chat_session session_args "$gh_run_url" "$gh_run_new_session" "$gh_run_branch" "" "${passthrough[@]}"
 
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
