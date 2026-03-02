@@ -182,6 +182,32 @@ has uncommitted changes, they are auto-stashed before removal so nothing is
 lost. Recover them with `git stash list` and look for entries prefixed with
 `gh-ai: auto-stash worktree`. Unpushed commits remain in the branch reflog.
 
+## Worktrees & Branches
+
+Each chat session runs inside a dedicated git worktree so the agent can read,
+edit, and commit files without touching your working tree or switching branches.
+
+**Worktree location:** `<repo-root>/.claude/worktrees/<name>`
+
+The worktree name and branch strategy depend on the resource type:
+
+| Command | Worktree name | Branch |
+| ------- | ------------- | ------ |
+| `gh ai pr chat 42` | `pull-42` | Checks out the PR head branch directly |
+| `gh ai issue chat 42` | `issue-42` | Creates a new `issue-42` branch from `origin/<default>` |
+| `gh ai run chat 123` | `run-123` | Creates a new `run-123` branch from `origin/<run's branch>` |
+
+**PR chat** checks out the PR's head branch so any commit the agent makes can
+be pushed with a plain `git push` to update the PR — no extra flags needed.
+
+**Issue chat** starts a fresh branch from the repository's default branch.
+The agent can commit work-in-progress there and you can open a PR from it
+when ready.
+
+**Run chat** starts a fresh branch from the exact branch that triggered the
+failing run, so the agent's fix targets the right code. Push the branch and
+open a PR to land the fix.
+
 ## Configuration
 
 Override the AI agent and model via `gh config`.
