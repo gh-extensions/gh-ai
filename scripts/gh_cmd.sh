@@ -281,7 +281,8 @@ _git_branch_diff() {
 # Usage: _create_context_dir context_dir_ref
 _create_context_dir() {
 	local -n _cdir_ref="$1"
-	_cdir_ref=$(mktemp -d "${TMPDIR:-/tmp}/gh-ai-ctx.XXXXXXXXXX")
+	local _ctx_tmpdir="${TMPDIR:-/tmp}"
+	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
 }
 
 # Save content to a named file in a context directory
