@@ -304,6 +304,7 @@ _gh_run_chat() {
 
 	local session_args=()
 	if _try_resume_chat_session session_args "$gh_run_url" "$gh_run_new_session" "${passthrough[@]}"; then
+		gum log --level info "Resuming agent session for run #$gh_run_id..."
 		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
 		return
 	fi
@@ -376,6 +377,7 @@ _gh_run_chat() {
 	_save_context_file "$session_dir" "run_jobs.txt" "$gh_run_jobs"
 	_save_context_file "$session_dir" "run_log.txt" "$gh_run_log"
 
+	gum log --level info "Starting agent session for run #$gh_run_id..."
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 

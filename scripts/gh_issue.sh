@@ -766,6 +766,7 @@ _gh_issue_chat() {
 
 	local session_args=()
 	if _try_resume_chat_session session_args "$gh_issue_url" "$gh_issue_new_session" "${passthrough[@]}"; then
+		gum log --level info "Resuming agent session for issue #$gh_issue_number..."
 		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
 		return
 	fi
@@ -815,6 +816,7 @@ _gh_issue_chat() {
 	_save_context_file "$session_dir" "issue_body.md" "$gh_issue_body"
 	_save_context_file "$session_dir" "issue_comments.md" "$gh_issue_comments"
 
+	gum log --level info "Starting agent session for issue #$gh_issue_number..."
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 

@@ -1102,6 +1102,7 @@ _gh_pr_chat() {
 
 	local session_args=()
 	if _try_resume_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "${passthrough[@]}"; then
+		gum log --level info "Resuming agent session for PR #$gh_pr_number..."
 		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
 		return
 	fi
@@ -1177,6 +1178,7 @@ _gh_pr_chat() {
 	_save_context_file "$session_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
 	_save_context_file "$session_dir" "pr_commits.txt" "$gh_pr_commits"
 
+	gum log --level info "Starting agent session for PR #$gh_pr_number..."
 	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
 }
 
