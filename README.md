@@ -295,6 +295,10 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 | `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
 | `gh-fzf run`   | `alt-C` | Chat about the selected workflow run with AI     |
 
+When inside tmux, chat bindings (`alt-C`) automatically open in a new tmux
+window so fzf stays interactive. Set `GH_AI_FZF_TMUX=0` to disable this
+and always run inline.
+
 ## See Also
 
 - [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
@@ -304,4 +308,4 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 
 [MIT](LICENSE) — Copyright (c) 2025 gh-extensions
 
-<!-- markdownlint-disable-file MD013 -->
+<!-- markdownlint-disable-file MD013 MD036 -->
