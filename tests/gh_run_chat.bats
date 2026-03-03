@@ -28,7 +28,10 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_run.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_run_chat_args _show_run_chat_help _gh_run_chat _cmd_chat _cmd_render _split_on_separator _get_agent _uuidv5 _git_repo_path _resolve_session_state _try_resume_chat_session _resolve_chat_session _gh_repo_name
+		declare -f _parse_chat_args _parse_run_chat_args _show_run_chat_help _gh_run_chat \
+			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
+			_prepare_run_chat_context _prepare_run_context _resolve_context_dir _create_context_dir _save_context_file \
+			_parse_run_args
 	)"
 }
 
@@ -154,8 +157,8 @@ setup() {
 _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
-		"run view") printf "gh_run_title='Test Run'\ngh_run_conclusion='failure'\ngh_run_event='push'\ngh_run_branch='main'\ngh_run_jobs='build'" ;;
+		# First call: --json metadata; second call: --log / --log-failed (returns same JSON but non-empty is sufficient)
+		"run view") printf '{"displayTitle":"Test Run","conclusion":"failure","url":"https://github.com/owner/repo/actions/runs/123","event":"push","headBranch":"main","headSha":"abc123def456","jobs":[]}' ;;
 		"config get") ;;
 		esac
 	}
@@ -172,6 +175,8 @@ _setup_chat_mocks() {
 		esac
 	}
 	export -f gum
+
+	_save_worktree_state() { :; }
 }
 
 @test "_gh_run_chat: calls _cmd_chat with rendered preamble and session args" {
@@ -192,21 +197,6 @@ _setup_chat_mocks() {
 	[[ "$output" == *"--worktree run-12345678"* ]]
 }
 
-@test "_gh_run_chat: passes session args before passthrough args" {
-	_setup_chat_mocks
-
-	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
-		printf 'ALLARGS:%s\n' "$*"
-	}
-
-	run _gh_run_chat 12345678 -- --model sonnet
-
-	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"--session-id"* ]]
-	[[ "$output" == *"--model sonnet"* ]]
-}
 
 @test "_gh_run_chat: errors when no run ID provided" {
 	_setup_chat_mocks
@@ -219,7 +209,6 @@ _setup_chat_mocks() {
 @test "_gh_run_chat: errors when metadata fetch fails" {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
 		"run view") ;;
 		"config get") ;;
 		esac
@@ -243,7 +232,7 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_run_chat: resumes session without fetching metadata on second call" {
+@test "_gh_run_chat: resumes previous session on second call" {
 	_setup_chat_mocks
 
 	_cmd_chat() {

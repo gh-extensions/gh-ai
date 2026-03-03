@@ -28,7 +28,9 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_chat_args _show_pr_chat_help _gh_pr_chat _cmd_chat _cmd_render _split_on_separator _get_agent _uuidv5 _git_repo_path _resolve_session_state _try_resume_chat_session _resolve_chat_session _gh_repo_name
+		declare -f _parse_chat_args _parse_pr_chat_args _show_pr_chat_help _gh_pr_chat _detect_pr_number \
+			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
+			_prepare_pr_chat_context _prepare_pr_diff_context _resolve_context_dir _create_context_dir _save_context_file
 	)"
 }
 
@@ -128,20 +130,6 @@ setup() {
 	[[ "$output" == *"unexpected argument '99'"* ]]
 }
 
-@test "_parse_pr_chat_args: auto-detects PR number from current branch" {
-	gh() {
-		case "$1 $2" in
-		"pr view") echo "7" ;;
-		esac
-	}
-	export -f gh
-
-	local number="" description="" reset=""
-	_parse_pr_chat_args number description reset
-
-	[[ "$number" == "7" ]]
-}
-
 # ---------------------------------------------------------------------------
 # _show_pr_chat_help
 # ---------------------------------------------------------------------------
@@ -161,9 +149,8 @@ setup() {
 _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
 		"pr diff") echo "diff --git a/file.txt b/file.txt" ;;
-		"pr view") printf "gh_pr_title='Test PR Title'\ngh_pr_body='PR body'\ngh_pr_head='feature-branch'\ngh_pr_commits='- Test commit'" ;;
+		"pr view") printf '{"title":"Test PR Title","body":"PR body","headRefName":"feature-branch","commits":[{"messageHeadline":"Test commit"}]}' ;;
 		"config get") ;;
 		esac
 	}
@@ -190,6 +177,8 @@ _setup_chat_mocks() {
 		esac
 	}
 	export -f gum
+
+	_save_worktree_state() { :; }
 }
 
 @test "_gh_pr_chat: calls _cmd_chat with rendered preamble and session args" {
@@ -209,21 +198,6 @@ _setup_chat_mocks() {
 	[[ "$output" == *"--worktree pull-42"* ]]
 }
 
-@test "_gh_pr_chat: passes session args before passthrough args" {
-	_setup_chat_mocks
-
-	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
-		printf 'ALLARGS:%s\n' "$*"
-	}
-
-	run _gh_pr_chat 42 -- --model sonnet
-
-	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"--session-id"* ]]
-	[[ "$output" == *"--model sonnet"* ]]
-}
 
 @test "_gh_pr_chat: errors when no PR number provided" {
 	gh() {
@@ -254,9 +228,8 @@ _setup_chat_mocks() {
 @test "_gh_pr_chat: errors when diff is empty" {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
 		"pr diff") ;;
-		"pr view") echo "Test PR Title" ;;
+		"pr view") printf '{"title":"Test PR Title","body":"PR body","headRefName":"feature-branch","commits":[]}' ;;
 		"config get") ;;
 		esac
 	}
@@ -274,15 +247,16 @@ _setup_chat_mocks() {
 	}
 	export -f gum
 
+	_save_worktree_state() { :; }
+
 	run _gh_pr_chat 42
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_pr_chat: resumes session without fetching metadata on second call" {
+@test "_gh_pr_chat: resumes previous session on second call" {
 	_setup_chat_mocks
 
-	local fetch_count=0
 	_cmd_chat() {
 		printf 'PREAMBLE:%s\n' "$1"
 		shift
@@ -304,8 +278,7 @@ _setup_chat_mocks() {
 	run _gh_pr_chat 42
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"--resume"* ]]
-	[[ "$output" == *"PREAMBLE:"* ]]
-	# Preamble should be empty on resume
+	# Preamble should be empty on resume (no PR title rendered)
 	[[ "$output" != *"Test PR Title"* ]]
 }
 

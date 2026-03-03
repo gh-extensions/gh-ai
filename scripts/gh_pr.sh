@@ -6,65 +6,216 @@ set -euo pipefail
 
 # PR-related functions for gh-ai
 
+# Detect the PR number for the current branch
+#
+# Outputs the PR number to stdout, or empty string if detection fails.
+# Used by parsers as a fallback when no PR number was given explicitly.
+#
+# Usage: num=$(_detect_pr_number)
+_detect_pr_number() {
+	gh pr view --json number -q '.number' 2>/dev/null || true
+}
+
+# Shared argument parser for PR commands that accept a PR number and -d/--description.
+#
+# Extracts the PR number (first numeric arg, with auto-detect fallback)
+# and -d/--description value. Unknown flags produce an error that names subcmd.
+#
+# Usage: _parse_pr_args subcmd num_ref desc_ref [args...]
+_parse_pr_args() {
+	local _ppa_subcmd="$1"
+	local -n _ppa_num="$2"
+	local -n _ppa_desc="$3"
+	shift 3
+
+	local _ppa_raw=("$@")
+	local _ppa_skip=false
+	local _ppa_i=0
+
+	while [[ $_ppa_i -lt ${#_ppa_raw[@]} ]]; do
+		if [[ "$_ppa_skip" = true ]]; then
+			_ppa_skip=false
+			((++_ppa_i))
+			continue
+		fi
+
+		case "${_ppa_raw[$_ppa_i]}" in
+		--description | -d)
+			if ((_ppa_i + 1 >= ${#_ppa_raw[@]})); then
+				gum log --level error "${_ppa_raw[$_ppa_i]} requires a value"
+				return 1
+			fi
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_ppa_desc="${_ppa_raw[$((_ppa_i + 1))]}"
+			_ppa_skip=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_ppa_desc="${_ppa_raw[$_ppa_i]#--description=}"
+			;;
+		-*)
+			gum log --level error "unknown flag '${_ppa_raw[$_ppa_i]}' (use -- to pass flags to gh pr $_ppa_subcmd)"
+			return 1
+			;;
+		*)
+			local _ppa_arg="${_ppa_raw[$_ppa_i]#\#}"
+			if [[ -z "$_ppa_num" && "$_ppa_arg" =~ ^[0-9]+$ ]]; then
+				_ppa_num="$_ppa_arg"
+			else
+				gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++_ppa_i))
+	done
+
+	# Auto-detect PR number from current branch if not found in args
+	if [[ -z "$_ppa_num" ]]; then
+		_ppa_num=$(_detect_pr_number)
+	fi
+}
+
+# Shared context helper for existing-PR commands.
+#
+# Fetches PR metadata and diff, saves context files to the context directory,
+# and populates the output variables via namerefs.
+#
+# When type is "chat" the context is written to the persistent session directory
+# .claude/sessions/pull-<num> so Claude can resume across invocations.
+# For all other types a temporary directory is created.
+#
+# Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref
+_prepare_pr_diff_context() {
+	local _ctx_type="$1"
+	local _ctx_num="$2"
+	local -n _ctx_dir="$3"
+	local -n _ctx_title="$4"
+	local -n _ctx_head="$5"
+
+	local _ctx_meta
+	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
+		gh pr view "$_ctx_num" --json title,body,headRefName,commits || true)
+	if [[ -z "$_ctx_meta" ]]; then
+		gum log --level error "Failed to fetch pull request #$_ctx_num metadata"
+		return 1
+	fi
+
+	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.title // empty')
+	_ctx_head=$(printf '%s' "$_ctx_meta" | jq -r '.headRefName // empty')
+
+	local _ctx_body
+	_ctx_body=$(printf '%s' "$_ctx_meta" | jq -r '.body // empty')
+
+	local _ctx_commits
+	_ctx_commits=$(printf '%s' "$_ctx_meta" | jq -r '[.commits[] | "- " + .messageHeadline] | join("\n")')
+
+	local _ctx_diff
+	_ctx_diff=$(gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
+		gh pr diff "$_ctx_num" --patch || true)
+	if [[ -z "$_ctx_diff" ]]; then
+		gum log --level error "Failed to get diff for pull request #$_ctx_num"
+		return 1
+	fi
+
+	local _ctx_diff_stat
+	_ctx_diff_stat=$(printf '%s' "$_ctx_diff" | git apply --stat 2>/dev/null || true)
+
+	_resolve_context_dir "$_ctx_type" "pull-$_ctx_num" _ctx_dir || return 1
+
+	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
+}
+
 # Parse PR create arguments (before -- separator)
 #
 # Extracts -d/--description and -B/--base values. Unknown flags produce
 # an error with a hint to use --.
 #
-# Example: _parse_pr_create_args base desc -B develop -d "context"
+# Usage: _parse_pr_create_args base_ref desc_ref [args...]
 _parse_pr_create_args() {
-	local -n git_base_branch_ref="$1"
-	local -n gh_pr_description_ref="$2"
+	local -n _prca_base_ref="$1"
+	local -n _prca_desc_ref="$2"
 	shift 2
 
-	local raw_args=("$@")
-	local skip_next=false
-	local i=0
+	local _prca_raw=("$@")
+	local _prca_skip=false
+	local _prca_i=0
 
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
+	while [[ $_prca_i -lt ${#_prca_raw[@]} ]]; do
+		if [[ "$_prca_skip" = true ]]; then
+			_prca_skip=false
+			((++_prca_i))
 			continue
 		fi
 
-		case "${raw_args[$i]}" in
+		case "${_prca_raw[$_prca_i]}" in
 		--description | -d)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
+			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
+				gum log --level error "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
-			gh_pr_description_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_prca_desc_ref="${_prca_raw[$((_prca_i + 1))]}"
+			_prca_skip=true
 			;;
 		--description=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_description_ref="${raw_args[$i]#--description=}"
+			_prca_desc_ref="${_prca_raw[$_prca_i]#--description=}"
 			;;
 		--base | -B)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
+			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
+				gum log --level error "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
-			git_base_branch_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
+			_prca_base_ref="${_prca_raw[$((_prca_i + 1))]}"
+			_prca_skip=true
 			;;
 		--base=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			git_base_branch_ref="${raw_args[$i]#--base=}"
+			_prca_base_ref="${_prca_raw[$_prca_i]#--base=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr create)"
+			gum log --level error "unknown flag '${_prca_raw[$_prca_i]}' (use -- to pass flags to gh pr create)"
 			return 1
 			;;
 		*)
-			gum log --level error "unexpected argument '${raw_args[$i]}'"
+			gum log --level error "unexpected argument '${_prca_raw[$_prca_i]}'"
 			return 1
 			;;
 		esac
-		((++i))
+		((++_prca_i))
 	done
+}
+
+# Context for _gh_pr_create: builds pre-PR diff context from local git history.
+#
+# Usage: _prepare_pr_create_context gh_pr_dir_ref [base_branch]
+_prepare_pr_create_context() {
+	local -n _ctx_dir="$1"
+	local _ctx_base="${2:-}"
+
+	local _ctx_head
+	_ctx_head=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+
+	if [[ -z "$_ctx_base" ]]; then
+		_ctx_base=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+	fi
+
+	local _ctx_diff="" _ctx_diff_stat="" _ctx_log="" _ctx_commits=""
+	_git_branch_diff "$_ctx_base" "$_ctx_head" _ctx_diff _ctx_diff_stat _ctx_log _ctx_commits || return 1
+
+	local _ctx_dir_path
+	_create_context_dir _ctx_dir_path
+	_ctx_dir="$_ctx_dir_path"
+
+	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
 }
 
 # PR create help function
@@ -110,70 +261,49 @@ _gh_pr_create() {
 		;;
 	esac
 
-	local ai_args=()
+	local args=()
 	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
+	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_create.tmpl"
 
-	local git_base_branch=""
-	local gh_pr_description=""
-	_parse_pr_create_args git_base_branch gh_pr_description "${ai_args[@]}"
+	local git_base_branch="" gh_pr_description=""
+	_parse_pr_create_args git_base_branch gh_pr_description "${args[@]}"
 
 	# Remember whether the user explicitly specified --base so we only
 	# forward it to gh pr create when intended (not from fallback defaults).
-	local user_specified_base="$git_base_branch"
-
-	local git_head_branch
-	git_head_branch=$(git rev-parse --abbrev-ref HEAD)
-
-	# Fall back to default base branch if --base not provided
-	if [[ -z "$git_base_branch" ]]; then
-		git_base_branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
-			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+	if [[ -n "$git_base_branch" ]]; then
+		# Inject --base into passthrough only if the user explicitly specified it
+		passthrough=("--base" "$git_base_branch" "${passthrough[@]}")
 	fi
 
-	local gh_pr_diff="" gh_pr_diff_stat="" gh_pr_log="" gh_pr_commits=""
-	_git_branch_diff "$git_base_branch" "$git_head_branch" \
-		gh_pr_diff gh_pr_diff_stat gh_pr_log gh_pr_commits
+	local gh_pr_dir=""
+	_prepare_pr_create_context gh_pr_dir "$git_base_branch" || return 1
 
-	local agent_model
-	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
-	local gh_pr_description_context=""
-	if [[ -n "$gh_pr_description" ]]; then
-		gh_pr_description_context="<description>${gh_pr_description}</description>"
-	fi
-
-	# Create context directory and save large content to files
-	local context_dir
-	_create_context_dir context_dir
-	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$context_dir" "pr_log.txt" "$gh_pr_log"
-	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
-
-	local output
+	local gh_pr_content
 	# Generate PR content using assistant run
-	output=$(
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_content=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
-					GH_PR_LOG_FILE="$context_dir/pr_log.txt" \
-					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
-					GH_PR_DESCRIPTION="$gh_pr_description_context" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+				GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
-	# Clean up temp context directory
-	rm -rf "$context_dir"
+	# Clean up the temp context directory now that the AI call is done.
+	rm -rf "$gh_pr_dir"
 
 	# Validate we got PR content
-	if [[ -z "$output" ]]; then
+	if [[ -z "$gh_pr_content" ]]; then
 		gum log --level error "Failed to generate pull request content"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
@@ -181,82 +311,26 @@ _gh_pr_create() {
 
 	local gh_pr_title
 	# Parse title from output
-	if ! gh_pr_title=$(_parse_title "$output"); then
+	if ! gh_pr_title=$(_parse_title "$gh_pr_content"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
 	local gh_pr_body
 	# Parse body from output
-	gh_pr_body=$(_parse_body "$output")
-
-	# Inject --base into passthrough only if the user explicitly specified it
-	if [[ -n "$user_specified_base" ]]; then
-		passthrough=("--base" "$user_specified_base" "${passthrough[@]}")
-	fi
+	gh_pr_body=$(_parse_body "$gh_pr_content")
 
 	# Create PR with AI-generated content
 	gh pr create --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
 }
 
-# Parse PR edit arguments (before -- separator)
+# Parse PR edit arguments (before -- separator).
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and -d/--description value. Unknown flags produce an error with a hint
-# to use --.
-#
-# Example: _parse_pr_edit_args num desc 42 -d "add testing section"
-_parse_pr_edit_args() {
-	local -n gh_pr_number_ref="$1"
-	local -n gh_pr_description_ref="$2"
-	shift 2
+# Extracts PR number and -d/--description from args. Unknown flags hint to use --.
+_parse_pr_edit_args() { _parse_pr_args "edit" "$@"; }
 
-	local raw_args=("$@")
-	local skip_next=false
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
-			continue
-		fi
-
-		case "${raw_args[$i]}" in
-		--description | -d)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
-				return 1
-			fi
-			gh_pr_description_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--description=*)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_description_ref="${raw_args[$i]#--description=}"
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr edit)"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-
-	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$gh_pr_number_ref" ]]; then
-		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-	fi
-}
+# Fetches PR metadata and diff into a temp directory for use by _gh_pr_edit.
+_prepare_pr_edit_context() { _prepare_pr_diff_context "edit" "$@"; }
 
 # PR edit help function
 #
@@ -301,20 +375,19 @@ _gh_pr_edit() {
 		;;
 	esac
 
-	local ai_args=()
+	local args=()
 	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
+	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_edit.tmpl"
 
-	local gh_pr_number=""
-	local gh_pr_description=""
-	_parse_pr_edit_args gh_pr_number gh_pr_description "${ai_args[@]}"
+	local gh_pr_number="" gh_pr_description=""
+	_parse_pr_edit_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
 		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
@@ -325,191 +398,60 @@ _gh_pr_edit() {
 		return 1
 	fi
 
-	# Fetch PR metadata
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body,commits \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
-	if [[ -z "$gh_pr_eval" ]]; then
-		gum log --level error "Failed to fetch PR #$gh_pr_number"
-		return 1
-	fi
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
+	_prepare_pr_edit_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
 
-	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
-	eval "$gh_pr_eval"
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
-	# Get PR diff using gh cli (--patch for full patch format)
-	local gh_pr_diff
-	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
-		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$gh_pr_diff" ]]; then
-		gum log --level error "Failed to get diff for PR #$gh_pr_number"
-		return 1
-	fi
-
-	local gh_pr_diff_stat
-	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
-
-	local agent_model
-	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
-
-	# Create context directory and save large content to files
-	local context_dir
-	_create_context_dir context_dir
-	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
-	_save_context_file "$context_dir" "pr_body.md" "$gh_pr_body"
-
-	local output
+	local gh_pr_content
 	# Generate updated PR content using assistant
-	output=$(
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_content=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
-					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
-					GH_PR_BODY_FILE="$context_dir/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
-	# Clean up temp context directory
-	rm -rf "$context_dir"
+	# Clean up the temp context directory now that the AI call is done.
+	rm -rf "$gh_pr_dir"
 
 	# Validate we got PR content
-	if [[ -z "$output" ]]; then
+	if [[ -z "$gh_pr_content" ]]; then
 		gum log --level error "Failed to generate updated pull request content"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
-	local gh_pr_new_title
 	# Parse title from output
-	if ! gh_pr_new_title=$(_parse_title "$output"); then
+	if ! gh_pr_title=$(_parse_title "$gh_pr_content"); then
 		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
-	local gh_pr_new_body
+	local gh_pr_body
 	# Parse body from output
-	gh_pr_new_body=$(_parse_body "$output")
+	gh_pr_body=$(_parse_body "$gh_pr_content")
 
 	# Edit PR with AI-generated content
-	gh pr edit "$gh_pr_number" --title "$gh_pr_new_title" --body "$gh_pr_new_body" "${passthrough[@]}"
+	gh pr edit "$gh_pr_number" --title "$gh_pr_title" --body "$gh_pr_body" "${passthrough[@]}"
 }
 
-# Parse PR explain arguments
+# Parse PR review arguments (before -- separator).
 #
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and output mode (--comment or --edit) via namerefs.
-#
-# Example: _parse_pr_explain_args num mode 42 --comment
-_parse_pr_explain_args() {
-	local -n gh_pr_number_ref="$1"
-	local -n gh_pr_output_mode_ref="$2"
-	shift 2
+# Extracts PR number and -d/--description from args. Unknown flags hint to use --.
+_parse_pr_review_args() { _parse_pr_args "review" "$@"; }
 
-	local raw_args=("$@")
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		case "${raw_args[$i]}" in
-		--)
-			break
-			;;
-		--comment)
-			gh_pr_output_mode_ref="comment"
-			;;
-		--edit)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_output_mode_ref="edit"
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}'"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-
-	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$gh_pr_number_ref" ]]; then
-		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-	fi
-}
-
-# Parse PR review arguments (before -- separator)
-#
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and -d/--description value. Unknown flags produce an error with a hint
-# to use --.
-#
-# Example: _parse_pr_review_args num desc 42 -d "focus on security"
-_parse_pr_review_args() {
-	local -n gh_pr_number_ref="$1"
-	# shellcheck disable=SC2178 # bash nameref: looks like scalar redefining array, but it's a reference
-	local -n gh_pr_description_ref="$2"
-	shift 2
-
-	local raw_args=("$@")
-	local skip_next=false
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
-			continue
-		fi
-
-		case "${raw_args[$i]}" in
-		--description | -d)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
-				return 1
-			fi
-			gh_pr_description_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--description=*)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_description_ref="${raw_args[$i]#--description=}"
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr review)"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-
-	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$gh_pr_number_ref" ]]; then
-		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-	fi
-}
+# Fetches PR metadata and diff into a temp directory for use by _gh_pr_review.
+_prepare_pr_review_context() { _prepare_pr_diff_context "review" "$@"; }
 
 # PR review help function
 #
@@ -555,149 +497,366 @@ _gh_pr_review() {
 		;;
 	esac
 
-	local ai_args=()
+	local args=()
 	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
+	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_review.tmpl"
 
-	local gh_pr_number=""
-	local gh_pr_description=""
-	_parse_pr_review_args gh_pr_number gh_pr_description "${ai_args[@]}"
+	local gh_pr_number="" gh_pr_description=""
+	_parse_pr_review_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
 		gum log --level info "Usage: gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]"
 		return 1
 	fi
 
-	# Fetch PR metadata
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json headRefName,commits \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
+	_prepare_pr_review_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
 
-	local gh_pr_head gh_pr_commits
-	if [[ -n "$gh_pr_eval" ]]; then
-		eval "$gh_pr_eval"
-	fi
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
-	# Get PR diff using gh cli (--patch for full patch format)
-	local gh_pr_diff
-	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
-		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$gh_pr_diff" ]]; then
-		gum log --level error "Failed to get diff for PR #$gh_pr_number"
-		return 1
-	fi
-
-	local gh_pr_diff_stat
-	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
-
-	local agent_model
-	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
-
-	local gh_pr_description_context=""
-	if [[ -n "$gh_pr_description" ]]; then
-		gh_pr_description_context="<description>$gh_pr_description</description>"
-	fi
-
-	# Create context directory and save large content to files
-	local context_dir
-	_create_context_dir context_dir
-	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
-
-	local gh_pr_body
+	local gh_pr_review
 	# Generate review content using assistant run
-	gh_pr_body=$(
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_review=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
-					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
+					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
-					GH_PR_DESCRIPTION="$gh_pr_description_context" \
+					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
-	# Clean up temp context directory
-	rm -rf "$context_dir"
+	# Clean up the temp context directory now that the AI call is done.
+	rm -rf "$gh_pr_dir"
 
 	# Validate we got review content
-	if [[ -z "$gh_pr_body" ]]; then
+	if [[ -z "$gh_pr_review" ]]; then
 		gum log --level error "Failed to generate review content"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Submit review with AI-generated content
-	gh pr review "$gh_pr_number" --body "$gh_pr_body" "${passthrough[@]}"
+	gh pr review "$gh_pr_number" --body "$gh_pr_review" "${passthrough[@]}"
 }
 
-# Parse PR comment arguments (before -- separator)
+# Parse PR explain arguments
 #
 # Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and -d/--description value. Unknown flags produce an error with a hint
-# to use --.
+# and output mode (--comment or --edit) via namerefs.
 #
-# Example: _parse_pr_comment_args num desc 42 -d "summarise open threads"
-_parse_pr_comment_args() {
-	local -n gh_pr_number_ref="$1"
-	# shellcheck disable=SC2178 # bash nameref: looks like scalar redefining array, but it's a reference
-	local -n gh_pr_description_ref="$2"
+# Usage: _parse_pr_explain_args num_ref mode_ref [args...]
+_parse_pr_explain_args() {
+	local -n _ppea_num_ref="$1"
+	local -n _ppea_mode_ref="$2"
 	shift 2
 
-	local raw_args=("$@")
-	local skip_next=false
-	local i=0
+	local _ppea_raw=("$@")
+	local _ppea_i=0
 
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
-			continue
-		fi
-
-		case "${raw_args[$i]}" in
-		--description | -d)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
-				return 1
-			fi
-			gh_pr_description_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--description=*)
+	while [[ $_ppea_i -lt ${#_ppea_raw[@]} ]]; do
+		case "${_ppea_raw[$_ppea_i]}" in
+		--comment)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_description_ref="${raw_args[$i]#--description=}"
+			_ppea_mode_ref="comment"
+			;;
+		--edit)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_ppea_mode_ref="edit"
 			;;
 		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to gh pr comment)"
+			gum log --level error "unknown flag '${_ppea_raw[$_ppea_i]}'"
 			return 1
 			;;
 		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
+			local _ppea_arg="${_ppea_raw[$_ppea_i]#\#}"
+			if [[ -z "$_ppea_num_ref" && "$_ppea_arg" =~ ^[0-9]+$ ]]; then
+				_ppea_num_ref="$_ppea_arg"
 			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
+				gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
 				return 1
 			fi
 			;;
 		esac
-		((++i))
+		((++_ppea_i))
 	done
 
 	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$gh_pr_number_ref" ]]; then
-		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
+	if [[ -z "$_ppea_num_ref" ]]; then
+		_ppea_num_ref=$(_detect_pr_number)
 	fi
+}
+
+# Fetches PR metadata and diff into a temp directory for use by _gh_pr_explain.
+_prepare_pr_explain_context() { _prepare_pr_diff_context "explain" "$@"; }
+
+# PR explain help function
+#
+# Displays help information for the PR explain command
+# including usage examples and available options.
+_show_pr_explain_help() {
+	cat <<'EOF'
+gh ai pr explain - Generate a plain-language explanation of a PR
+
+USAGE:
+    gh ai pr explain [PR_NUMBER] [--comment | --edit]
+
+DESCRIPTION:
+    Generates a plain-language explanation of what a pull request does.
+    By default prints to stdout. Auto-detects PR from the current branch
+    if no number is provided.
+
+FLAGS:
+    --comment   Post the explanation as a PR comment
+    --edit      Replace the PR description with the explanation
+
+EXAMPLES:
+    gh ai pr explain 42              # print to stdout
+    gh ai pr explain                 # auto-detect PR from current branch
+    gh ai pr explain 42 --comment    # post as PR comment
+    gh ai pr explain 42 --edit       # replace PR description
+EOF
+}
+
+# PR Explain implementation
+#
+# Generates a plain-language explanation of what a PR does.
+# By default prints to stdout; supports --comment and --edit output modes.
+#
+# Usage: _gh_pr_explain [NUMBER] [--comment | --edit]
+_gh_pr_explain() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_explain_help
+		return 0
+		;;
+	esac
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
+
+	local gh_pr_number="" gh_pr_output_mode=""
+	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "$@"
+
+	if [[ -z "$gh_pr_number" ]]; then
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr explain [PR_NUMBER] [--comment | --edit]"
+		return 1
+	fi
+
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
+	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+
+	local gh_pr_explain
+	# Generate explanation using assistant run
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_explain=$(
+		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+				GH_PR_NUMBER="$gh_pr_number" \
+					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_HEAD="$gh_pr_head" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
+	)
+
+	# Clean up the temp context directory now that the AI call is done.
+	rm -rf "$gh_pr_dir"
+
+	# Validate we got explanation content
+	if [[ -z "$gh_pr_explain" ]]; then
+		gum log --level error "Failed to generate explanation"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	# Output based on mode
+	case "$gh_pr_output_mode" in
+	comment)
+		gh pr comment "$gh_pr_number" --body "$gh_pr_explain"
+		;;
+	edit)
+		gh pr edit "$gh_pr_number" --body "$gh_pr_explain"
+		;;
+	*)
+		printf '%s\n' "$gh_pr_explain"
+		;;
+	esac
+}
+
+# Thin wrapper around _parse_chat_args for the chat subcommand.
+_parse_pr_chat_args() { _parse_chat_args "$@"; }
+
+# Fetches PR metadata and diff into .claude/sessions/pull-<num> for use by _gh_pr_chat.
+# The session directory persists across invocations so Claude can resume context.
+# _resolve_chat_session tracks the Claude session UUID separately via a
+# "session.id" file written inside the session directory.
+_prepare_pr_chat_context() { _prepare_pr_diff_context "chat" "$@"; }
+
+# PR chat help function
+#
+# Displays help information for the PR chat command
+# including usage examples and available options.
+_show_pr_chat_help() {
+	cat <<'EOF'
+gh ai pr chat - Open an agent session with PR context
+
+USAGE:
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+
+DESCRIPTION:
+    Fetches the GitHub PR metadata and diff, renders it as context, and
+    pipes it into the configured agent binary (default: claude).
+    Auto-detects PR from the current branch if no number is provided.
+
+    Configure the agent: gh config set ai.agent <binary>
+    Configure the model: gh config set ai.pr.model <model>
+
+FLAGS:
+    -d, --description string   Extra context or focus for the agent (optional)
+    -n, --new-session          Start a new session
+
+EXAMPLES:
+    gh ai pr chat 42
+    gh ai pr chat -d "focus on the security changes"
+    gh ai pr chat 42 --new-session
+    gh ai pr chat                    # auto-detect PR from current branch
+EOF
+}
+
+# PR Chat implementation
+#
+# Fetches a GitHub PR's metadata and diff, renders the context template,
+# and pipes it into the configured agent binary. Session continuity is
+# managed via _resolve_chat_session — subsequent invocations resume the
+# previous session automatically; --new-session forces a fresh session ID.
+#
+# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-n]
+_gh_pr_chat() {
+	case "${1:-}" in
+	--help | -h | help)
+		_show_pr_chat_help
+		return 0
+		;;
+	esac
+
+	local template_file
+	# shellcheck disable=SC2154
+	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
+
+	local gh_pr_number="" gh_pr_description="" gh_pr_new_session=""
+	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "$@"
+
+	if [[ -z "$gh_pr_number" ]]; then
+		gh_pr_number=$(_detect_pr_number)
+	fi
+
+	if [[ -z "$gh_pr_number" ]]; then
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]"
+		return 1
+	fi
+
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
+	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+
+	if [[ -z "$gh_pr_head" ]]; then
+		gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
+		return 1
+	fi
+
+	local gh_pr_focus=""
+	if [[ -n "$gh_pr_description" ]]; then
+		gh_pr_focus="<focus>${gh_pr_description}</focus>"
+	fi
+
+	local gh_pr_worktree
+	gh_pr_worktree="pull-$gh_pr_number"
+	_save_worktree_state "$gh_pr_dir" "$gh_pr_worktree" "$gh_pr_head" "" "$gh_pr_head"
+
+	local gh_pr_is_new_chat="" gh_pr_session_args=()
+	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
+
+	local gh_pr_preamble=""
+	if [[ -n "$gh_pr_is_new_chat" ]]; then
+		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+		gh_pr_preamble=$(
+			GH_PR_NUMBER="$gh_pr_number" \
+				GH_PR_TITLE="$gh_pr_title" \
+				GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+				GH_PR_FOCUS="$gh_pr_focus" \
+				GH_SESSION_DIR="$gh_pr_dir" \
+				GH_PR_HEAD="$gh_pr_head" \
+				GH_WT_BRANCH="$gh_pr_worktree" \
+				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+		)
+	fi
+
+	_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}"
+}
+
+# Parse PR comment arguments (before -- separator).
+#
+# Extracts PR number and -d/--description from args. Unknown flags hint to use --.
+_parse_pr_comment_args() { _parse_pr_args "comment" "$@"; }
+
+# Context for _gh_pr_comment: fetches PR body and comments, and reads optional
+# stdin into pr_context.md. Uses a temporary directory.
+#
+# Usage: _prepare_pr_comment_context pr_number gh_pr_dir_ref title_ref
+_prepare_pr_comment_context() {
+	local _ctx_num="$1"
+	local -n _ctx_dir="$2"
+	local -n _ctx_title="$3"
+
+	local _ctx_meta
+	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
+		gh pr view "$_ctx_num" --json title,body,comments || true)
+	if [[ -z "$_ctx_meta" ]]; then
+		gum log --level error "Failed to fetch pull request #$_ctx_num"
+		return 1
+	fi
+
+	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.title // empty')
+
+	local _ctx_body
+	_ctx_body=$(printf '%s' "$_ctx_meta" | jq -r '.body // empty')
+
+	local _ctx_comments
+	_ctx_comments=$(printf '%s' "$_ctx_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+
+	local _ctx_dir_path
+	_create_context_dir _ctx_dir_path
+	_ctx_dir="$_ctx_dir_path"
+
+	local _ctx_context=""
+	if [[ ! -t 0 ]]; then
+		_ctx_context=$(cat)
+	fi
+
+	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "pr_comments.md" "$_ctx_comments"
+	_save_context_file "$_ctx_dir" "pr_context.md" "$_ctx_context"
 }
 
 # PR comment help function
@@ -744,20 +903,19 @@ _gh_pr_comment() {
 		;;
 	esac
 
-	local ai_args=()
+	local args=()
 	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
+	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_comment.tmpl"
 
-	local gh_pr_number=""
-	local gh_pr_description=""
-	_parse_pr_comment_args gh_pr_number gh_pr_description "${ai_args[@]}"
+	local gh_pr_number="" gh_pr_description=""
+	_parse_pr_comment_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided and could not detect PR for current branch"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
 		gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
@@ -768,418 +926,40 @@ _gh_pr_comment() {
 		return 1
 	fi
 
-	# Read optional stdin context
-	local gh_pr_context=""
-	if [[ ! -t 0 ]]; then
-		gh_pr_context=$(cat)
-	fi
+	local gh_pr_dir="" gh_pr_title=""
+	_prepare_pr_comment_context "$gh_pr_number" gh_pr_dir gh_pr_title || return 1
 
-	# Fetch PR metadata (title, body, comments)
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body,comments \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
-	if [[ -z "$gh_pr_eval" ]]; then
-		gum log --level error "Failed to fetch PR #$gh_pr_number"
-		return 1
-	fi
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
 
-	local gh_pr_title gh_pr_body gh_pr_comments
-	eval "$gh_pr_eval"
-
-	local agent_model
-	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
-
-	# Create context directory and save large content to files
-	local context_dir
-	_create_context_dir context_dir
-	_save_context_file "$context_dir" "pr_body.md" "$gh_pr_body"
-	_save_context_file "$context_dir" "pr_comments.md" "$gh_pr_comments"
-
-	local output
+	local gh_pr_comment
 	# Generate comment content using assistant
-	output=$(
-		if [[ -n "$gh_pr_context" ]]; then
-			_save_context_file "$context_dir" "pr_context.md" "$gh_pr_context"
-			gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
-				"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-					GH_PR_NUMBER="$gh_pr_number" \
-						GH_PR_TITLE="$gh_pr_title" \
-						GH_PR_BODY_FILE="$context_dir/pr_body.md" \
-						GH_PR_COMMENTS_FILE="$context_dir/pr_comments.md" \
-						GH_PR_DESCRIPTION="$gh_pr_description" \
-						GH_PR_CONTEXT_FILE="$context_dir/pr_context.md" \
-						"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-				)
-		else
-			gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
-				"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-					GH_PR_NUMBER="$gh_pr_number" \
-						GH_PR_TITLE="$gh_pr_title" \
-						GH_PR_BODY_FILE="$context_dir/pr_body.md" \
-						GH_PR_COMMENTS_FILE="$context_dir/pr_comments.md" \
-						GH_PR_DESCRIPTION="$gh_pr_description" \
-						"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-				)
-		fi
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_comment=$(
+		gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+				GH_PR_NUMBER="$gh_pr_number" \
+					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_COMMENTS_FILE="$gh_pr_dir/pr_comments.md" \
+					GH_PR_DESCRIPTION="$gh_pr_description" \
+					GH_PR_CONTEXT_FILE="$gh_pr_dir/pr_context.md" \
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			)
 	)
 
-	# Clean up temp context directory
-	rm -rf "$context_dir"
+	# Clean up the temp context directory now that the AI call is done.
+	rm -rf "$gh_pr_dir"
 
 	# Validate we got comment content
-	if [[ -z "$output" ]]; then
+	if [[ -z "$gh_pr_comment" ]]; then
 		gum log --level error "Failed to generate comment content"
 		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Post comment with AI-generated content
-	gh pr comment "$gh_pr_number" --body "$output" "${passthrough[@]}"
-}
-
-# PR explain help function
-#
-# Displays help information for the PR explain command
-# including usage examples and available options.
-_show_pr_explain_help() {
-	cat <<'EOF'
-gh ai pr explain - Generate a plain-language explanation of a PR
-
-USAGE:
-    gh ai pr explain [PR_NUMBER] [--comment | --edit]
-
-DESCRIPTION:
-    Generates a plain-language explanation of what a pull request does.
-    By default prints to stdout. Auto-detects PR from the current branch
-    if no number is provided.
-
-FLAGS:
-        --comment   Post the explanation as a PR comment
-        --edit      Replace the PR description with the explanation
-
-EXAMPLES:
-    gh ai pr explain 42              # print to stdout
-    gh ai pr explain                 # auto-detect PR from current branch
-    gh ai pr explain 42 --comment    # post as PR comment
-    gh ai pr explain 42 --edit       # replace PR description
-EOF
-}
-
-# PR Explain implementation
-#
-# Generates a plain-language explanation of what a PR does.
-# By default prints to stdout; supports --comment and --edit output modes.
-#
-# Usage: _gh_pr_explain [NUMBER] [--comment | --edit]
-_gh_pr_explain() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_pr_explain_help
-		return 0
-		;;
-	esac
-
-	local template_file
-	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
-
-	local gh_pr_number=""
-	local gh_pr_output_mode=""
-	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "$@"
-
-	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh ai pr explain [PR_NUMBER] [--comment | --edit]"
-		return 1
-	fi
-
-	# Fetch PR metadata
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body,headRefName,commits \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
-
-	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
-	if [[ -n "$gh_pr_eval" ]]; then
-		eval "$gh_pr_eval"
-	fi
-
-	# Get PR diff using gh cli (--patch for full patch format)
-	local gh_pr_diff
-	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
-		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$gh_pr_diff" ]]; then
-		gum log --level error "Failed to get diff for PR #$gh_pr_number"
-		return 1
-	fi
-
-	local gh_pr_diff_stat
-	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
-
-	local agent_model
-	agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
-
-	# Create context directory and save large content to files
-	local context_dir
-	_create_context_dir context_dir
-	_save_context_file "$context_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$context_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$context_dir" "pr_commits.txt" "$gh_pr_commits"
-
-	local output
-	# Generate explanation using assistant run
-	output=$(
-		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
-					GH_PR_TITLE="$gh_pr_title" \
-					GH_PR_BODY="$gh_pr_body" \
-					GH_PR_DIFF_FILE="$context_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$context_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$context_dir/pr_commits.txt" \
-					GH_PR_HEAD="$gh_pr_head" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-			)
-	)
-
-	# Clean up temp context directory
-	rm -rf "$context_dir"
-
-	# Validate we got explanation content
-	if [[ -z "$output" ]]; then
-		gum log --level error "Failed to generate explanation"
-		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
-		return 1
-	fi
-
-	# Output based on mode
-	case "$gh_pr_output_mode" in
-	comment)
-		gh pr comment "$gh_pr_number" --body "$output"
-		;;
-	edit)
-		gh pr edit "$gh_pr_number" --body "$output"
-		;;
-	*)
-		printf '%s\n' "$output"
-		;;
-	esac
-}
-
-# Parse PR chat arguments
-#
-# Extracts the PR number (first numeric arg, with auto-detect fallback),
-# -d/--description value, and -n/--new-session flag. Unknown flags produce an error.
-#
-# Example: _parse_pr_chat_args num desc new_session 42 -d "focus on security"
-_parse_pr_chat_args() {
-	local -n gh_pr_number_ref="$1"
-	local -n gh_pr_description_ref="$2"
-	local -n gh_pr_new_session_ref="$3"
-	shift 3
-
-	local raw_args=("$@")
-	local skip_next=false
-	local i=0
-
-	while [[ $i -lt ${#raw_args[@]} ]]; do
-		if [ "$skip_next" = true ]; then
-			skip_next=false
-			((++i))
-			continue
-		fi
-
-		case "${raw_args[$i]}" in
-		--description | -d)
-			if ((i + 1 >= ${#raw_args[@]})); then
-				gum log --level error "${raw_args[$i]} requires a value"
-				return 1
-			fi
-			gh_pr_description_ref="${raw_args[$((i + 1))]}"
-			skip_next=true
-			;;
-		--description=*)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_description_ref="${raw_args[$i]#--description=}"
-			;;
-		--new-session | -n)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			gh_pr_new_session_ref=1
-			;;
-		-*)
-			gum log --level error "unknown flag '${raw_args[$i]}' (use -- to pass flags to the agent)"
-			return 1
-			;;
-		*)
-			local arg="${raw_args[$i]#\#}"
-			if [[ -z "$gh_pr_number_ref" && "$arg" =~ ^[0-9]+$ ]]; then
-				gh_pr_number_ref="$arg"
-			else
-				gum log --level error "unexpected argument '${raw_args[$i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++i))
-	done
-
-	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$gh_pr_number_ref" ]]; then
-		gh_pr_number_ref=$(gh pr view --json number -q '.number' 2>/dev/null || true)
-	fi
-}
-
-# PR chat help function
-#
-# Displays help information for the PR chat command
-# including usage examples and available options.
-_show_pr_chat_help() {
-	cat <<'EOF'
-gh ai pr chat - Open an agent session with PR context
-
-USAGE:
-    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
-
-DESCRIPTION:
-    Fetches the GitHub PR metadata and diff, renders it as context, and
-    pipes it into the configured agent binary (default: claude).
-    Auto-detects PR from the current branch if no number is provided.
-    Options after -- are passed directly to the agent.
-
-    Configure the agent: gh config set ai.agent <binary>
-
-FLAGS:
-    -d, --description string   Extra context or focus for the agent (optional)
-    -n, --new-session          Start a new session
-
-EXAMPLES:
-    gh ai pr chat 42
-    gh ai pr chat -d "focus on the security changes"
-    gh ai pr chat 42 --new-session
-    gh ai pr chat                    # auto-detect PR from current branch
-    gh ai pr chat 42 -- --model sonnet
-EOF
-}
-
-# PR Chat implementation
-#
-# Fetches a GitHub PR's metadata and diff, renders the context template,
-# and pipes it into the configured agent binary.
-#
-# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
-_gh_pr_chat() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_pr_chat_help
-		return 0
-		;;
-	esac
-
-	local ai_args=()
-	local passthrough=()
-	_split_on_separator ai_args passthrough "$@"
-
-	local template_file
-	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
-
-	local gh_pr_number=""
-	local gh_pr_description=""
-	local gh_pr_new_session=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "${ai_args[@]}"
-
-	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No PR number provided and could not detect PR for current branch"
-		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]"
-		return 1
-	fi
-
-	# Try to resume existing session before expensive API calls
-	local gh_repo=""
-	_gh_repo_name gh_repo || return 1
-	local gh_pr_url="https://github.com/${gh_repo}/pull/${gh_pr_number}"
-
-	local session_args=()
-	if _try_resume_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "${passthrough[@]}"; then
-		gum log --level info "Resuming agent session for PR #$gh_pr_number..."
-		_cmd_chat "" "${session_args[@]}" "${passthrough[@]}"
-		return
-	fi
-
-	# Get PR diff using gh cli (--patch for full patch format)
-	local gh_pr_diff
-	gh_pr_diff=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number diff..." -- \
-		gh pr diff "$gh_pr_number" --patch || true)
-	if [[ -z "$gh_pr_diff" ]]; then
-		gum log --level error "Failed to get diff for PR #$gh_pr_number"
-		return 1
-	fi
-
-	local gh_pr_diff_stat
-	gh_pr_diff_stat=$(echo "$gh_pr_diff" | git apply --stat 2>/dev/null || true)
-
-	# Fetch PR title and body
-	local gh_pr_eval
-	gh_pr_eval=$(gum spin --title "Fetching GitHub pull request #$gh_pr_number metadata..." -- \
-		gh pr view "$gh_pr_number" --json title,body,headRefName,commits \
-		-q "$(<"$_gh_ai_source_dir/scripts/gh_pr_meta.jq")" || true)
-
-	if [[ -z "$gh_pr_eval" ]]; then
-		gum log --level error "Failed to fetch PR #$gh_pr_number metadata"
-		return 1
-	fi
-
-	local gh_pr_title gh_pr_body gh_pr_head gh_pr_commits
-	eval "$gh_pr_eval"
-
-	if [[ -z "$gh_pr_head" ]]; then
-		gum log --level error "Could not determine head branch for PR #$gh_pr_number"
-		return 1
-	fi
-
-	# Render context and pipe to agent
-	local gh_pr_focus=""
-	if [[ -n "$gh_pr_description" ]]; then
-		gh_pr_focus="<focus>${gh_pr_description}</focus>"
-	fi
-
-	# Capture current branch for template context
-	local gh_current_branch
-	gh_current_branch=$(git branch --show-current 2>/dev/null || echo "")
-
-	# Compute session directory path for preamble and context files
-	local session_id session_dir
-	session_id=$(_uuidv5 "$gh_pr_url")
-	local git_root
-	_git_repo_path git_root || return 1
-	session_dir="$git_root/.claude/sessions/$session_id"
-
-	# Render context — session_dir path is embedded as a string;
-	# files are written after _resolve_chat_session creates the directory.
-	local preamble
-	preamble=$(
-		GH_PR_NUMBER="$gh_pr_number" \
-			GH_PR_TITLE="$gh_pr_title" \
-			GH_PR_BODY="$gh_pr_body" \
-			GH_PR_HEAD="$gh_pr_head" \
-			GH_PR_FOCUS="$gh_pr_focus" \
-			GH_CURRENT_BRANCH="$gh_current_branch" \
-			GH_SESSION_DIR="$session_dir" \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-	)
-
-	session_args=()
-	_resolve_chat_session session_args "$gh_pr_url" "$gh_pr_new_session" "$gh_pr_head" "$gh_pr_head" "" "${passthrough[@]}"
-
-	# Save context files after _resolve_chat_session has created (or recreated)
-	# the session directory — this ensures --new-session doesn't wipe them.
-	_save_context_file "$session_dir" "pr_diff.patch" "$gh_pr_diff"
-	_save_context_file "$session_dir" "pr_diff_stat.txt" "$gh_pr_diff_stat"
-	_save_context_file "$session_dir" "pr_commits.txt" "$gh_pr_commits"
-
-	gum log --level info "Starting agent session for PR #$gh_pr_number..."
-	_cmd_chat "$preamble" "${session_args[@]}" "${passthrough[@]}"
+	gh pr comment "$gh_pr_number" --body "$gh_pr_comment" "${passthrough[@]}"
 }
 
 # PR help function
@@ -1195,7 +975,7 @@ USAGE:
     gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER] [--comment | --edit]
-    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
     gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:

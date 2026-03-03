@@ -40,6 +40,7 @@ _check_dependencies() {
 _check_dependencies
 
 # Source command modules
+source "$_gh_ai_source_dir/scripts/gh_worktree.sh"
 source "$_gh_ai_source_dir/scripts/gh_cmd.sh"
 source "$_gh_ai_source_dir/scripts/gh_pr.sh"
 source "$_gh_ai_source_dir/scripts/gh_issue.sh"

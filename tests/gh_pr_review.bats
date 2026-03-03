@@ -23,7 +23,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_review_args _show_pr_review_help _gh_pr_review _split_on_separator
+		declare -f _detect_pr_number _parse_pr_args _parse_pr_review_args _show_pr_review_help _gh_pr_review _split_on_separator
 	)"
 }
 

@@ -23,7 +23,9 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment _split_on_separator _create_context_dir _save_context_file
+		declare -f _parse_pr_args _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment \
+			_detect_pr_number _split_on_separator _create_context_dir _save_context_file \
+			_prepare_pr_comment_context
 	)"
 }
 
@@ -183,7 +185,7 @@ setup() {
 	run _gh_pr_comment -d "some description"
 
 	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"No PR number provided"* ]]
+	[[ "$output" == *"No pull request number provided"* ]]
 }
 
 @test "_gh_pr_comment: errors when no description provided" {
@@ -215,7 +217,7 @@ setup() {
 	run _gh_pr_comment 42 -d "context"
 
 	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"Failed to fetch PR"* ]]
+	[[ "$output" == *"Failed to fetch pull request"* ]]
 }
 
 @test "_gh_pr_comment: passes passthrough args to gh pr comment" {
