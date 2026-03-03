@@ -9,75 +9,136 @@
 
 set -euo pipefail
 
-_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Save worktree metadata to session_dir/worktree.json.
+#
+# Called in each _gh_*_chat after context prep. The file is read by
+# _gh_worktree_create to initialize the worktree for the session.
+# Falls back to the repo's default branch when remote_ref is empty.
+#
+# Usage: _save_worktree_state session_dir name remote_ref head_sha [branch]
+_save_worktree_state() {
+	local _sws_dir="$1"
+	local _sws_name="$2"
+	local _sws_remote_ref="$3"
+	local _sws_sha="$4"
+	local _sws_branch="${5:-}"
+
+	if [[ -z "$_sws_remote_ref" ]]; then
+		_sws_remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null ||
+			echo "main")
+	fi
+
+	jq -n \
+		--arg name "$_sws_name" \
+		--arg remote_ref "$_sws_remote_ref" \
+		--arg head_sha "$_sws_sha" \
+		--arg branch "$_sws_branch" \
+		'{name: $name, remote_ref: $remote_ref, head_sha: $head_sha, branch: $branch}' \
+		>"$_sws_dir/worktree.json"
+}
+
+# Load worktree metadata from session_dir/worktree.json into namerefs.
+#
+# Returns 1 if worktree.json is absent.
+#
+# Usage: _load_worktree_state session_dir remote_ref_ref sha_ref branch_ref
+_load_worktree_state() {
+	local _lws_dir="$1"
+	local -n _lws_remote_ref="$2"
+	local -n _lws_sha="$3"
+	local -n _lws_branch="$4"
+
+	local spec="$_lws_dir/worktree.json"
+	if [[ ! -f "$spec" ]]; then
+		return 1
+	fi
+
+	_lws_remote_ref=$(jq -r '.remote_ref // ""' "$spec")
+	_lws_sha=$(jq -r '.head_sha // ""' "$spec")
+	_lws_branch=$(jq -r '.branch // ""' "$spec")
+}
 
 # Create a git worktree for a Claude Code session
 #
-# Reads JSON from stdin with "name", "cwd", and "session_id" fields.
-# Looks up the session state file to resolve the remote ref to track.
-# The local branch is named <name> (e.g. issue-42).
+# Reads JSON from stdin with "name" and "cwd" fields (Claude's WorktreeCreate hook format).
+# Loads remote_ref and head_sha from $cwd/.claude/sessions/$name/worktree.json
+# (written by _save_worktree_state before the session starts).
+# Returns exit code 1 if worktree.json is absent — Claude treats this as a hook error.
 #
-# Stdin:  {"name": "issue-42", "cwd": "/path/to/repo", "session_id": "uuid"}
-# Stdout: worktree path (e.g. /path/to/repo/.claude/worktrees/issue-42)
+# Stdin:  {"name": "pull-42", "cwd": "/path/to/repo", ...}
+# Stdout: worktree path (e.g. /path/to/repo/.claude/worktrees/pull-42)
 # Stderr: git worktree add output
 _gh_worktree_create() {
-	local gh_worktree_jq
-	gh_worktree_jq=$(<"$_script_dir/gh_worktree.jq")
+	local hook_json
+	hook_json=$(cat)
 
-	# First pass: extract name, cwd, session_id from Claude's hook JSON
-	local gh_worktree_name gh_worktree_cwd gh_worktree_session_id gh_worktree_remote_ref="main" gh_worktree_branch="" gh_worktree_sha=""
-	eval "$(jq -r "$gh_worktree_jq")"
+	local gh_worktree_name gh_worktree_cwd
+	gh_worktree_name=$(printf '%s' "$hook_json" | jq -r '.name // ""')
+	gh_worktree_cwd=$(printf '%s' "$hook_json" | jq -r '.cwd // ""')
 
-	# Second pass: overlay remote_ref from the session state file (same jq filter)
-	# Try new directory format first, then fall back to old .json format
-	local session_state_file="${gh_worktree_cwd}/.claude/sessions/${gh_worktree_session_id}/state.json"
-	if [[ -f "$session_state_file" ]]; then
-		eval "$(jq -r "$gh_worktree_jq" "$session_state_file")"
-	else
-		session_state_file="${gh_worktree_cwd}/.claude/sessions/${gh_worktree_session_id}.json"
-		if [[ -f "$session_state_file" ]]; then
-			eval "$(jq -r "$gh_worktree_jq" "$session_state_file")"
-		fi
+	if [[ -z "$gh_worktree_name" || -z "$gh_worktree_cwd" ]]; then
+		echo "gh_worktree_create: missing name or cwd in hook JSON" >&2
+		return 1
+	fi
+
+	# Load saved state (remote_ref, head_sha, branch) written by _save_worktree_state.
+	local session_dir="$gh_worktree_cwd/.claude/sessions/$gh_worktree_name"
+	local gh_worktree_remote_ref="" gh_worktree_sha="" gh_worktree_branch=""
+	if ! _load_worktree_state "$session_dir" gh_worktree_remote_ref gh_worktree_sha gh_worktree_branch; then
+		echo "gh_worktree_create: worktree.json not found in $session_dir" >&2
+		return 1
 	fi
 
 	local gh_worktree_path
 	gh_worktree_path="${gh_worktree_cwd}/.claude/worktrees/${gh_worktree_name}"
+	mkdir -p "${gh_worktree_cwd}/.claude/worktrees"
 
-	# If the worktree is already registered, reuse it instead of failing
-	if git -C "$gh_worktree_cwd" worktree list --porcelain | grep -qx "worktree ${gh_worktree_path}"; then
+	# Capture the worktree list once and reuse it for both checks below.
+	local wt_list
+	wt_list=$(git -C "$gh_worktree_cwd" worktree list --porcelain)
+
+	# If the worktree is already registered, reuse it instead of failing.
+	if grep -qxF "worktree ${gh_worktree_path}" <<<"$wt_list"; then
 		printf '%s\n' "$gh_worktree_path"
 		return 0
 	fi
 
-	# Fetch the remote branch to ensure the SHA (or branch tip) is available locally.
-	git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
+	# PR sessions set branch to the PR head so the worktree checks it out directly
+	# and `git push` updates the PR without extra flags. Issue/run sessions leave
+	# branch empty, so a new local branch named after the worktree is created instead.
+	local checkout_branch="${gh_worktree_branch:-$gh_worktree_name}"
 
-	# Use the pinned SHA when present (run sessions), otherwise the branch tip.
-	# Pinning to a SHA guarantees the worktree always starts from the exact commit
-	# that triggered the run, regardless of how far the branch has since moved.
-	local git_ref="${gh_worktree_sha:-origin/${gh_worktree_remote_ref}}"
-
-	# Determine which local branch to check out in this worktree.
-	# PR sessions store an explicit branch (the PR head) so the worktree sits directly
-	# on it and `git push` updates the PR without extra flags.
-	# Issue/run sessions have no explicit branch, so a fresh branch named after the
-	# worktree is created from origin/remote_ref (e.g. issue-99 from origin/main,
-	# run-123 from origin/feature/login).
-	# If the desired branch is already checked out in another worktree, fall back to
-	# the worktree name to avoid a git error.
-	local branch_name="${gh_worktree_branch:-$gh_worktree_name}"
-	if git -C "$gh_worktree_cwd" worktree list --porcelain \
-		| grep -qx "branch refs/heads/${branch_name}"; then
-		branch_name="$gh_worktree_name"
+	# Refuse to create the worktree if the desired branch is already checked out
+	# elsewhere — git itself would fail, and silently using a different branch
+	# would break auto-tracking for PR sessions.
+	if grep -qxF "branch refs/heads/${checkout_branch}" <<<"$wt_list"; then
+		echo "gh_worktree_create: branch '${checkout_branch}' is already checked out in another worktree" >&2
+		return 1
 	fi
 
-	if git -C "$gh_worktree_cwd" show-ref --verify --quiet "refs/heads/${branch_name}"; then
-		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${branch_name}" >&2
+	if git -C "$gh_worktree_cwd" show-ref --verify --quiet "refs/heads/${checkout_branch}"; then
+		# Fast-forward the local branch to the remote tip in one fetch, so the
+		# worktree always starts from the current state. If the local branch has
+		# diverged (local commits ahead of remote), the fetch refuses and the
+		# worktree opens at the local state instead.
+		git -C "$gh_worktree_cwd" fetch origin "${checkout_branch}:${checkout_branch}" >&2 || true
+		git -C "$gh_worktree_cwd" worktree add "$gh_worktree_path" "${checkout_branch}" >&2
 	else
-		git -C "$gh_worktree_cwd" worktree add -b "${branch_name}" "$gh_worktree_path" "$git_ref" >&2
-		# Set upstream so _gh_worktree_has_unpushed works from the start.
-		# The developer can override this later with `git push -u origin <branch>`.
-		git -C "$gh_worktree_path" branch --set-upstream-to="$git_ref" >&2 || true
+		# Fetch the remote branch so the SHA (or branch tip) is available locally.
+		git -C "$gh_worktree_cwd" fetch origin "$gh_worktree_remote_ref" >&2 || true
+
+		# Use the pinned SHA when present (run sessions), otherwise the remote branch tip.
+		# Pinning to a SHA guarantees the worktree always starts from the exact commit
+		# that triggered the run, regardless of how far the branch has since moved.
+		local git_ref="${gh_worktree_sha:-origin/${gh_worktree_remote_ref}}"
+
+		# Use auto-tracking only when checking out the actual PR head branch so
+		# that `git push` updates the PR without extra flags. Issue/run sessions
+		# use --no-track to avoid wiring a local branch to the wrong remote ref.
+		local track_flag=""
+		[[ "$checkout_branch" != "$gh_worktree_branch" ]] && track_flag="--no-track"
+		git -C "$gh_worktree_cwd" worktree add ${track_flag:+"$track_flag"} -b "${checkout_branch}" "$gh_worktree_path" "$git_ref" >&2
 	fi
 
 	printf '%s\n' "$gh_worktree_path"
@@ -93,16 +154,17 @@ _gh_worktree_is_dirty() {
 	[[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]
 }
 
-# Check if a worktree has commits not pushed to the upstream branch
+# Check if a worktree has commits not pushed to any remote
 #
 # Returns 0 if there are unpushed commits, 1 otherwise.
-# Falls back to clean when there is no upstream configured.
+# Uses --not --remotes so no upstream tracking branch is required —
+# works correctly for PR, issue, and run worktrees alike.
 #
 # Usage: _gh_worktree_has_unpushed "/path/to/worktree"
 _gh_worktree_has_unpushed() {
 	local wt="$1"
 	local ahead
-	ahead=$(git -C "$wt" rev-list --count '@{upstream}..HEAD' 2>/dev/null || echo "0")
+	ahead=$(git -C "$wt" rev-list --count HEAD --not --remotes 2>/dev/null || echo "0")
 	[[ "$ahead" -gt 0 ]]
 }
 
@@ -122,7 +184,7 @@ _gh_worktree_has_unpushed() {
 # Stdin: {"worktree_path": "/path/to/repo/.claude/worktrees/issue-42"}
 _gh_worktree_remove() {
 	local worktree_path
-	worktree_path=$(jq -r .worktree_path)
+	worktree_path=$(jq -r '.worktree_path')
 
 	# Nothing to do if the worktree doesn't exist
 	if [[ ! -d "$worktree_path" ]]; then
@@ -134,9 +196,10 @@ _gh_worktree_remove() {
 		local wt_name
 		wt_name=$(basename "$worktree_path")
 		# Stage everything (including untracked) so stash captures it all
-		git -C "$worktree_path" add -A
-		git -C "$worktree_path" stash push -m "gh-ai: auto-stash worktree '${wt_name}'" 2>/dev/null || true
-		echo "Auto-stashed uncommitted changes from worktree '${wt_name}' — recover with: git stash list" >&2
+		git -C "$worktree_path" add -A 2>/dev/null || true
+		if git -C "$worktree_path" stash push -m "gh-ai: auto-stash worktree '${wt_name}'" 2>/dev/null; then
+			echo "Auto-stashed uncommitted changes from worktree '${wt_name}' — recover with: git stash list" >&2
+		fi
 	fi
 
 	# Warn about unpushed commits (stash doesn't help here — they're in the branch reflog)

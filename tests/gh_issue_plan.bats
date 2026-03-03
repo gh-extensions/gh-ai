@@ -21,7 +21,9 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_issue_plan_args _show_issue_plan_help _gh_issue_plan _parse_title _parse_body
+		declare -f _parse_issue_args _parse_issue_plan_args _show_issue_plan_help _gh_issue_plan \
+			_prepare_issue_context _prepare_issue_plan_context _resolve_context_dir _create_context_dir _save_context_file \
+			_cmd_render _cmd_ask _get_agent _parse_title _parse_body
 	)"
 }
 
@@ -104,7 +106,7 @@ setup() {
 _setup_plan_mocks() {
 	gh() {
 		case "$1 $2" in
-		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''";;
+		"issue view") printf '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
 		"config get") ;;
 		esac
 	}
@@ -173,7 +175,7 @@ _setup_plan_mocks() {
 @test "_gh_issue_plan: errors when AI output is empty" {
 	gh() {
 		case "$1 $2" in
-		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''";;
+		"issue view") printf '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}';;
 		"config get") ;;
 		esac
 	}

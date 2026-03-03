@@ -21,7 +21,9 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_run.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_run_explain_args _show_run_explain_help _gh_run_explain _cmd_render _cmd_ask _get_agent
+		declare -f _parse_run_args _parse_run_explain_args _show_run_explain_help _gh_run_explain \
+			_prepare_run_context _prepare_run_explain_context _resolve_context_dir _create_context_dir _save_context_file \
+			_cmd_render _cmd_ask _get_agent
 	)"
 }
 
@@ -81,7 +83,8 @@ setup() {
 _setup_explain_mocks() {
 	gh() {
 		case "$1 $2" in
-		"run view") printf "gh_run_title='Test Run'\ngh_run_conclusion='failure'\ngh_run_url='https://github.com/owner/repo/actions/runs/123'\ngh_run_event='push'\ngh_run_branch='main'\ngh_run_jobs='build'" ;;
+		# First call: metadata JSON; second call: log (also returns this non-empty string)
+		"run view") printf '{"displayTitle":"Test Run","conclusion":"failure","url":"https://github.com/owner/repo/actions/runs/123","event":"push","headBranch":"main","headSha":"abc123def456","jobs":[]}' ;;
 		"config get") ;;
 		esac
 	}
@@ -150,7 +153,7 @@ _setup_explain_mocks() {
 @test "_gh_run_explain: errors when AI output is empty" {
 	gh() {
 		case "$1 $2" in
-		"run view") printf "gh_run_title='Test Run'\ngh_run_conclusion='failure'\ngh_run_url='https://github.com/owner/repo/actions/runs/123'\ngh_run_event='push'\ngh_run_branch='main'\ngh_run_jobs='build'" ;;
+		"run view") printf '{"displayTitle":"Test Run","conclusion":"failure","url":"https://github.com/owner/repo/actions/runs/123","event":"push","headBranch":"main","headSha":"abc123def456","jobs":[]}' ;;
 		"config get") ;;
 		esac
 	}

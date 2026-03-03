@@ -20,8 +20,9 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
+		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _split_on_separator _cmd_render _parse_title _parse_body \
-			_gh_repo_name _git_repo_path _git_branch_diff _uuidv5
+			_gh_repo_name _git_repo_path _git_branch_diff
 	)"
 }
 
@@ -412,45 +413,4 @@ Actual body.")
 	output=$(_parse_body "# Title only")
 
 	[[ "$output" == *"markdownlint-disable-file"* ]]
-}
-
-# ---------------------------------------------------------------------------
-# _uuidv5
-# ---------------------------------------------------------------------------
-
-@test "_uuidv5: correct UUID for known issue URL" {
-	local output
-	output=$(_uuidv5 "https://github.com/owner/repo/issues/42")
-
-	[[ "$output" == "3c177fbc-2912-59eb-b754-8ff8b6e3021b" ]]
-}
-
-@test "_uuidv5: correct UUID for known PR URL" {
-	local output
-	output=$(_uuidv5 "https://github.com/gh-extensions/gh-ai/pull/7")
-
-	[[ "$output" == "06aecb08-6f37-5c60-807f-2d88b3f2cd2c" ]]
-}
-
-@test "_uuidv5: correct UUID for known run URL" {
-	local output
-	output=$(_uuidv5 "https://github.com/gh-extensions/gh-ai/actions/runs/123456")
-
-	[[ "$output" == "728ca934-ac63-5822-9504-56becd76d3e0" ]]
-}
-
-@test "_uuidv5: different inputs produce different UUIDs" {
-	local uuid1 uuid2
-	uuid1=$(_uuidv5 "https://github.com/owner/repo/issues/1")
-	uuid2=$(_uuidv5 "https://github.com/owner/repo/issues/2")
-
-	[[ "$uuid1" != "$uuid2" ]]
-}
-
-@test "_uuidv5: same input always produces same UUID" {
-	local uuid1 uuid2
-	uuid1=$(_uuidv5 "https://github.com/owner/repo/issues/42")
-	uuid2=$(_uuidv5 "https://github.com/owner/repo/issues/42")
-
-	[[ "$uuid1" == "$uuid2" ]]
 }

@@ -22,7 +22,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
-		declare -f _parse_issue_edit_args _show_issue_edit_help _gh_issue_edit _split_on_separator
+		declare -f _parse_issue_args _parse_issue_edit_args _show_issue_edit_help _gh_issue_edit _split_on_separator
 	)"
 }
 

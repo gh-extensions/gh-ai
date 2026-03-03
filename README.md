@@ -28,13 +28,13 @@ gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
 gh ai pr explain [PR_NUMBER] [--comment | --edit]
-gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
 gh ai run explain <RUN_ID>
-gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
 ```
 
 ### Pull Request
@@ -84,7 +84,6 @@ running the same command again resumes the previous session. Use `--new-session`
 gh ai pr chat 42
 gh ai pr chat -d "focus on the security changes"
 gh ai pr chat 42 -n # start a new session
-gh ai pr chat 42 -- --model sonnet
 ```
 
 ### Issue
@@ -140,7 +139,6 @@ running the same command again resumes the previous session. Use `--new-session`
 gh ai issue chat 42
 gh ai issue chat 42 -d "focus on the auth module"
 gh ai issue chat 42 -n                # start a new session
-gh ai issue chat 42 -- --model sonnet
 ```
 
 ### Run
@@ -159,7 +157,6 @@ Use `--new-session` (or `-n`) to start fresh.
 gh ai run chat 123456
 gh ai run chat 123456 -d "focus on test failures"
 gh ai run chat 123456 -n                # start a new session
-gh ai run chat 123456 -- --model sonnet
 ```
 
 ## Recipes
@@ -188,16 +185,16 @@ gh ai issue plan "$ISSUE_NUMBER" | gh agent-task create -F -
 
 Chat commands automatically persist sessions per resource. The first
 invocation creates a new session with a dedicated worktree and a local branch
-named after the resource (e.g. `issue-42`, `pr-42`); subsequent runs resume
+named after the resource (e.g. `issue-42`, `pull-42`); subsequent runs resume
 it. Session state is stored in the repository at:
 
 ```text
-<repo-root>/.claude/sessions/<session-uuid>/state.json
+<repo-root>/.claude/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
+  session.id       — Claude session UUID used to resume the conversation
+  worktree.json    — worktree spec (branch, remote ref, pinned SHA)
 ```
 
 Use `--new-session` (or `-n`) to discard the existing session and start fresh.
-Session management is skipped when you pass your own `--resume`, `--session-id`,
-`--continue`, or `-c` after `--`.
 
 When a session ends, the worktree is automatically removed. If the worktree
 has uncommitted changes, they are auto-stashed before removal so nothing is
@@ -219,16 +216,29 @@ The worktree name and branch strategy depend on the resource type:
 | `gh ai issue chat 42` | `issue-42`    | Creates a new `issue-42` branch from `origin/<default>`     |
 | `gh ai run chat 123`  | `run-123`     | Creates a new `run-123` branch from `origin/<run's branch>` |
 
-**PR chat** checks out the PR's head branch so any commit the agent makes can
-be pushed with a plain `git push` to update the PR — no extra flags needed.
+**PR chat** checks out the PR's head branch directly. If the branch already
+exists locally it is fast-forwarded to the remote tip first (unless it has
+diverged, in which case the local state is used as-is). Any commit the agent
+makes can be pushed with a plain `git push` to update the PR — no extra flags
+needed.
 
 **Issue chat** starts a fresh branch from the repository's default branch.
-The agent can commit work-in-progress there and you can open a PR from it
-when ready.
+The agent can commit work-in-progress there. Push the branch and open a PR
+when ready:
+
+```bash
+git push -u origin issue-42
+gh pr create --head issue-42
+```
 
 **Run chat** starts a fresh branch pinned to the run's exact `headSha` — the
 commit that actually triggered the failure — regardless of how far the branch
-has moved since. Push the branch and open a PR to land the fix.
+has moved since. Push the branch and open a PR to land the fix:
+
+```bash
+git push -u origin run-123
+gh pr create --head run-123
+```
 
 ## Configuration
 

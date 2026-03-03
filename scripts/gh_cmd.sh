@@ -19,7 +19,7 @@ _gh_cmd_dir=$(dirname "${BASH_SOURCE[0]}")
 # Safety: substitution is a single left-to-right pass — values are never
 # re-scanned, so ${...} patterns inside a substituted value (e.g. in a git
 # diff) are never expanded. Template files use ALL_CAPS variable names
-# (GH_PR_DIFF, GH_ISSUE_*, etc.) that do not overlap with standard shell variables.
+# (GH_PR_DIFF, etc.) that do not overlap with standard shell variables.
 #
 # Usage: MY_VAR="value" _cmd_render template.tmpl
 # Usage: GH_PR_DIFF_FILE="/tmp/diff.patch" _cmd_render template.tmpl
@@ -83,36 +83,12 @@ _cmd_ask() {
 # Pipe a preamble into the configured agent binary
 #
 # Resolves ai.agent (default: claude), verifies the binary exists, then
-# pipes the preamble into it. Automatically injects --settings pointing to
-# the extension's scripts/gh_claude.json. Extra positional args are forwarded
-# to the agent.
+# pipes the preamble into it. Extra positional args are forwarded to the agent.
 #
 # Usage: _cmd_chat "context preamble" [AGENT_ARGS...]
 _cmd_chat() {
 	local preamble="$1"
 	shift
-
-	# Drop --from-pr; it conflicts with gh-ai's own session management
-	local args=()
-	local skip_next=false
-	for arg in "$@"; do
-		if [[ "$skip_next" == true ]]; then
-			skip_next=false
-			continue
-		fi
-		case "$arg" in
-		--from-pr)
-			gum log --level warn "--from-pr is not compatible with gh-ai session management; ignoring"
-			skip_next=true
-			continue
-			;;
-		--from-pr=*)
-			gum log --level warn "--from-pr is not compatible with gh-ai session management; ignoring"
-			continue
-			;;
-		esac
-		args+=("$arg")
-	done
 
 	local agent
 	agent=$(_get_agent)
@@ -121,10 +97,12 @@ _cmd_chat() {
 		gum log --level info "Install it or set: gh config set ai.agent <binary>"
 		return 1
 	fi
+
+	printf "Starting %s — loading context..." "$agent"
 	# shellcheck disable=SC2154
 	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
-	local settings_file="$_gh_ai_source_dir/scripts/gh_claude.json"
-	printf '%s\n' "$preamble" | cat -s | "$agent" --settings "$settings_file" "${args[@]}"
+	local settings_file="$_gh_ai_source_dir/scripts/gh_worktree.json"
+	printf '%s' "$preamble" | cat -s | "$agent" --settings "$settings_file" "$@"
 }
 
 # Extract title from AI response
@@ -132,8 +110,7 @@ _cmd_chat() {
 # Gets the title from AI-generated content by taking the first line
 # and removing any markdown heading prefix (#).
 #
-# Example: _parse_title "# Fix bug in parser\n\nDescription..."
-# Returns: "Fix bug in parser"
+# Usage: _parse_title content
 _parse_title() {
 	local content="$1"
 
@@ -153,6 +130,8 @@ _parse_title() {
 #
 # Takes everything after the first line of AI content (skipping the title),
 # removes leading blank lines, and prepends a markdownlint directive.
+#
+# Usage: _parse_body content
 _parse_body() {
 	local content="$1"
 
@@ -244,9 +223,7 @@ _git_branch_diff() {
 	fi
 
 	_stat_ref=$(git diff "$effective_base"..."$head" --stat 2>/dev/null || true)
-
 	_log_ref=$(git log --oneline "$effective_base".."$head" 2>/dev/null || true)
-
 	# shellcheck disable=SC2001
 	_commits_ref=$(printf '%s\n' "$_log_ref" | sed 's/^[a-f0-9]* /- /')
 }
@@ -263,6 +240,27 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
 }
 
+# Resolve context directory: persistent session dir for chat, temp dir otherwise
+#
+# Chat commands get a persistent directory under .claude/sessions/<name>;
+# all other commands get a temporary directory via _create_context_dir.
+#
+# Usage: _resolve_context_dir type session_name dir_ref
+_resolve_context_dir() {
+	local _rcd_type="$1"
+	local _rcd_name="$2"
+	local -n _rcd_dir="$3"
+
+	if [[ "$_rcd_type" == "chat" ]]; then
+		local _rcd_git_root
+		_git_repo_path _rcd_git_root || return 1
+		_rcd_dir="$_rcd_git_root/.claude/sessions/$_rcd_name"
+		mkdir -p "$_rcd_dir"
+	else
+		_create_context_dir _rcd_dir
+	fi
+}
+
 # Save content to a named file in a context directory
 #
 # Writes content to a file using printf builtin (no execve, so no ARG_MAX impact).
@@ -270,189 +268,109 @@ _create_context_dir() {
 # Usage: _save_context_file "/path/to/context/dir" "filename" "content"
 _save_context_file() {
 	local dir="$1" name="$2" content="$3"
-	printf '%s' "$content" > "$dir/$name"
+	printf '%s' "$content" >"$dir/$name"
 }
 
-# Generate a UUIDv5 from a name using the NAMESPACE_URL (RFC 4122)
+# Shared argument parser for chat commands.
 #
-# Pure bash implementation — uses printf for the 16-byte NAMESPACE_URL raw
-# bytes and shasum -a 1 (both ship with macOS/Linux).
+# Extracts a numeric resource ID (first positional arg), -d/--description value,
+# and -n/--new-session flag. Unknown flags produce an error. All internal
+# variables use _pca_ prefix to avoid nameref collisions.
 #
-# Usage: _uuidv5 "https://github.com/owner/repo/issues/42"
-_uuidv5() {
-	local name="$1"
-	local hash
-	hash=$({
-		printf '\x6b\xa7\xb8\x11\x9d\xad\x11\xd1\x80\xb4\x00\xc0\x4f\xd4\x30\xc8'
-		printf '%s' "$name"
-	} | shasum -a 1 | cut -d' ' -f1)
-	local h="${hash:0:32}"
-	local byte6 byte8
-	byte6=$(printf '%02x' $((0x${h:12:2} & 0x0f | 0x50)))
-	byte8=$(printf '%02x' $((0x${h:16:2} & 0x3f | 0x80)))
-	printf '%s-%s-%s%s-%s%s-%s\n' \
-		"${h:0:8}" "${h:8:4}" "$byte6" "${h:14:2}" "$byte8" "${h:18:2}" "${h:20:12}"
-}
-
-# Resolve session state: validate inputs, compute IDs, and locate state file
-#
-# Shared helper for _try_resume_chat_session and _resolve_chat_session.
-# Validates the resource URL, checks passthrough for user session flags,
-# generates a deterministic session ID, derives the worktree name, resolves
-# the git root, computes the state file path, and handles --new-session deletion.
-#
-# Returns 1 (skip) when URL is empty, user passed session flags, or git root
-# is unavailable.  On success, populates the three namerefs and returns 0.
-#
-# Usage: _resolve_session_state sid_ref name_ref path_ref "$url" "$new_session" "${passthrough[@]}"
-_resolve_session_state() {
-	local -n _ss_sid="$1" _ss_name="$2" _ss_path="$3"
-	local resource_url="$4"
-	local new_session="$5"
-	shift 5
-
-	if [[ -z "$resource_url" ]]; then
-		return 1
-	fi
-
-	local arg
-	for arg in "$@"; do
-		case "$arg" in
-		--resume | --resume=* | --session-id | --session-id=* | --continue | -c)
-			return 1
-			;;
-		esac
-	done
-
-	_ss_sid=$(_uuidv5 "$resource_url")
-
-	# Derive worktree name from last two URL path segments (e.g. "issues/42" → "issue-42")
-	_ss_name=$(printf '%s' "$resource_url" | awk -F/ '{sub(/s$/, "", $(NF-1)); print $(NF-1) "-" $NF}')
-
-	local git_root
-	_git_repo_path git_root || return 1
-
-	_ss_path="$git_root/.claude/sessions/$_ss_sid"
-
-	if [[ -n "$new_session" ]]; then
-		# Clean up both old .json format and new directory format
-		rm -f "${_ss_path}.json"
-		rm -rf "$_ss_path"
-	fi
-}
-
-# Try to resume an existing chat session
-#
-# Checks if a session state file exists for the given resource URL and
-# populates session arguments for resumption. Does NOT create new sessions.
-# When new_session is non-empty, deletes the existing state file before checking.
-# Returns 0 if session can be resumed, 1 if a new session is needed.
-#
-# Usage: _try_resume_chat_session session_args_ref "https://github.com/..." "$new_session" "${passthrough[@]}"
-_try_resume_chat_session() {
-	local -n _session_args_ref="$1"
-	local resource_url="$2"
-	local new_session="$3"
+# Usage: _parse_chat_args id_ref desc_ref new_session_ref [args...]
+_parse_chat_args() {
+	local -n _pca_id="$1"
+	local -n _pca_desc="$2"
+	local -n _pca_new_session="$3"
 	shift 3
 
-	_session_args_ref=()
+	local _pca_raw=("$@")
+	local _pca_skip=false
+	local _pca_i=0
 
-	local session_id="" name="" state_file=""
-	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 1
+	while [[ $_pca_i -lt ${#_pca_raw[@]} ]]; do
+		if [[ "$_pca_skip" = true ]]; then
+			_pca_skip=false
+			((++_pca_i))
+			continue
+		fi
 
-	# Read name from stored state — it may differ from the URL-derived default
-	# (e.g. when the session was created with a branch name as the worktree name)
-	if [[ -d "$state_file" && -f "$state_file/state.json" ]]; then
-		name=$(jq -r '.name' "$state_file/state.json")
-		_session_args_ref=(--resume "$session_id" --worktree "$name")
-		return 0
-	elif [[ -f "${state_file}.json" ]]; then
-		name=$(jq -r '.name' "${state_file}.json")
-		_session_args_ref=(--resume "$session_id" --worktree "$name")
-		return 0
-	fi
-
-	return 1
+		case "${_pca_raw[$_pca_i]}" in
+		--description | -d)
+			if ((_pca_i + 1 >= ${#_pca_raw[@]})); then
+				gum log --level error "${_pca_raw[$_pca_i]} requires a value"
+				return 1
+			fi
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_pca_desc="${_pca_raw[$((_pca_i + 1))]}"
+			_pca_skip=true
+			;;
+		--description=*)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_pca_desc="${_pca_raw[$_pca_i]#--description=}"
+			;;
+		--new-session | -n)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_pca_new_session=1
+			;;
+		-*)
+			gum log --level error "unknown flag '${_pca_raw[$_pca_i]}'"
+			return 1
+			;;
+		*)
+			local _pca_arg="${_pca_raw[$_pca_i]#\#}"
+			if [[ -z "$_pca_id" && "$_pca_arg" =~ ^[0-9]+$ ]]; then
+				_pca_id="$_pca_arg"
+			else
+				gum log --level error "unexpected argument '${_pca_raw[$_pca_i]}'"
+				return 1
+			fi
+			;;
+		esac
+		((++_pca_i))
+	done
 }
 
-# Resolve session arguments for chat commands
+# Resolve session arguments for _cmd_chat and report whether a new session
+# is being started.
 #
-# Manages session state files for chat session persistence. On first run,
-# creates a state file with the session ID, worktree name, and remote ref,
-# then returns --session-id + --worktree. On subsequent runs, returns
-# --resume + --worktree. When new_session is non-empty, deletes the existing
-# state file first. Silently skips when the URL is empty, the user passed
-# their own session flags, or the git root is unavailable.
+# Reads the session UUID from $session_dir/session.id.
+#   - File present and new_session is empty: sets is_new_ref to "" and
+#     args_ref to (--resume <uuid>).
+#   - File absent or new_session is non-empty: generates a new UUID, writes it
+#     to the file, sets is_new_ref to 1 and args_ref to (--session-id <uuid>).
 #
-# The remote_ref parameter specifies the base branch for the worktree
-# (e.g. the PR head branch, run branch, or empty for repo default).
-# When empty, defaults to the repository's default branch via origin/HEAD.
-#
-# The branch parameter names the local branch to check out in the worktree.
-# When set (e.g. the PR head branch), _gh_worktree_create checks it out
-# directly so `git push` updates it without extra flags (PR behaviour).
-# When empty, the worktree creates a fresh branch named after the worktree
-# from origin/remote_ref (issue/run behaviour).
-#
-# The sha parameter pins the worktree base to a specific commit. When set
-# (e.g. the run's headSha), the worktree is created from that exact commit
-# rather than the current tip of remote_ref. remote_ref is still used to
-# fetch the branch so the SHA is reachable locally.
-#
-# Usage: _resolve_chat_session session_args_ref "https://..." "$new_session" "$remote_ref" "$branch" "$sha" "${passthrough[@]}"
+# Usage: _resolve_chat_session session_dir new_session is_new_ref args_ref
 _resolve_chat_session() {
-	local -n _session_args_ref="$1"
-	local resource_url="$2"
-	local new_session="$3"
-	local remote_ref="$4"
-	local branch="$5"
-	local sha="$6"
-	shift 6
+	local _rcs_dir="$1"
+	local _rcs_new_session="$2"
+	local -n _rcs_is_new="$3"
+	local -n _rcs_args="$4"
 
-	_session_args_ref=()
+	local _rcs_session_file="$_rcs_dir/session.id"
+	local _rcs_uuid
 
-	local session_id="" name="" state_file=""
-	_resolve_session_state session_id name state_file "$resource_url" "$new_session" "$@" || return 0
+	if [[ -n "$_rcs_new_session" ]]; then
+		rm -fr "$_rcs_session_file"
+	fi
 
-	# Create session directory
-	mkdir -p "$state_file"
-
-	local state_json="$state_file/state.json"
-
-	# Check both new and old formats for existing session
-	if [[ -f "$state_json" ]]; then
-		name=$(jq -r '.name' "$state_json")
-		_session_args_ref=(--resume "$session_id" --worktree "$name")
-	elif [[ -f "${state_file}.json" ]]; then
-		name=$(jq -r '.name' "${state_file}.json")
-		_session_args_ref=(--resume "$session_id" --worktree "$name")
+	if [[ -f "$_rcs_session_file" ]]; then
+		_rcs_uuid=$(<"$_rcs_session_file")
+		# shellcheck disable=SC2034 # nameref: set by caller
+		_rcs_is_new=""
+		# shellcheck disable=SC2034 # nameref: set by caller
+		_rcs_args=(--resume "$_rcs_uuid")
 	else
-		# New session: name is always URL-derived; remote_ref is the base branch.
-		if [[ -z "$remote_ref" ]]; then
-			remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||')
-			remote_ref="${remote_ref:-main}"
+		_rcs_uuid=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
+		if [[ -z "$_rcs_uuid" ]]; then
+			gum log --level error "Failed to generate session UUID"
+			return 1
 		fi
-		if [[ -n "$branch" ]]; then
-			# PR: store branch so the worktree checks it out directly,
-			# enabling `git push` to update the PR without extra flags.
-			jq -n --arg session_id "$session_id" --arg name "$name" \
-				--arg remote_ref "$remote_ref" --arg branch "$branch" \
-				'{session_id: $session_id, name: $name, remote_ref: $remote_ref, branch: $branch}' >"$state_json"
-		elif [[ -n "$sha" ]]; then
-			# Run: pin to the exact commit that triggered the run so the agent
-			# always works on the code that actually failed, regardless of how
-			# far the branch has moved. remote_ref is kept for fetching.
-			jq -n --arg session_id "$session_id" --arg name "$name" \
-				--arg remote_ref "$remote_ref" --arg sha "$sha" \
-				'{session_id: $session_id, name: $name, remote_ref: $remote_ref, sha: $sha}' >"$state_json"
-		else
-			# Issue: no branch or sha; worktree creates a fresh branch named
-			# after the worktree (e.g. issue-99) from origin/remote_ref.
-			jq -n --arg session_id "$session_id" --arg name "$name" \
-				--arg remote_ref "$remote_ref" \
-				'{session_id: $session_id, name: $name, remote_ref: $remote_ref}' >"$state_json"
-		fi
-		_session_args_ref=(--session-id "$session_id" --worktree "$name")
+		printf '%s' "$_rcs_uuid" >"$_rcs_session_file"
+		# shellcheck disable=SC2034 # nameref: set by caller
+		_rcs_is_new=1
+		# shellcheck disable=SC2034 # nameref: set by caller
+		_rcs_args=(--session-id "$_rcs_uuid")
 	fi
 }
 

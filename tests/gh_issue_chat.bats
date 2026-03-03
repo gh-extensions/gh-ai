@@ -28,7 +28,9 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_issue_chat_args _show_issue_chat_help _gh_issue_chat _cmd_chat _cmd_render _split_on_separator _get_agent _uuidv5 _git_repo_path _resolve_session_state _try_resume_chat_session _resolve_chat_session _gh_repo_name
+		declare -f _parse_chat_args _parse_issue_chat_args _show_issue_chat_help _gh_issue_chat \
+			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
+			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file
 	)"
 }
 
@@ -147,8 +149,7 @@ setup() {
 _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
-		"issue view") printf "gh_issue_title='Test Issue'\ngh_issue_body='Issue body'\ngh_issue_labels=''\ngh_issue_comments=''" ;;
+		"issue view") printf '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}' ;;
 		"config get") ;;
 		esac
 	}
@@ -165,6 +166,8 @@ _setup_chat_mocks() {
 		esac
 	}
 	export -f gum
+
+	_save_worktree_state() { :; }
 }
 
 @test "_gh_issue_chat: calls _cmd_chat with rendered preamble and session args" {
@@ -186,21 +189,6 @@ _setup_chat_mocks() {
 	[[ "$output" == *"--worktree issue-42"* ]]
 }
 
-@test "_gh_issue_chat: passes session args before passthrough args" {
-	_setup_chat_mocks
-
-	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
-		printf 'ALLARGS:%s\n' "$*"
-	}
-
-	run _gh_issue_chat 42 -- --model sonnet
-
-	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"--session-id"* ]]
-	[[ "$output" == *"--model sonnet"* ]]
-}
 
 @test "_gh_issue_chat: errors when no issue number provided" {
 	_setup_chat_mocks
@@ -213,7 +201,6 @@ _setup_chat_mocks() {
 @test "_gh_issue_chat: errors when issue fetch fails" {
 	gh() {
 		case "$1 $2" in
-		"repo view") echo "owner/repo" ;;
 		"issue view") ;;
 		"config get") ;;
 		esac
@@ -237,7 +224,7 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_issue_chat: resumes session without fetching metadata on second call" {
+@test "_gh_issue_chat: resumes previous session on second call" {
 	_setup_chat_mocks
 
 	_cmd_chat() {

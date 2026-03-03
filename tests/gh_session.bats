@@ -25,287 +25,132 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _uuidv5 _git_repo_path _resolve_session_state _try_resume_chat_session _resolve_chat_session
+		declare -f _git_repo_path _resolve_chat_session
 	)"
-}
-
-# ---------------------------------------------------------------------------
-# _try_resume_chat_session
-# ---------------------------------------------------------------------------
-
-@test "_try_resume_chat_session: returns 1 when no state file exists" {
-	local args=()
-	run _try_resume_chat_session args "https://github.com/owner/repo/issues/42" ""
-
-	[[ "$status" -eq 1 ]]
-}
-
-@test "_try_resume_chat_session: returns 0 when state file exists" {
-	# Create state file first via _resolve_chat_session
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local resume_args=()
-	_try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" ""
-
-	[[ ${#resume_args[@]} -eq 4 ]]
-	[[ "${resume_args[0]}" == "--resume" ]]
-	[[ "${resume_args[1]}" == "${args[1]}" ]]
-	[[ "${resume_args[2]}" == "--worktree" ]]
-	[[ "${resume_args[3]}" == "issue-42" ]]
-}
-
-@test "_try_resume_chat_session: returns 1 after --new-session deletes state file" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local resume_args=()
-	if _try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" "1"; then
-		return 1
-	fi
-
-	[[ ${#resume_args[@]} -eq 0 ]]
-}
-
-@test "_try_resume_chat_session: returns 1 when URL is empty" {
-	local args=()
-	if _try_resume_chat_session args "" ""; then
-		return 1
-	fi
-
-	[[ ${#args[@]} -eq 0 ]]
-}
-
-@test "_try_resume_chat_session: returns 1 when user passes --resume in passthrough" {
-	# Create state file first
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local resume_args=()
-	if _try_resume_chat_session resume_args "https://github.com/owner/repo/issues/42" "" --resume "custom-id"; then
-		return 1
-	fi
-
-	[[ ${#resume_args[@]} -eq 0 ]]
 }
 
 # ---------------------------------------------------------------------------
 # _resolve_chat_session
 # ---------------------------------------------------------------------------
 
-@test "_resolve_chat_session: first call returns --session-id and --worktree" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
+@test "_resolve_chat_session: first call returns --session-id and a UUID" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-1"
+	mkdir -p "$session_dir"
 
-	[[ ${#args[@]} -eq 4 ]]
+	local is_new="" args=()
+	_resolve_chat_session "$session_dir" "" is_new args
+
+	[[ "$is_new" == "1" ]]
+	[[ ${#args[@]} -eq 2 ]]
 	[[ "${args[0]}" == "--session-id" ]]
 	[[ -n "${args[1]}" ]]
-	[[ "${args[2]}" == "--worktree" ]]
-	[[ "${args[3]}" == "issue-42" ]]
 }
 
-@test "_resolve_chat_session: creates state file on first call" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
+@test "_resolve_chat_session: creates session.id file on first call" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-2"
+	mkdir -p "$session_dir"
 
-	local session_id="${args[1]}"
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${session_id}/state.json"
-	[[ -f "$state_file" ]]
+	local is_new="" args=()
+	_resolve_chat_session "$session_dir" "" is_new args
+
+	[[ -f "$session_dir/session.id" ]]
 }
 
-@test "_resolve_chat_session: second call returns --resume with same session ID" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
+@test "_resolve_chat_session: session.id contains the returned UUID" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-3"
+	mkdir -p "$session_dir"
 
-	local first_id="${args[1]}"
+	local is_new="" args=()
+	_resolve_chat_session "$session_dir" "" is_new args
 
-	local args2=()
-	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "" "" "" ""
+	local stored
+	stored=$(<"$session_dir/session.id")
+	[[ "$stored" == "${args[1]}" ]]
+}
 
-	[[ ${#args2[@]} -eq 4 ]]
+@test "_resolve_chat_session: second call returns --resume with same UUID" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-4"
+	mkdir -p "$session_dir"
+
+	local is_new1="" args1=()
+	_resolve_chat_session "$session_dir" "" is_new1 args1
+	local first_uuid="${args1[1]}"
+
+	local is_new2="" args2=()
+	_resolve_chat_session "$session_dir" "" is_new2 args2
+
+	[[ -z "$is_new2" ]]
+	[[ ${#args2[@]} -eq 2 ]]
 	[[ "${args2[0]}" == "--resume" ]]
-	[[ "${args2[1]}" == "$first_id" ]]
-	[[ "${args2[2]}" == "--worktree" ]]
-	[[ "${args2[3]}" == "issue-42" ]]
+	[[ "${args2[1]}" == "$first_uuid" ]]
 }
 
-@test "_resolve_chat_session: --new-session deletes existing state and returns --session-id" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
+@test "_resolve_chat_session: --new-session deletes session file and returns --session-id" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-5"
+	mkdir -p "$session_dir"
 
-	local args2=()
-	_resolve_chat_session args2 "https://github.com/owner/repo/issues/42" "1" "" "" ""
+	# First call to establish a session
+	local is_new1="" args1=()
+	_resolve_chat_session "$session_dir" "" is_new1 args1
+	local first_uuid="${args1[1]}"
 
-	[[ ${#args2[@]} -eq 4 ]]
+	# Second call with new_session=1 should create a fresh session
+	local is_new2="" args2=()
+	_resolve_chat_session "$session_dir" "1" is_new2 args2
+
+	[[ "$is_new2" == "1" ]]
 	[[ "${args2[0]}" == "--session-id" ]]
-	[[ "${args2[2]}" == "--worktree" ]]
+	# UUID should be different (or at least the flag is --session-id, not --resume)
+	[[ "${args2[0]}" != "--resume" ]]
 }
 
-@test "_resolve_chat_session: skips when user passes --resume in passthrough" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --resume "some-uuid"
+@test "_resolve_chat_session: --new-session removes the old session.id" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-6"
+	mkdir -p "$session_dir"
+	printf 'old-uuid-12345' >"$session_dir/session.id"
 
-	[[ ${#args[@]} -eq 0 ]]
+	local is_new="" args=()
+	_resolve_chat_session "$session_dir" "1" is_new args
+
+	local stored
+	stored=$(<"$session_dir/session.id")
+	[[ "$stored" != "old-uuid-12345" ]]
 }
 
-@test "_resolve_chat_session: skips when user passes --session-id in passthrough" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --session-id "some-uuid"
+@test "_resolve_chat_session: is_new is empty on resumed session" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-7"
+	mkdir -p "$session_dir"
+	printf 'existing-uuid' >"$session_dir/session.id"
 
-	[[ ${#args[@]} -eq 0 ]]
+	local is_new="initial" args=()
+	_resolve_chat_session "$session_dir" "" is_new args
+
+	[[ -z "$is_new" ]]
 }
 
-@test "_resolve_chat_session: skips when user passes --continue in passthrough" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" --continue
+@test "_resolve_chat_session: UUID is lowercase" {
+	local session_dir="$BATS_TEST_TMPDIR/sessions/test-8"
+	mkdir -p "$session_dir"
 
-	[[ ${#args[@]} -eq 0 ]]
+	local is_new="" args=()
+	_resolve_chat_session "$session_dir" "" is_new args
+
+	# UUID should be lowercase (no uppercase letters)
+	[[ "${args[1]}" =~ ^[0-9a-f-]+$ ]]
 }
 
-@test "_resolve_chat_session: skips when user passes -c in passthrough" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" "" -c
+@test "_resolve_chat_session: separate session dirs are independent" {
+	local dir1="$BATS_TEST_TMPDIR/sessions/pull-42"
+	local dir2="$BATS_TEST_TMPDIR/sessions/issue-7"
+	mkdir -p "$dir1" "$dir2"
 
-	[[ ${#args[@]} -eq 0 ]]
-}
+	local is1="" args1=() is2="" args2=()
+	_resolve_chat_session "$dir1" "" is1 args1
+	_resolve_chat_session "$dir2" "" is2 args2
 
-@test "_resolve_chat_session: skips silently when URL is empty" {
-	local args=()
-	_resolve_chat_session args "" "" "" "" ""
-
-	[[ ${#args[@]} -eq 0 ]]
-}
-
-@test "_resolve_chat_session: all resource types use sessions/ directory" {
-	local args_issue=() args_pr=() args_run=()
-	_resolve_chat_session args_issue "https://github.com/owner/repo/issues/42" "" "" "" ""
-	_resolve_chat_session args_pr "https://github.com/owner/repo/pull/7" "" "" "" ""
-	_resolve_chat_session args_run "https://github.com/owner/repo/actions/runs/123456" "" "" "" ""
-
-	local sessions_dir="$BATS_TEST_TMPDIR/.claude/sessions"
-	[[ -f "$sessions_dir/${args_issue[1]}/state.json" ]]
-	[[ -f "$sessions_dir/${args_pr[1]}/state.json" ]]
-	[[ -f "$sessions_dir/${args_run[1]}/state.json" ]]
-}
-
-@test "_resolve_chat_session: state file contains valid session_id and name" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"session_id"'* ]]
-	[[ "$content" == *'"name"'* ]]
-	[[ "$content" == *"issue-42"* ]]
-}
-
-@test "_resolve_chat_session: derives worktree name from URL segments" {
-	local args=()
-
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-	[[ "${args[3]}" == "issue-42" ]]
-
-	args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "" "" ""
-	[[ "${args[3]}" == "pull-7" ]]
-
-	args=()
-	_resolve_chat_session args "https://github.com/owner/repo/actions/runs/123456" "" "" "" ""
-	[[ "${args[3]}" == "run-123456" ]]
-}
-
-@test "_resolve_chat_session: state file contains remote_ref when provided" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"remote_ref": "feat-my-branch"'* ]]
-}
-
-@test "_resolve_chat_session: state file contains branch when branch is set" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/pull/7" "" "feat-my-branch" "feat-my-branch" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"branch": "feat-my-branch"'* ]]
-}
-
-@test "_resolve_chat_session: state file contains sha when sha is set" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/actions/runs/123456" "" "main" "" "abc1234def5678901234567890123456789012ab"
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"sha": "abc1234def5678901234567890123456789012ab"'* ]]
-	[[ "$content" != *'"branch"'* ]]
-}
-
-@test "_resolve_chat_session: state file has no sha when sha is empty" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" != *'"sha"'* ]]
-}
-
-@test "_resolve_chat_session: state file has no branch when use_ref_as_branch is unset" {
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" != *'"branch"'* ]]
-}
-
-@test "_resolve_chat_session: state file contains default remote_ref when not provided" {
-	git() {
-		case "$1 $2" in
-		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
-		"rev-parse --abbrev-ref") echo "origin/develop" ;;
-		esac
-	}
-	export -f git
-
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"remote_ref": "develop"'* ]]
-}
-
-@test "_resolve_chat_session: remote_ref defaults to main when git rev-parse fails" {
-	git() {
-		case "$1 $2" in
-		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
-		"rev-parse --abbrev-ref") return 1 ;;
-		esac
-	}
-	export -f git
-
-	local args=()
-	_resolve_chat_session args "https://github.com/owner/repo/issues/42" "" "" "" ""
-
-	local state_file="$BATS_TEST_TMPDIR/.claude/sessions/${args[1]}/state.json"
-	local content
-	content=$(cat "$state_file")
-
-	[[ "$content" == *'"remote_ref": "main"'* ]]
+	# Both are new sessions
+	[[ "$is1" == "1" ]]
+	[[ "$is2" == "1" ]]
+	# UUIDs differ
+	[[ "${args1[1]}" != "${args2[1]}" ]]
 }
