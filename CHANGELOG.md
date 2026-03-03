@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0](https://github.com/gh-extensions/gh-ai/compare/v0.11.0...v0.12.0) (2026-03-03)
+
+
+### Features
+
+* add logging for agent session lifecycle events ([de51d9a](https://github.com/gh-extensions/gh-ai/commit/de51d9ae3b22700085d494869801c1418ab01ba8))
+* open chat bindings in tmux window for interactive fzf ([38c68f6](https://github.com/gh-extensions/gh-ai/commit/38c68f6e0f1da61c0fc5ec124f1c1425de037079))
+* overhaul session management, worktree lifecycle, and context pipeline ([7155434](https://github.com/gh-extensions/gh-ai/commit/715543482f826533058420c57608012b45c4659c))
+
+
+### Bug Fixes
+
+* resolve gh_render.awk path using BASH_SOURCE instead of _gh_ai_source_dir ([690acdc](https://github.com/gh-extensions/gh-ai/commit/690acdcf4e2ad59618ea7341725248019c053d03))
+* use actual default branch in worktree tests ([2067972](https://github.com/gh-extensions/gh-ai/commit/206797212e3901351338faff9fb1a5843ac6ac27))
+
 ## [0.11.0](https://github.com/gh-extensions/gh-ai/compare/v0.10.0...v0.11.0) (2026-03-02)
 
 
