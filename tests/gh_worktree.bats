@@ -23,9 +23,8 @@ setup() {
 	# Create a worktree off the clone
 	WORKTREE_PATH="$BATS_TEST_TMPDIR/repo/.claude/worktrees/issue-1"
 	git -C "$BATS_TEST_TMPDIR/repo" worktree add -b issue-1 "$WORKTREE_PATH" HEAD >/dev/null 2>&1
-	local _main_branch
-	_main_branch=$(git -C "$BATS_TEST_TMPDIR/repo" rev-parse --abbrev-ref HEAD)
-	git -C "$WORKTREE_PATH" branch --set-upstream-to="origin/${_main_branch}" >/dev/null 2>&1
+	DEFAULT_BRANCH=$(git -C "$BATS_TEST_TMPDIR/repo" rev-parse --abbrev-ref HEAD)
+	git -C "$WORKTREE_PATH" branch --set-upstream-to="origin/${DEFAULT_BRANCH}" >/dev/null 2>&1
 
 	# Source the functions under test
 	# shellcheck disable=SC2155
@@ -277,7 +276,7 @@ teardown() {
 	repo_real=$(cd "$BATS_TEST_TMPDIR/repo" && pwd -P)
 	local session_dir="$repo_real/.claude/sessions/issue-1-alt"
 	mkdir -p "$session_dir"
-	_save_worktree_state "$session_dir" "issue-1-alt" "main" "" "issue-1"
+	_save_worktree_state "$session_dir" "issue-1-alt" "$DEFAULT_BRANCH" "" "issue-1"
 
 	run bash -c "printf '%s' '{\"name\": \"issue-1-alt\", \"cwd\": \"$repo_real\"}' | '$REPO_ROOT/scripts/gh_worktree.sh' create"
 
@@ -291,7 +290,7 @@ teardown() {
 	local session_dir="$repo_real/.claude/sessions/pull-99"
 	local worktree_path="$repo_real/.claude/worktrees/pull-99"
 	mkdir -p "$session_dir"
-	_save_worktree_state "$session_dir" "pull-99" "main" "" ""
+	_save_worktree_state "$session_dir" "pull-99" "$DEFAULT_BRANCH" "" ""
 
 	local output
 	output=$(printf '%s' "{\"name\": \"pull-99\", \"cwd\": \"$repo_real\"}" | "$REPO_ROOT/scripts/gh_worktree.sh" create)
@@ -306,7 +305,7 @@ teardown() {
 	local session_dir="$repo_real/.claude/sessions/pull-100"
 	local worktree_path="$repo_real/.claude/worktrees/pull-100"
 	mkdir -p "$session_dir"
-	_save_worktree_state "$session_dir" "pull-100" "main" "" ""
+	_save_worktree_state "$session_dir" "pull-100" "$DEFAULT_BRANCH" "" ""
 
 	# First call creates the worktree
 	printf '%s' "{\"name\": \"pull-100\", \"cwd\": \"$repo_real\"}" | "$REPO_ROOT/scripts/gh_worktree.sh" create >/dev/null
