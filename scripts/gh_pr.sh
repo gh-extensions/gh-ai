@@ -551,27 +551,18 @@ _gh_pr_review() {
 # Parse PR explain arguments
 #
 # Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and output mode (--comment or --edit) via namerefs.
+# via nameref.
 #
-# Usage: _parse_pr_explain_args num_ref mode_ref [args...]
+# Usage: _parse_pr_explain_args num_ref [args...]
 _parse_pr_explain_args() {
 	local -n _ppea_num_ref="$1"
-	local -n _ppea_mode_ref="$2"
-	shift 2
+	shift
 
 	local _ppea_raw=("$@")
 	local _ppea_i=0
 
 	while [[ $_ppea_i -lt ${#_ppea_raw[@]} ]]; do
 		case "${_ppea_raw[$_ppea_i]}" in
-		--comment)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_ppea_mode_ref="comment"
-			;;
-		--edit)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_ppea_mode_ref="edit"
-			;;
 		-*)
 			gum log --level error "unknown flag '${_ppea_raw[$_ppea_i]}'"
 			return 1
@@ -607,31 +598,27 @@ _show_pr_explain_help() {
 gh ai pr explain - Generate a plain-language explanation of a PR
 
 USAGE:
-    gh ai pr explain [PR_NUMBER] [--comment | --edit]
+    gh ai pr explain [PR_NUMBER]
 
 DESCRIPTION:
-    Generates a plain-language explanation of what a pull request does.
-    By default prints to stdout. Auto-detects PR from the current branch
+    Generates a plain-language explanation of what a pull request does
+    and prints it to stdout. Auto-detects PR from the current branch
     if no number is provided.
 
-FLAGS:
-    --comment   Post the explanation as a PR comment
-    --edit      Replace the PR description with the explanation
-
 EXAMPLES:
-    gh ai pr explain 42              # print to stdout
-    gh ai pr explain                 # auto-detect PR from current branch
-    gh ai pr explain 42 --comment    # post as PR comment
-    gh ai pr explain 42 --edit       # replace PR description
+    gh ai pr explain 42
+    gh ai pr explain                              # auto-detect PR
+    gh ai pr explain 42 | gh pr comment 42 --body -   # post as comment
+    gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR body
 EOF
 }
 
 # PR Explain implementation
 #
-# Generates a plain-language explanation of what a PR does.
-# By default prints to stdout; supports --comment and --edit output modes.
+# Generates a plain-language explanation of what a PR does
+# and prints it to stdout.
 #
-# Usage: _gh_pr_explain [NUMBER] [--comment | --edit]
+# Usage: _gh_pr_explain [NUMBER]
 _gh_pr_explain() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -644,12 +631,12 @@ _gh_pr_explain() {
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
 
-	local gh_pr_number="" gh_pr_output_mode=""
-	_parse_pr_explain_args gh_pr_number gh_pr_output_mode "$@"
+	local gh_pr_number=""
+	_parse_pr_explain_args gh_pr_number "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh ai pr explain [PR_NUMBER] [--comment | --edit]"
+		gum log --level info "Usage: gh ai pr explain [PR_NUMBER]"
 		return 1
 	fi
 
@@ -686,18 +673,7 @@ _gh_pr_explain() {
 		return 1
 	fi
 
-	# Output based on mode
-	case "$gh_pr_output_mode" in
-	comment)
-		gh pr comment "$gh_pr_number" --body "$gh_pr_explain"
-		;;
-	edit)
-		gh pr edit "$gh_pr_number" --body "$gh_pr_explain"
-		;;
-	*)
-		printf '%s\n' "$gh_pr_explain"
-		;;
-	esac
+	printf '%s\n' "$gh_pr_explain"
 }
 
 # Thin wrapper around _parse_chat_args for the chat subcommand.
@@ -967,7 +943,7 @@ USAGE:
     gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
     gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
-    gh ai pr explain [PR_NUMBER] [--comment | --edit]
+    gh ai pr explain [PR_NUMBER]
     gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
     gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 

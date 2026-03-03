@@ -33,62 +33,38 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_parse_pr_explain_args: captures PR number from positional arg" {
-	local number="" mode=""
-	_parse_pr_explain_args number mode 42
+	local number=""
+	_parse_pr_explain_args number 42
 
 	[[ "$number" == "42" ]]
-	[[ -z "$mode" ]]
 }
 
 @test "_parse_pr_explain_args: strips leading # from PR number" {
-	local number="" mode=""
-	_parse_pr_explain_args number mode "#42"
+	local number=""
+	_parse_pr_explain_args number "#42"
 
 	[[ "$number" == "42" ]]
-}
-
-@test "_parse_pr_explain_args: sets comment mode from --comment flag" {
-	local number="" mode=""
-	_parse_pr_explain_args number mode 42 --comment
-
-	[[ "$number" == "42" ]]
-	[[ "$mode" == "comment" ]]
-}
-
-@test "_parse_pr_explain_args: sets edit mode from --edit flag" {
-	local number="" mode=""
-	_parse_pr_explain_args number mode 42 --edit
-
-	[[ "$number" == "42" ]]
-	[[ "$mode" == "edit" ]]
-}
-
-@test "_parse_pr_explain_args: defaults to empty mode when no flags given" {
-	local number="" mode=""
-	_parse_pr_explain_args number mode 42
-
-	[[ -z "$mode" ]]
 }
 
 @test "_parse_pr_explain_args: returns error for unknown flags" {
-	local number="" mode=""
-	run _parse_pr_explain_args number mode --draft
+	local number=""
+	run _parse_pr_explain_args number --draft
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unknown flag '--draft'"* ]]
 }
 
 @test "_parse_pr_explain_args: returns error for unexpected non-numeric arg" {
-	local number="" mode=""
-	run _parse_pr_explain_args number mode foo
+	local number=""
+	run _parse_pr_explain_args number foo
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument 'foo'"* ]]
 }
 
 @test "_parse_pr_explain_args: returns error for second positional arg" {
-	local number="" mode=""
-	run _parse_pr_explain_args number mode 42 99
+	local number=""
+	run _parse_pr_explain_args number 42 99
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument '99'"* ]]

@@ -27,7 +27,7 @@ gh extension install gh-extensions/gh-ai
 gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
 gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
 gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
-gh ai pr explain [PR_NUMBER] [--comment | --edit]
+gh ai pr explain [PR_NUMBER]
 gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
 gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
@@ -72,10 +72,10 @@ gh ai pr review # auto-detects PR for the current branch
 Explains a pull request in plain language.
 
 ```bash
-gh ai pr explain 42              # print explanation to stdout
-gh ai pr explain                 # auto-detect PR from current branch
-gh ai pr explain 42 --comment    # post as PR comment
-gh ai pr explain 42 --edit       # replace PR description
+gh ai pr explain 42
+gh ai pr explain                              # auto-detect PR from current branch
+gh ai pr explain 42 | gh pr comment 42 --body -   # post as PR comment
+gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR description
 ```
 
 Opens an interactive agent session with PR context. Sessions are persistent —
