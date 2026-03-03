@@ -169,15 +169,10 @@ Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
 each PR in the issue body, then hand off the implementation plan to an AI agent.
 
 ```bash
-# Hand off to Jules
+# Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
   | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
   | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
-
-# — or — hand off to Copilot
-gh pr list --search "author:app/dependabot is:pr" --json number,title \
-  | gh ai issue create -d "Batch these Dependabot PRs into one coordinated upgrade" \
-  | xargs -I{} sh -c 'gh ai issue plan "{}" | gh agent-task create -F -'
 ```
 
 ## Session Management
