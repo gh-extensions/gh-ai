@@ -91,14 +91,10 @@ _prepare_issue_context() {
 		return 1
 	fi
 
-	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.title // empty')
-	_ctx_labels=$(printf '%s' "$_ctx_meta" | jq -r '[.labels[].name] | join(", ")')
-
-	local _ctx_body
-	_ctx_body=$(printf '%s' "$_ctx_meta" | jq -r '.body // empty')
-
-	local _ctx_comments
-	_ctx_comments=$(printf '%s' "$_ctx_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+	# Single jq pass: extract all fields via eval
+	local _ctx_body="" _ctx_comments=""
+	# shellcheck disable=SC2154
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_issue_meta.jq")"
 
 	_resolve_context_dir "$_ctx_type" "issue-$_ctx_num" _ctx_dir || return 1
 

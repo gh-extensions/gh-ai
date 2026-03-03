@@ -54,9 +54,11 @@ _load_worktree_state() {
 		return 1
 	fi
 
-	_lws_remote_ref=$(jq -r '.remote_ref // ""' "$spec")
-	_lws_sha=$(jq -r '.head_sha // ""' "$spec")
-	_lws_branch=$(jq -r '.branch // ""' "$spec")
+	eval "$(jq -r '
+		"_lws_remote_ref=" + ((.remote_ref // "") | @sh),
+		"_lws_sha=" + ((.head_sha // "") | @sh),
+		"_lws_branch=" + ((.branch // "") | @sh)
+	' "$spec")"
 }
 
 # Create a git worktree for a Claude Code session
@@ -73,9 +75,8 @@ _gh_worktree_create() {
 	local hook_json
 	hook_json=$(cat)
 
-	local gh_worktree_name gh_worktree_cwd
-	gh_worktree_name=$(printf '%s' "$hook_json" | jq -r '.name // ""')
-	gh_worktree_cwd=$(printf '%s' "$hook_json" | jq -r '.cwd // ""')
+	local gh_worktree_name="" gh_worktree_cwd=""
+	eval "$(printf '%s' "$hook_json" | jq -rf "$(dirname "${BASH_SOURCE[0]}")/gh_worktree_meta.jq")"
 
 	if [[ -z "$gh_worktree_name" || -z "$gh_worktree_cwd" ]]; then
 		echo "gh_worktree_create: missing name or cwd in hook JSON" >&2

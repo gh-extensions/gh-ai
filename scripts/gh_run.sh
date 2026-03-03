@@ -35,16 +35,10 @@ _prepare_run_context() {
 		return 1
 	fi
 
-	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.displayTitle // empty')
-	_ctx_conclusion=$(printf '%s' "$_ctx_meta" | jq -r '.conclusion // empty')
-	_ctx_url=$(printf '%s' "$_ctx_meta" | jq -r '.url // empty')
-	_ctx_event=$(printf '%s' "$_ctx_meta" | jq -r '.event // empty')
-	_ctx_branch=$(printf '%s' "$_ctx_meta" | jq -r '.headBranch // empty')
-	_ctx_head_sha=$(printf '%s' "$_ctx_meta" | jq -r '.headSha // empty')
-
-	local _ctx_jobs
+	# Single jq pass: extract all fields via eval
+	local _ctx_jobs=""
 	# shellcheck disable=SC2154
-	_ctx_jobs=$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_run_jobs.jq")
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_run_meta.jq")"
 
 	local _ctx_log
 	if [[ "$_ctx_conclusion" == "failure" ]]; then

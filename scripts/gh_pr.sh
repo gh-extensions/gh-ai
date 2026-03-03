@@ -101,14 +101,10 @@ _prepare_pr_diff_context() {
 		return 1
 	fi
 
-	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.title // empty')
-	_ctx_head=$(printf '%s' "$_ctx_meta" | jq -r '.headRefName // empty')
-
-	local _ctx_body
-	_ctx_body=$(printf '%s' "$_ctx_meta" | jq -r '.body // empty')
-
-	local _ctx_commits
-	_ctx_commits=$(printf '%s' "$_ctx_meta" | jq -r '[.commits[] | "- " + .messageHeadline] | join("\n")')
+	# Single jq pass: extract all fields via eval
+	local _ctx_body="" _ctx_commits="" _ctx_comments=""
+	# shellcheck disable=SC2154
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_pr_meta.jq")"
 
 	local _ctx_diff
 	_ctx_diff=$(gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
@@ -837,13 +833,10 @@ _prepare_pr_comment_context() {
 		return 1
 	fi
 
-	_ctx_title=$(printf '%s' "$_ctx_meta" | jq -r '.title // empty')
-
-	local _ctx_body
-	_ctx_body=$(printf '%s' "$_ctx_meta" | jq -r '.body // empty')
-
-	local _ctx_comments
-	_ctx_comments=$(printf '%s' "$_ctx_meta" | jq -r '[.comments[].body] | join("\n---\n")')
+	# Single jq pass: extract all fields via eval
+	local _ctx_body="" _ctx_comments="" _ctx_head="" _ctx_commits=""
+	# shellcheck disable=SC2154
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_pr_meta.jq")"
 
 	local _ctx_dir_path
 	_create_context_dir _ctx_dir_path
