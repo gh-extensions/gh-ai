@@ -80,10 +80,35 @@ _cmd_ask() {
 	esac
 }
 
+# Pre-trust a workspace directory in Claude Code so the trust dialog is skipped.
+#
+# Claude stores trust decisions in ~/.claude.json under per-workspace keys.
+# By injecting the entry before Claude enters the directory, we bypass the
+# interactive "trust this folder" prompt that would otherwise block the session.
+#
+# Usage: _trust_workspace "/path/to/workspace"
+_trust_workspace() {
+	local workspace_path="$1"
+	local claude_json="$HOME/.claude.json"
+	local tmp
+	tmp=$(mktemp)
+
+	if [[ -f "$claude_json" ]]; then
+		jq --arg path "$workspace_path" \
+			'.projects[$path].hasTrustDialogAccepted = true' "$claude_json" >"$tmp"
+	else
+		jq -n --arg path "$workspace_path" \
+			'{projects: {($path): {hasTrustDialogAccepted: true}}}' >"$tmp"
+	fi
+
+	mv "$tmp" "$claude_json"
+}
+
 # Pipe a preamble into the configured agent binary
 #
 # Resolves ai.agent (default: claude), verifies the binary exists, then
 # pipes the preamble into it. Extra positional args are forwarded to the agent.
+# Pre-trusts the current directory so Claude skips the "trust this folder" dialog.
 #
 # Usage: _cmd_chat "context preamble" [AGENT_ARGS...]
 _cmd_chat() {
@@ -97,6 +122,10 @@ _cmd_chat() {
 		gum log --level info "Install it or set: gh config set ai.agent <binary>"
 		return 1
 	fi
+
+	# Pre-trust the project root so Claude doesn't prompt the user to
+	# trust the directory when starting a session.
+	_trust_workspace "$(pwd -P)"
 
 	printf "Starting %s — loading context..." "$agent"
 	# shellcheck disable=SC2154

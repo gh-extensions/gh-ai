@@ -22,7 +22,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _split_on_separator _cmd_render _parse_title _parse_body \
-			_gh_repo_name _git_repo_path _git_branch_diff
+			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace
 	)"
 }
 
@@ -413,4 +413,54 @@ Actual body.")
 	output=$(_parse_body "# Title only")
 
 	[[ "$output" == *"markdownlint-disable-file"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# _trust_workspace
+# ---------------------------------------------------------------------------
+
+@test "_trust_workspace: creates ~/.claude.json when absent" {
+	export HOME="$BATS_TEST_TMPDIR"
+	rm -f "$HOME/.claude.json"
+
+	_trust_workspace "/tmp/test-workspace"
+
+	[[ -f "$HOME/.claude.json" ]]
+	local accepted
+	accepted=$(jq -r '.projects["/tmp/test-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
+	[[ "$accepted" == "true" ]]
+}
+
+@test "_trust_workspace: merges into existing ~/.claude.json" {
+	export HOME="$BATS_TEST_TMPDIR"
+	printf '%s\n' '{"existingKey": "existingValue"}' >"$HOME/.claude.json"
+
+	_trust_workspace "/tmp/new-workspace"
+
+	local existing
+	existing=$(jq -r '.existingKey' "$HOME/.claude.json")
+	[[ "$existing" == "existingValue" ]]
+
+	local accepted
+	accepted=$(jq -r '.projects["/tmp/new-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
+	[[ "$accepted" == "true" ]]
+}
+
+@test "_trust_workspace: preserves existing workspace entries" {
+	export HOME="$BATS_TEST_TMPDIR"
+	jq -n '{projects: {"/tmp/other": {hasTrustDialogAccepted: true, customSetting: "keep"}}}' >"$HOME/.claude.json"
+
+	_trust_workspace "/tmp/new-workspace"
+
+	local other_accepted
+	other_accepted=$(jq -r '.projects["/tmp/other"].hasTrustDialogAccepted' "$HOME/.claude.json")
+	[[ "$other_accepted" == "true" ]]
+
+	local custom
+	custom=$(jq -r '.projects["/tmp/other"].customSetting' "$HOME/.claude.json")
+	[[ "$custom" == "keep" ]]
+
+	local new_accepted
+	new_accepted=$(jq -r '.projects["/tmp/new-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
+	[[ "$new_accepted" == "true" ]]
 }
