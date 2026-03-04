@@ -117,14 +117,6 @@ gh ai issue plan 42 -d "focus on the auth module"
 gh ai issue plan 42 | pbcopy
 ```
 
-Pipe to an AI agent to implement:
-
-```bash
-gh ai issue plan 42 | claude
-gh ai issue plan 42 | jules new
-gh ai issue plan 42 | gh agent-task create -F -
-```
-
 Opens an interactive agent session with issue context. Sessions are persistent —
 running the same command again resumes the previous session. Use `--new-session`
 (or `-n`) to start fresh.
@@ -165,6 +157,12 @@ each PR in the issue body, then hand off the implementation plan to an AI agent.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
   | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
   | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
+```
+
+**Pipe an issue plan directly into an AI agent**
+
+```bash
+gh ai issue plan 42 | claude  # or: jules new, gh agent-task create -F -
 ```
 
 **Start work on an issue, generate a plan, and open a draft PR in one command**
