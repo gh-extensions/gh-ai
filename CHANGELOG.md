@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.0](https://github.com/gh-extensions/gh-ai/compare/v0.12.0...v0.13.0) (2026-03-04)
+
+
+### Features
+
+* add agent option passthrough to chat commands ([364bc96](https://github.com/gh-extensions/gh-ai/commit/364bc96e0e9e75640fd350850b457d0f08042bc4))
+* pre-trust project directory to skip Claude trust dialog ([4d7079b](https://github.com/gh-extensions/gh-ai/commit/4d7079b18eff3980ae13e49af080dd594b18e35e))
+
 ## [0.12.0](https://github.com/gh-extensions/gh-ai/compare/v0.11.0...v0.12.0) (2026-03-03)
 
 
