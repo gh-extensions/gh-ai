@@ -147,18 +147,6 @@ gh ai run chat 123456 -n                # start a new session
 
 ## Recipes
 
-**Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
-
-Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
-each PR in the issue body, then hand off the implementation plan to an AI agent.
-
-```bash
-# Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
-gh pr list --search "author:app/dependabot is:pr" --json number,title \
-  | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
-  | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
-```
-
 **Pipe an issue plan directly into an AI agent**
 
 ```bash
@@ -175,6 +163,18 @@ pull request.
 gh issue develop 42 --checkout && \
   git commit --allow-empty -m "chore: start work on #42" && \
   gh ai issue plan 42 | gh pr create --body -
+```
+
+**Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
+
+Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
+each PR in the issue body, then hand off the implementation plan to an AI agent.
+
+```bash
+# Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
+gh pr list --search "author:app/dependabot is:pr" --json number,title \
+  | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
+  | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
 ```
 
 ## Session Management
