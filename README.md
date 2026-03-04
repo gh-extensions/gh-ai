@@ -18,7 +18,8 @@ focus on shipping.
 ## Installation
 
 ```bash
-gh extension install gh-extensions/gh-ai
+gh extension install gh-extensions/gh-ai --pin v1.2.3  # recommended: pin to a stable release
+gh extension install gh-extensions/gh-ai                # installs from main (unstable)
 ```
 
 ## Usage
