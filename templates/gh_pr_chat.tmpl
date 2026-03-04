@@ -7,12 +7,9 @@ Head: ${GH_PR_HEAD}
 Worktree branch: ${GH_WT_BRANCH}
 </pull_request>
 
-<description>
-${GH_PR_BODY}
-</description>
-
 <context_files>
 The following files contain detailed context for this pull request:
+- ${GH_SESSION_DIR}/pr_body.md — pull request description
 - ${GH_SESSION_DIR}/pr_diff_stat.txt — diffstat (file change summary)
 - ${GH_SESSION_DIR}/pr_diff.patch — full unified diff
 - ${GH_SESSION_DIR}/pr_commits.txt — commit messages

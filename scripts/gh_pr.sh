@@ -775,7 +775,6 @@ _gh_pr_chat() {
 		gh_pr_preamble=$(
 			GH_PR_NUMBER="$gh_pr_number" \
 				GH_PR_TITLE="$gh_pr_title" \
-				GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 				GH_PR_FOCUS="$gh_pr_focus" \
 				GH_SESSION_DIR="$gh_pr_dir" \
 				GH_PR_HEAD="$gh_pr_head" \
