@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1](https://github.com/gh-extensions/gh-ai/compare/v0.13.0...v0.13.1) (2026-03-04)
+
+
+### Bug Fixes
+
+* improve git default branch detection in worktree script ([45ab003](https://github.com/gh-extensions/gh-ai/commit/45ab003a5e4c167f6ce29b00d1054572320fbed0))
+
 ## [0.13.0](https://github.com/gh-extensions/gh-ai/compare/v0.12.0...v0.13.0) (2026-03-04)
 
 
