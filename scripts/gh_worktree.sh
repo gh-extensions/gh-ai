@@ -24,7 +24,7 @@ _save_worktree_state() {
 	local _sws_branch="${5:-}"
 
 	if [[ -z "$_sws_remote_ref" ]]; then
-		_sws_remote_ref=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+		_sws_remote_ref=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||' | grep . ||
 			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null ||
 			echo "main")
 	fi
