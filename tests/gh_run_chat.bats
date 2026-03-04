@@ -28,7 +28,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_run.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_chat_args _parse_run_chat_args _show_run_chat_help _gh_run_chat \
+		declare -f _parse_chat_args _parse_run_chat_args _validate_chat_passthrough _show_run_chat_help _gh_run_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_run_chat_context _prepare_run_context _resolve_context_dir _create_context_dir _save_context_file \
 			_parse_run_args
@@ -264,4 +264,30 @@ _setup_chat_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"run chat"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Passthrough parsing and forwarding
+# ---------------------------------------------------------------------------
+
+@test "_gh_run_chat: forwards passthrough args to _cmd_chat" {
+	_setup_chat_mocks
+
+	_cmd_chat() {
+		printf 'PREAMBLE:%s\n' "$1"
+		shift
+		printf 'ARGS:%s\n' "$*"
+	}
+
+	run _gh_run_chat 12345678 -- --model sonnet --verbose
+
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"--model sonnet --verbose"* ]]
+}
+
+@test "_gh_run_chat: rejects managed flags in passthrough" {
+	run _gh_run_chat 12345678 -- --session-id custom
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--session-id is managed by gh-ai"* ]]
 }

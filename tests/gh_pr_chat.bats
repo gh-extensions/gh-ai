@@ -28,7 +28,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_chat_args _parse_pr_chat_args _show_pr_chat_help _gh_pr_chat _detect_pr_number \
+		declare -f _parse_chat_args _parse_pr_chat_args _validate_chat_passthrough _show_pr_chat_help _gh_pr_chat _detect_pr_number \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_pr_chat_context _prepare_pr_diff_context _resolve_context_dir _create_context_dir _save_context_file
 	)"
@@ -287,4 +287,65 @@ _setup_chat_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"pr chat"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# _validate_chat_passthrough
+# ---------------------------------------------------------------------------
+
+@test "_validate_chat_passthrough: accepts valid passthrough flags" {
+	local pt=(--model sonnet --verbose)
+	run _validate_chat_passthrough pt
+
+	[[ "$status" -eq 0 ]]
+}
+
+@test "_validate_chat_passthrough: rejects --worktree" {
+	local pt=(--worktree my-tree)
+	run _validate_chat_passthrough pt
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--worktree is managed by gh-ai"* ]]
+}
+
+@test "_validate_chat_passthrough: rejects --session-id" {
+	local pt=(--session-id abc123)
+	run _validate_chat_passthrough pt
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--session-id is managed by gh-ai"* ]]
+}
+
+@test "_validate_chat_passthrough: rejects --resume" {
+	local pt=(--resume abc123)
+	run _validate_chat_passthrough pt
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--resume is managed by gh-ai"* ]]
+}
+
+# ---------------------------------------------------------------------------
+# Passthrough parsing and forwarding
+# ---------------------------------------------------------------------------
+
+@test "_gh_pr_chat: forwards passthrough args to _cmd_chat" {
+	_setup_chat_mocks
+
+	_cmd_chat() {
+		printf 'PREAMBLE:%s\n' "$1"
+		shift
+		printf 'ARGS:%s\n' "$*"
+	}
+
+	run _gh_pr_chat 42 -- --model sonnet --verbose
+
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"--model sonnet --verbose"* ]]
+}
+
+@test "_gh_pr_chat: rejects managed flags in passthrough" {
+	run _gh_pr_chat 42 -- --worktree custom
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--worktree is managed by gh-ai"* ]]
 }

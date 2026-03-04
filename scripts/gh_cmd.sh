@@ -331,6 +331,24 @@ _parse_chat_args() {
 	done
 }
 
+# Validate chat passthrough args, rejecting flags managed by gh-ai.
+#
+# Returns 1 if --worktree, --session-id, or --resume are found.
+#
+# Usage: _validate_chat_passthrough passthrough_ref
+_validate_chat_passthrough() {
+	local -n _vcp_args="$1"
+	local _vcp_flag
+	for _vcp_flag in "${_vcp_args[@]}"; do
+		case "$_vcp_flag" in
+		--worktree | --session-id | --resume)
+			gum log --level error "$_vcp_flag is managed by gh-ai and cannot be passed through"
+			return 1
+			;;
+		esac
+	done
+}
+
 # Resolve session arguments for _cmd_chat and report whether a new session
 # is being started.
 #

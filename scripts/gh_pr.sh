@@ -694,12 +694,13 @@ _show_pr_chat_help() {
 gh ai pr chat - Open an agent session with PR context
 
 USAGE:
-    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Fetches the GitHub PR metadata and diff, renders it as context, and
     pipes it into the configured agent binary (default: claude).
     Auto-detects PR from the current branch if no number is provided.
+    Options after -- are passed directly to the agent binary.
 
     Configure the agent: gh config set ai.agent <binary>
     Configure the model: gh config set ai.pr.model <model>
@@ -713,6 +714,7 @@ EXAMPLES:
     gh ai pr chat -d "focus on the security changes"
     gh ai pr chat 42 --new-session
     gh ai pr chat                    # auto-detect PR from current branch
+    gh ai pr chat 42 -- --model sonnet --verbose
 EOF
 }
 
@@ -723,7 +725,7 @@ EOF
 # managed via _resolve_chat_session — subsequent invocations resume the
 # previous session automatically; --new-session forces a fresh session ID.
 #
-# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-n]
+# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 _gh_pr_chat() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -732,12 +734,17 @@ _gh_pr_chat() {
 		;;
 	esac
 
+	local args=()
+	local passthrough=()
+	_split_on_separator args passthrough "$@"
+	_validate_chat_passthrough passthrough || return 1
+
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
 
 	local gh_pr_number="" gh_pr_description="" gh_pr_new_session=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "$@"
+	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gh_pr_number=$(_detect_pr_number)
@@ -783,7 +790,7 @@ _gh_pr_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}"
+	_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 
 # Parse PR comment arguments (before -- separator).
@@ -943,7 +950,7 @@ USAGE:
     gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh ai pr explain [PR_NUMBER]
-    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+    gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
     gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:

@@ -204,12 +204,13 @@ _show_run_chat_help() {
 gh ai run chat - Open an agent session with workflow run context
 
 USAGE:
-    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Fetches the GitHub Actions workflow run metadata and logs, renders
     it as context, and pipes it into the configured agent binary
     (default: claude).
+    Options after -- are passed directly to the agent binary.
 
     Configure the agent: gh config set ai.agent <binary>
     Configure the model: gh config set ai.run.model <model>
@@ -222,6 +223,7 @@ EXAMPLES:
     gh ai run chat 123456
     gh ai run chat 123456 -d "focus on test failures"
     gh ai run chat 123456 --new-session
+    gh ai run chat 123456 -- --model sonnet --verbose
 EOF
 }
 
@@ -233,7 +235,7 @@ EOF
 # invocations resume the previous session automatically; --new-session
 # forces a fresh session ID.
 #
-# Usage: _gh_run_chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+# Usage: _gh_run_chat <RUN_ID> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 _gh_run_chat() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -242,12 +244,17 @@ _gh_run_chat() {
 		;;
 	esac
 
+	local args=()
+	local passthrough=()
+	_split_on_separator args passthrough "$@"
+	_validate_chat_passthrough passthrough || return 1
+
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
 
 	local gh_run_id="" gh_run_description="" gh_run_new_session=""
-	_parse_run_chat_args gh_run_id gh_run_description gh_run_new_session "$@"
+	_parse_run_chat_args gh_run_id gh_run_description gh_run_new_session "${args[@]}"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
@@ -287,7 +294,7 @@ _gh_run_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_run_preamble" --worktree "$gh_run_worktree" "${gh_run_session_args[@]}"
+	_cmd_chat "$gh_run_preamble" --worktree "$gh_run_worktree" "${gh_run_session_args[@]}" "${passthrough[@]}"
 }
 
 # Run help function
@@ -300,7 +307,7 @@ gh ai run - Workflow run commands with AI assistance
 
 USAGE:
     gh ai run explain <RUN_ID>
-    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+    gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs and explains what happened.
