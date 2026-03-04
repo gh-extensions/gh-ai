@@ -125,14 +125,6 @@ gh ai issue plan 42 | jules new
 gh ai issue plan 42 | gh agent-task create -F -
 ```
 
-Full branch + PR workflow:
-
-```bash
-gh issue develop 42 --checkout && \
-  git commit --allow-empty -m "chore: start work on #42" && \
-  gh ai issue plan 42 | gh pr create --body -
-```
-
 Opens an interactive agent session with issue context. Sessions are persistent —
 running the same command again resumes the previous session. Use `--new-session`
 (or `-n`) to start fresh.
@@ -173,6 +165,18 @@ each PR in the issue body, then hand off the implementation plan to an AI agent.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
   | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
   | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
+```
+
+**Start work on an issue, generate a plan, and open a draft PR in one command**
+
+Check out a development branch for the issue, record an empty commit to mark the
+start of work, then pipe the AI-generated implementation plan directly into a new
+pull request.
+
+```bash
+gh issue develop 42 --checkout && \
+  git commit --allow-empty -m "chore: start work on #42" && \
+  gh ai issue plan 42 | gh pr create --body -
 ```
 
 ## Session Management
