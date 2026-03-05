@@ -182,9 +182,10 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
 ## Session Management
 
 Chat commands automatically persist sessions per resource. The first
-invocation creates a new session with a dedicated worktree and a local branch
-named after the resource (e.g. `issue-42`, `pull-42`); subsequent runs resume
-it. Session state is stored in the repository at:
+invocation creates a new session with a dedicated worktree; subsequent runs
+resume it. Issue and run sessions create a local branch named after the
+resource (e.g. `issue-42`, `run-123`); PR sessions check out the PR head
+branch directly. Session state is stored in the repository at:
 
 ```text
 <repo-root>/.claude/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
