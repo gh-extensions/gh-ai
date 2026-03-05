@@ -150,7 +150,7 @@ _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
 		"pr diff") echo "diff --git a/file.txt b/file.txt" ;;
-		"pr view") printf '{"title":"Test PR Title","body":"PR body","headRefName":"feature-branch","commits":[{"messageHeadline":"Test commit"}]}' ;;
+		"pr view") printf '{"title":"Test PR Title","body":"PR body","headRefName":"feature-branch","commits":[{"messageHeadline":"Test commit"}],"url":"https://github.com/owner/repo/pull/42"}' ;;
 		"config get") ;;
 		esac
 	}

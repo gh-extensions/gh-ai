@@ -149,7 +149,7 @@ setup() {
 _setup_chat_mocks() {
 	gh() {
 		case "$1 $2" in
-		"issue view") printf '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[]}' ;;
+		"issue view") printf '{"title":"Test Issue","body":"Issue body","labels":[],"comments":[],"url":"https://github.com/owner/repo/issues/42"}' ;;
 		"config get") ;;
 		esac
 	}
