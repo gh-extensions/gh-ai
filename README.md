@@ -161,10 +161,9 @@ start of work, then pipe the AI-generated implementation plan directly into a ne
 pull request.
 
 ```bash
-GH_ISSUE=195 && \
-  gh issue develop $GH_ISSUE --checkout && \
-  git commit --allow-empty -m "chore: start work on #$GH_ISSUE" && git push && \
-  gh ai issue plan $GH_ISSUE | gh pr create --title "Implementation plan for #$GH_ISSUE" -F -
+gh issue develop 195 --checkout && \
+  git commit --allow-empty -m "chore: start work on #195" && git push && \
+  gh ai issue plan 195 | gh pr create --title "Implementation plan for #195" -F -
 ```
 
 **Open a chat session inside an isolated worktree with [gh-worktree](https://github.com/gh-extensions/gh-worktree)**
