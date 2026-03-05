@@ -85,17 +85,18 @@ _parse_pr_args() {
 # .claude/sessions/pull-<num> so Claude can resume across invocations.
 # For all other types a temporary directory is created.
 #
-# Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref
+# Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref url_ref
 _prepare_pr_diff_context() {
 	local _ctx_type="$1"
 	local _ctx_num="$2"
 	local -n _ctx_dir="$3"
 	local -n _ctx_title="$4"
 	local -n _ctx_head="$5"
+	local -n _ctx_url="$6"
 
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
-		gh pr view "$_ctx_num" --json title,body,headRefName,commits || true)
+		gh pr view "$_ctx_num" --json title,body,headRefName,commits,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
 		gum log --level error "Failed to fetch pull request #$_ctx_num metadata"
 		return 1
@@ -394,8 +395,8 @@ _gh_pr_edit() {
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
-	_prepare_pr_edit_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
+	_prepare_pr_edit_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
 	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -408,6 +409,7 @@ _gh_pr_edit() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_URL="$gh_pr_url" \
 					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
 					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
@@ -510,8 +512,8 @@ _gh_pr_review() {
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
-	_prepare_pr_review_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
+	_prepare_pr_review_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
 	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -524,6 +526,7 @@ _gh_pr_review() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
@@ -640,8 +643,8 @@ _gh_pr_explain() {
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
-	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
+	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
 	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -654,6 +657,7 @@ _gh_pr_explain() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
@@ -756,8 +760,8 @@ _gh_pr_chat() {
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head=""
-	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
+	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	if [[ -z "$gh_pr_head" ]]; then
 		gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
@@ -782,6 +786,7 @@ _gh_pr_chat() {
 		gh_pr_preamble=$(
 			GH_PR_NUMBER="$gh_pr_number" \
 				GH_PR_TITLE="$gh_pr_title" \
+				GH_PR_URL="$gh_pr_url" \
 				GH_PR_FOCUS="$gh_pr_focus" \
 				GH_SESSION_DIR="$gh_pr_dir" \
 				GH_PR_HEAD="$gh_pr_head" \
@@ -801,15 +806,16 @@ _parse_pr_comment_args() { _parse_pr_args "comment" "$@"; }
 # Context for _gh_pr_comment: fetches PR body and comments, and reads optional
 # stdin into pr_context.md. Uses a temporary directory.
 #
-# Usage: _prepare_pr_comment_context pr_number gh_pr_dir_ref title_ref
+# Usage: _prepare_pr_comment_context pr_number gh_pr_dir_ref title_ref url_ref
 _prepare_pr_comment_context() {
 	local _ctx_num="$1"
 	local -n _ctx_dir="$2"
 	local -n _ctx_title="$3"
+	local -n _ctx_url="$4"
 
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
-		gh pr view "$_ctx_num" --json title,body,comments || true)
+		gh pr view "$_ctx_num" --json title,body,comments,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
 		gum log --level error "Failed to fetch pull request #$_ctx_num"
 		return 1
@@ -901,8 +907,8 @@ _gh_pr_comment() {
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title=""
-	_prepare_pr_comment_context "$gh_pr_number" gh_pr_dir gh_pr_title || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_url=""
+	_prepare_pr_comment_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_url || return 1
 
 	local gh_pr_agent_model
 	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
@@ -915,6 +921,7 @@ _gh_pr_comment() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
+					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 					GH_PR_COMMENTS_FILE="$gh_pr_dir/pr_comments.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
