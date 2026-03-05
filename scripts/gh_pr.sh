@@ -771,7 +771,9 @@ _gh_pr_chat() {
 
 	local gh_pr_worktree
 	gh_pr_worktree="pull-$gh_pr_number"
-	_save_worktree_state "$gh_pr_dir" "$gh_pr_worktree" "$gh_pr_head" "" "$gh_pr_head"
+	if ! _gh_in_worktree; then
+		_save_worktree_state "$gh_pr_dir" "$gh_pr_worktree" "$gh_pr_head" "" "$gh_pr_head"
+	fi
 
 	local gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
@@ -791,7 +793,11 @@ _gh_pr_chat() {
 	fi
 
 	_set_terminal_title "$(_get_agent):P#${gh_pr_number}"
-	_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}" "${passthrough[@]}"
+	if _gh_in_worktree; then
+		_cmd_chat "$gh_pr_preamble" "${gh_pr_session_args[@]}" "${passthrough[@]}"
+	else
+		_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}" "${passthrough[@]}"
+	fi
 }
 
 # Parse PR comment arguments (before -- separator).

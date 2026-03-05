@@ -140,8 +140,12 @@ _cmd_chat() {
 	printf "Starting %s — loading context..." "$agent"
 	# shellcheck disable=SC2154
 	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
-	local settings_file="$_gh_ai_source_dir/scripts/gh_worktree.json"
-	printf '%s' "$preamble" | cat -s | "$agent" --settings "$settings_file" "$@"
+	if _gh_in_worktree; then
+		printf '%s' "$preamble" | cat -s | "$agent" "$@"
+	else
+		local settings_file="$_gh_ai_source_dir/scripts/gh_worktree.json"
+		printf '%s' "$preamble" | cat -s | "$agent" --settings "$settings_file" "$@"
+	fi
 }
 
 # Extract title from AI response

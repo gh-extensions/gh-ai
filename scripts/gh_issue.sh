@@ -702,7 +702,9 @@ _gh_issue_chat() {
 
 	local gh_issue_worktree
 	gh_issue_worktree="issue-$gh_issue_number"
-	_save_worktree_state "$gh_issue_dir" "$gh_issue_worktree" "" ""
+	if ! _gh_in_worktree; then
+		_save_worktree_state "$gh_issue_dir" "$gh_issue_worktree" "" ""
+	fi
 
 	local gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "$gh_issue_dir" "$gh_issue_new_session" gh_issue_is_new_chat gh_issue_session_args || return 1
@@ -720,7 +722,11 @@ _gh_issue_chat() {
 	fi
 
 	_set_terminal_title "$(_get_agent):I#${gh_issue_number}"
-	_cmd_chat "$gh_issue_preamble" --worktree "$gh_issue_worktree" "${gh_issue_session_args[@]}" "${passthrough[@]}"
+	if _gh_in_worktree; then
+		_cmd_chat "$gh_issue_preamble" "${gh_issue_session_args[@]}" "${passthrough[@]}"
+	else
+		_cmd_chat "$gh_issue_preamble" --worktree "$gh_issue_worktree" "${gh_issue_session_args[@]}" "${passthrough[@]}"
+	fi
 }
 
 # Issue help function

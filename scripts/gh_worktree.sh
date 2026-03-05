@@ -9,6 +9,19 @@
 
 set -euo pipefail
 
+# Returns 0 if the current directory is inside a git worktree (not the main tree).
+#
+# Used to skip worktree lifecycle (create/remove hooks, --worktree flag) when
+# gh-ai is invoked inside an already-prepared worktree (e.g. by gh-worktree).
+#
+# Usage: _gh_in_worktree && echo "inside worktree"
+_gh_in_worktree() {
+	local git_dir common_dir
+	git_dir=$(git rev-parse --git-dir 2>/dev/null) || return 1
+	common_dir=$(git rev-parse --git-common-dir 2>/dev/null) || return 1
+	[[ "$git_dir" != "$common_dir" ]]
+}
+
 # Save worktree metadata to session_dir/worktree.json.
 #
 # Called in each _gh_*_chat after context prep. The file is read by

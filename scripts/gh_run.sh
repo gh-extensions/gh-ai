@@ -272,7 +272,9 @@ _gh_run_chat() {
 
 	local gh_run_worktree
 	gh_run_worktree="run-$gh_run_id"
-	_save_worktree_state "$gh_run_dir" "$gh_run_worktree" "$gh_run_branch" "$gh_run_sha"
+	if ! _gh_in_worktree; then
+		_save_worktree_state "$gh_run_dir" "$gh_run_worktree" "$gh_run_branch" "$gh_run_sha"
+	fi
 
 	local gh_run_is_new_chat="" gh_run_session_args=()
 	_resolve_chat_session "$gh_run_dir" "$gh_run_new_session" gh_run_is_new_chat gh_run_session_args || return 1
@@ -295,7 +297,11 @@ _gh_run_chat() {
 	fi
 
 	_set_terminal_title "$(_get_agent):R#${gh_run_id}"
-	_cmd_chat "$gh_run_preamble" --worktree "$gh_run_worktree" "${gh_run_session_args[@]}" "${passthrough[@]}"
+	if _gh_in_worktree; then
+		_cmd_chat "$gh_run_preamble" "${gh_run_session_args[@]}" "${passthrough[@]}"
+	else
+		_cmd_chat "$gh_run_preamble" --worktree "$gh_run_worktree" "${gh_run_session_args[@]}" "${passthrough[@]}"
+	fi
 }
 
 # Run help function
