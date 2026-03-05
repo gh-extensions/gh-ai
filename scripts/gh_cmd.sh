@@ -141,7 +141,6 @@ _cmd_chat() {
 	# shellcheck disable=SC2154
 	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
 	if _gh_in_worktree; then
-		gum log --level warn "Running inside a git worktree — skipping worktree setup"
 		printf '%s' "$preamble" | cat -s | "$agent" "$@"
 	else
 		local settings_file="$_gh_ai_source_dir/scripts/gh_worktree.json"
