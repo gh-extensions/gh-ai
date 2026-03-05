@@ -785,7 +785,6 @@ _gh_pr_chat() {
 		)
 	fi
 
-	_set_terminal_title "$(_get_agent):P#${gh_pr_number}"
 	_cmd_chat "$gh_pr_preamble" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 

@@ -715,7 +715,6 @@ _gh_issue_chat() {
 		)
 	fi
 
-	_set_terminal_title "$(_get_agent):I#${gh_issue_number}"
 	_cmd_chat "$gh_issue_preamble" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
 

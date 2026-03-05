@@ -289,7 +289,6 @@ _gh_run_chat() {
 		)
 	fi
 
-	_set_terminal_title "$(_get_agent):R#${gh_run_id}"
 	_cmd_chat "$gh_run_preamble" "${gh_run_session_args[@]}" "${passthrough[@]}"
 }
 
