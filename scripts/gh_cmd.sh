@@ -226,6 +226,26 @@ _git_repo_path() {
 	fi
 }
 
+# Resolve the main worktree root, even when called from a linked worktree.
+#
+# git rev-parse --git-common-dir returns the shared .git directory path;
+# its parent is always the main worktree root regardless of which worktree
+# is currently active.
+#
+# Writes the result into the nameref; returns 1 and logs an error on failure.
+#
+# Usage: _git_main_worktree_path path_ref
+_git_main_worktree_path() {
+	local -n _gmwp_ref="$1"
+	local _gmwp_common_dir
+	_gmwp_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
+	if [[ -z "$_gmwp_common_dir" ]]; then
+		gum log --level error "Not inside a git repository"
+		return 1
+	fi
+	_gmwp_ref=$(cd "$_gmwp_common_dir/.." && pwd -P)
+}
+
 # Compute diff, diffstat, log, and formatted commits between two branches
 #
 # Tries origin/<base> first, falls back to bare <base>.
@@ -279,7 +299,7 @@ _resolve_context_dir() {
 
 	if [[ "$_rcd_type" == "chat" ]]; then
 		local _rcd_git_root
-		_git_repo_path _rcd_git_root || return 1
+		_git_main_worktree_path _rcd_git_root || return 1
 		_rcd_dir="$_rcd_git_root/.claude/sessions/$_rcd_name"
 		mkdir -p "$_rcd_dir"
 	else
