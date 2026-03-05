@@ -75,17 +75,18 @@ _parse_issue_args() {
 # .github/sessions/issue-<num> so Claude can resume across invocations.
 # For all other types a temporary directory is created.
 #
-# Usage: _prepare_issue_context type issue_number dir_ref title_ref labels_ref
+# Usage: _prepare_issue_context type issue_number dir_ref title_ref labels_ref url_ref
 _prepare_issue_context() {
 	local _ctx_type="$1"
 	local _ctx_num="$2"
 	local -n _ctx_dir="$3"
 	local -n _ctx_title="$4"
 	local -n _ctx_labels="$5"
+	local -n _ctx_url="$6"
 
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub issue #$_ctx_num metadata..." -- \
-		gh issue view "$_ctx_num" --json title,body,labels,comments || true)
+		gh issue view "$_ctx_num" --json title,body,labels,comments,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
 		gum log --level error "Failed to fetch issue #$_ctx_num"
 		return 1
@@ -351,8 +352,8 @@ _gh_issue_edit() {
 		return 1
 	fi
 
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels=""
-	_prepare_issue_edit_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels || return 1
+	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_edit_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
 	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
@@ -365,6 +366,7 @@ _gh_issue_edit() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
@@ -475,8 +477,8 @@ _gh_issue_comment() {
 		return 1
 	fi
 
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels=""
-	_prepare_issue_comment_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels || return 1
+	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_comment_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
 	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
@@ -489,6 +491,7 @@ _gh_issue_comment() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
@@ -577,8 +580,8 @@ _gh_issue_plan() {
 		return 1
 	fi
 
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels=""
-	_prepare_issue_plan_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels || return 1
+	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_plan_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
 	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
@@ -596,6 +599,7 @@ _gh_issue_plan() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
+					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
@@ -692,8 +696,8 @@ _gh_issue_chat() {
 		return 1
 	fi
 
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels=""
-	_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels || return 1
+	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_focus=""
 	if [[ -n "$gh_issue_description" ]]; then
@@ -708,6 +712,7 @@ _gh_issue_chat() {
 		gh_issue_preamble=$(
 			GH_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
+				GH_ISSUE_URL="$gh_issue_url" \
 				GH_ISSUE_LABELS="$gh_issue_labels" \
 				GH_ISSUE_FOCUS="$gh_issue_focus" \
 				GH_SESSION_DIR="$gh_issue_dir" \
