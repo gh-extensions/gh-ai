@@ -1,4 +1,4 @@
-# gh-ai
+# gh ai
 
 Your AI-powered copilot for the GitHub CLI. Draft pull requests, plan issue
 implementations, review code, debug CI failures, and drop into interactive
@@ -245,7 +245,7 @@ gh config set ai.agent claude
 
 [gh-fzf](https://github.com/gh-extensions/gh-fzf) is a GitHub CLI extension
 that wraps `gh` commands in an interactive fuzzy finder. Source
-`extras/gh_fzf.sh` in your shell config to register `gh-ai` keybinds via
+`extras/gh_fzf.sh` in your shell config to register `gh ai` keybinds via
 `GH_FZF_*_OPTS`.
 
 ```bash
