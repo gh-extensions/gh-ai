@@ -797,7 +797,7 @@ _gh_issue() {
 		_show_issue_help
 		;;
 	*)
-		gum log --level error "Unknown issue command '$subcommand'"
+		gum log --level error "unknown issue command '$subcommand'"
 		gum log --level info "Available commands: create, edit, comment, plan, chat"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1

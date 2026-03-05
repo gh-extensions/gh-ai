@@ -352,7 +352,7 @@ _gh_run() {
 		_show_run_help
 		;;
 	*)
-		gum log --level error "Unknown run command '$subcommand'"
+		gum log --level error "unknown run command '$subcommand'"
 		gum log --level info "Available commands: explain, chat"
 		gum log --level info "Run 'gh ai run --help' for usage information"
 		return 1

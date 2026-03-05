@@ -101,7 +101,7 @@ main() {
 		_show_help
 		;;
 	*)
-		gum log --level error "Unknown command '$command'"
+		gum log --level error "unknown command '$command'"
 		gum log --level info "Available commands: pr, issue, run"
 		gum log --level info "Run 'gh ai --help' for usage information"
 		exit 1

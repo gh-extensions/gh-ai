@@ -1016,7 +1016,7 @@ _gh_pr() {
 		_show_pr_help
 		;;
 	*)
-		gum log --level error "Unknown pr command '$subcommand'"
+		gum log --level error "unknown pr command '$subcommand'"
 		gum log --level info "Available commands: create, edit, review, explain, chat, comment"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
