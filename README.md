@@ -161,9 +161,9 @@ start of work, then pipe the AI-generated implementation plan directly into a ne
 pull request.
 
 ```bash
-gh issue develop 42 --checkout && \
-  git commit --allow-empty -m "chore: start work on #42" && \
-  gh ai issue plan 42 | gh pr create --body -
+gh issue develop 195 --checkout && \
+  git commit --allow-empty -m "chore: start work on #195" && git push && \
+  gh ai issue plan 195 | gh pr create --title "Log authentication flow for auditing" -F -
 ```
 
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
