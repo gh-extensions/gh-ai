@@ -72,7 +72,7 @@ _parse_issue_args() {
 # into issue_context.md.
 #
 # When type is "chat" the context is written to the persistent session directory
-# .claude/sessions/issue-<num> so Claude can resume across invocations.
+# .github/sessions/issue-<num> so Claude can resume across invocations.
 # For all other types a temporary directory is created.
 #
 # Usage: _prepare_issue_context type issue_number dir_ref title_ref labels_ref
@@ -621,7 +621,7 @@ _gh_issue_plan() {
 # Thin wrapper around _parse_chat_args for the chat subcommand.
 _parse_issue_chat_args() { _parse_chat_args "$@"; }
 
-# Fetches issue metadata into .claude/sessions/issue-<num> for use by _gh_issue_chat.
+# Fetches issue metadata into .github/sessions/issue-<num> for use by _gh_issue_chat.
 # The session directory persists across invocations so Claude can resume context.
 # _resolve_chat_session tracks the Claude session UUID separately via a
 # "session.id" file written inside the session directory.

@@ -204,7 +204,7 @@ invocation creates a new session; subsequent runs resume it. Session state
 is stored in the repository at:
 
 ```text
-<repo-root>/.claude/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
+<repo-root>/.github/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
   session.id   — Claude session UUID used to resume the conversation
 ```
 

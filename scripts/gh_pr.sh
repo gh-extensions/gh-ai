@@ -82,7 +82,7 @@ _parse_pr_args() {
 # and populates the output variables via namerefs.
 #
 # When type is "chat" the context is written to the persistent session directory
-# .claude/sessions/pull-<num> so Claude can resume across invocations.
+# .github/sessions/pull-<num> so Claude can resume across invocations.
 # For all other types a temporary directory is created.
 #
 # Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref
@@ -679,7 +679,7 @@ _gh_pr_explain() {
 # Thin wrapper around _parse_chat_args for the chat subcommand.
 _parse_pr_chat_args() { _parse_chat_args "$@"; }
 
-# Fetches PR metadata and diff into .claude/sessions/pull-<num> for use by _gh_pr_chat.
+# Fetches PR metadata and diff into .github/sessions/pull-<num> for use by _gh_pr_chat.
 # The session directory persists across invocations so Claude can resume context.
 # _resolve_chat_session tracks the Claude session UUID separately via a
 # "session.id" file written inside the session directory.

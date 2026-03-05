@@ -288,7 +288,7 @@ _create_context_dir() {
 
 # Resolve context directory: persistent session dir for chat, temp dir otherwise
 #
-# Chat commands get a persistent directory under .claude/sessions/<name>;
+# Chat commands get a persistent directory under .github/sessions/<name>;
 # all other commands get a temporary directory via _create_context_dir.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
@@ -300,7 +300,7 @@ _resolve_context_dir() {
 	if [[ "$_rcd_type" == "chat" ]]; then
 		local _rcd_git_root
 		_git_main_worktree_path _rcd_git_root || return 1
-		_rcd_dir="$_rcd_git_root/.claude/sessions/$_rcd_name"
+		_rcd_dir="$_rcd_git_root/.github/sessions/$_rcd_name"
 		mkdir -p "$_rcd_dir"
 	else
 		_create_context_dir _rcd_dir

@@ -12,7 +12,7 @@ set -euo pipefail
 # directory, and populates the output variables via namerefs.
 #
 # When type is "chat" the context is written to the persistent session directory
-# .claude/sessions/run-<id> so Claude can resume across invocations.
+# .github/sessions/run-<id> so Claude can resume across invocations.
 # For all other types a temporary directory is created.
 #
 # Usage: _prepare_run_context type run_id dir_ref title_ref conclusion_ref url_ref event_ref branch_ref sha_ref
@@ -189,7 +189,7 @@ _gh_run_explain() {
 # Thin wrapper around _parse_chat_args for the chat subcommand.
 _parse_run_chat_args() { _parse_chat_args "$@"; }
 
-# Fetches run metadata and logs into .claude/sessions/run-<id> for use by _gh_run_chat.
+# Fetches run metadata and logs into .github/sessions/run-<id> for use by _gh_run_chat.
 # The session directory persists across invocations so Claude can resume context.
 # _resolve_chat_session tracks the Claude session UUID separately via a
 # "session.id" file written inside the session directory.
