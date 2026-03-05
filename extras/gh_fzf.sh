@@ -35,7 +35,7 @@ _gh_fzf_issue_opts=(
 )
 
 if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
-	_gh_fzf_issue_opts+=('--bind "alt-C:execute-silent(tmux new-window -n I#{1} gh ai issue chat {1} \; setw automatic-rename off)"')
+	_gh_fzf_issue_opts+=('--bind "alt-C:execute-silent(tmux new-window gh ai issue chat {1})"')
 else
 	_gh_fzf_issue_opts+=('--bind "alt-C:execute(gh ai issue chat {1})"')
 fi
@@ -50,7 +50,7 @@ _gh_fzf_pr_opts=(
 )
 
 if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
-	_gh_fzf_pr_opts+=('--bind "alt-C:execute-silent(tmux new-window -n P#{1} gh ai pr chat {1} \; setw automatic-rename off)"')
+	_gh_fzf_pr_opts+=('--bind "alt-C:execute-silent(tmux new-window gh ai pr chat {1})"')
 else
 	_gh_fzf_pr_opts+=('--bind "alt-C:execute(gh ai pr chat {1})"')
 fi
@@ -63,7 +63,7 @@ _gh_fzf_run_opts=(
 )
 
 if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
-	_gh_fzf_run_opts+=('--bind "alt-C:execute-silent(tmux new-window -n R#{-1} gh ai run chat {-1} \; setw automatic-rename off)"')
+	_gh_fzf_run_opts+=('--bind "alt-C:execute-silent(tmux new-window gh ai run chat {-1})"')
 else
 	_gh_fzf_run_opts+=('--bind "alt-C:execute(gh ai run chat {-1})"')
 fi

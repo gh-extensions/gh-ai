@@ -45,6 +45,16 @@ _get_agent() {
 	printf '%s' "${agent:-claude}"
 }
 
+# Set the terminal title via the xterm escape sequence.
+# tmux intercepts this to rename the current window.
+# No-op when not inside tmux.
+#
+# Usage: _set_terminal_title "P#42/claude"
+_set_terminal_title() {
+	[[ -z "${TMUX:-}" ]] && return 0
+	printf $'\033k%s\033\\' "$1"
+}
+
 # Send a prompt to the AI agent in non-interactive (prompt) mode
 #
 # Reads a prompt from stdin and sends it to the configured agent binary.
