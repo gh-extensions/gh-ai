@@ -16,6 +16,7 @@ setup() {
 		case "$1 $2" in
 		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
 		"rev-parse --abbrev-ref") echo "" ;;
+		"rev-parse --git-common-dir") echo "$BATS_TEST_TMPDIR/.git" ;;
 		esac
 	}
 	export -f gum git
@@ -25,7 +26,7 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _git_repo_path _resolve_chat_session
+		declare -f _git_repo_path _resolve_chat_session _gh_session_base_dir
 	)"
 }
 
@@ -153,4 +154,83 @@ setup() {
 	[[ "$is2" == "1" ]]
 	# UUIDs differ
 	[[ "${args1[1]}" != "${args2[1]}" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _gh_session_base_dir
+# ---------------------------------------------------------------------------
+
+@test "_gh_session_base_dir: default path is .github/sessions under git root" {
+	gh() { return 1; }
+	export -f gh
+	unset GH_SESSION_DIR
+
+	local result
+	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
+
+	[[ "$result" == "$BATS_TEST_TMPDIR/.github/sessions" ]]
+}
+
+@test "_gh_session_base_dir: ai.session.dir gh config (relative) is anchored to git root" {
+	gh() {
+		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
+			echo "custom/sessions"
+			return 0
+		fi
+		return 1
+	}
+	export -f gh
+	unset GH_SESSION_DIR
+
+	local result
+	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
+
+	[[ "$result" == "$BATS_TEST_TMPDIR/custom/sessions" ]]
+}
+
+@test "_gh_session_base_dir: ai.session.dir gh config (absolute) is used as-is" {
+	gh() {
+		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
+			echo "/abs/path/sessions"
+			return 0
+		fi
+		return 1
+	}
+	export -f gh
+	unset GH_SESSION_DIR
+
+	local result
+	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
+
+	[[ "$result" == "/abs/path/sessions" ]]
+}
+
+@test "_gh_session_base_dir: GH_SESSION_DIR env var takes highest priority" {
+	gh() {
+		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
+			echo "should-not-be-used"
+			return 0
+		fi
+		return 1
+	}
+	export -f gh
+	export GH_SESSION_DIR="/env/override/sessions"
+
+	local result
+	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
+
+	[[ "$result" == "/env/override/sessions" ]]
+	unset GH_SESSION_DIR
+}
+
+@test "_gh_session_base_dir: GH_SESSION_DIR overrides default when config absent" {
+	gh() { return 1; }
+	export -f gh
+	export GH_SESSION_DIR="/tmp/my-sessions"
+
+	local result
+	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
+
+	[[ "$result" == "/tmp/my-sessions" ]]
+	unset GH_SESSION_DIR
 }

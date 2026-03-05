@@ -214,15 +214,16 @@ Use `--new-session` (or `-n`) to discard the existing session and start fresh.
 
 Override the AI agent and model via `gh config`.
 
-| Key              | Default  | Description                            |
-| ---------------- | -------- | -------------------------------------- |
-| `ai.agent`       | `claude` | Agent binary (used by all commands)    |
-| `ai.model`       | `haiku`  | Model for all commands (fallback)      |
-| `ai.pr.model`    |          | Model override for `pr` subcommands    |
-| `ai.issue.model` |          | Model override for `issue` subcommands |
-| `ai.run.model`   |          | Model override for `run` subcommands   |
+| Key              | Default            | Description                            |
+| ---------------- | ------------------ | -------------------------------------- |
+| `ai.agent`       | `claude`           | Agent binary (used by all commands)    |
+| `ai.model`       | `haiku`            | Model for all commands (fallback)      |
+| `ai.pr.model`    |                    | Model override for `pr` subcommands    |
+| `ai.issue.model` |                    | Model override for `issue` subcommands |
+| `ai.run.model`   |                    | Model override for `run` subcommands   |
+| `ai.session.dir`   | `.github/sessions` | Base directory for persistent chat sessions (relative to git root, or absolute) |
 
-Per-command keys take priority over `ai.model`.
+Per-command keys take priority over `ai.model`. The `GH_SESSION_DIR` environment variable overrides `ai.session.dir` with highest priority.
 
 ```bash
 # Set the default model
@@ -233,6 +234,12 @@ gh config set ai.pr.model sonnet
 
 # Use a different agent binary
 gh config set ai.agent claude
+
+# Store sessions in a custom directory (relative to git root)
+gh config set ai.session.dir custom/sessions
+
+# Or use an env var for one-off override
+GH_SESSION_DIR=/tmp/my-sessions gh ai pr chat 42
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't

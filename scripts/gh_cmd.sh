@@ -286,10 +286,39 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
 }
 
+# Resolve the base directory for persistent chat sessions.
+#
+# Resolution order:
+#   1. GH_SESSION_DIR env var
+#   2. gh config get ai.session.dir
+#   3. Default: .github/sessions
+#
+# Stdout: base directory path
+# Usage: base=$(_gh_session_base_dir <git_root>)
+_gh_session_base_dir() {
+	local git_root="$1"
+	local dir
+
+	if [[ -n "${GH_SESSION_DIR:-}" ]]; then
+		dir="$GH_SESSION_DIR"
+	else
+		dir=$(gh config get ai.session.dir 2>/dev/null || true)
+		dir="${dir:-.github/sessions}"
+	fi
+
+	# Resolve relative paths against the git root
+	if [[ "$dir" != /* ]]; then
+		dir="${git_root}/${dir}"
+	fi
+
+	printf '%s' "$dir"
+}
+
 # Resolve context directory: persistent session dir for chat, temp dir otherwise
 #
-# Chat commands get a persistent directory under .github/sessions/<name>;
-# all other commands get a temporary directory via _create_context_dir.
+# Chat commands get a persistent directory under the sessions base dir (see
+# _gh_session_base_dir) at <base>/<name>; all other commands get a temporary
+# directory via _create_context_dir.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
 _resolve_context_dir() {
@@ -300,7 +329,7 @@ _resolve_context_dir() {
 	if [[ "$_rcd_type" == "chat" ]]; then
 		local _rcd_git_root
 		_git_main_worktree_path _rcd_git_root || return 1
-		_rcd_dir="$_rcd_git_root/.github/sessions/$_rcd_name"
+		_rcd_dir="$(_gh_session_base_dir "$_rcd_git_root")/$_rcd_name"
 		mkdir -p "$_rcd_dir"
 	else
 		_create_context_dir _rcd_dir
