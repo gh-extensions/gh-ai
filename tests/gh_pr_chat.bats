@@ -178,7 +178,6 @@ _setup_chat_mocks() {
 	}
 	export -f gum
 
-	_save_worktree_state() { :; }
 }
 
 @test "_gh_pr_chat: calls _cmd_chat with rendered preamble and session args" {
@@ -195,7 +194,6 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"PREAMBLE:"* ]]
 	[[ "$output" == *"--session-id"* ]]
-	[[ "$output" == *"--worktree pull-42"* ]]
 }
 
 
@@ -246,8 +244,6 @@ _setup_chat_mocks() {
 		esac
 	}
 	export -f gum
-
-	_save_worktree_state() { :; }
 
 	run _gh_pr_chat 42
 
@@ -300,14 +296,6 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 }
 
-@test "_validate_chat_passthrough: rejects --worktree" {
-	local pt=(--worktree my-tree)
-	run _validate_chat_passthrough pt
-
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"--worktree is managed by gh-ai"* ]]
-}
-
 @test "_validate_chat_passthrough: rejects --session-id" {
 	local pt=(--session-id abc123)
 	run _validate_chat_passthrough pt
@@ -344,8 +332,8 @@ _setup_chat_mocks() {
 }
 
 @test "_gh_pr_chat: rejects managed flags in passthrough" {
-	run _gh_pr_chat 42 -- --worktree custom
+	run _gh_pr_chat 42 -- --session-id custom
 
 	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"--worktree is managed by gh-ai"* ]]
+	[[ "$output" == *"--session-id is managed by gh-ai"* ]]
 }

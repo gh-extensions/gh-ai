@@ -138,14 +138,7 @@ _cmd_chat() {
 	_trust_workspace "$(pwd -P)"
 
 	printf "Starting %s — loading context..." "$agent"
-	# shellcheck disable=SC2154
-	export _GH_AI_SOURCE_DIR="$_gh_ai_source_dir"
-	if _gh_in_worktree; then
-		printf '%s' "$preamble" | cat -s | "$agent" "$@"
-	else
-		local settings_file="$_gh_ai_source_dir/scripts/gh_worktree.json"
-		printf '%s' "$preamble" | cat -s | "$agent" --settings "$settings_file" "$@"
-	fi
+	printf '%s' "$preamble" | cat -s | "$agent" "$@"
 }
 
 # Extract title from AI response
@@ -376,7 +369,7 @@ _parse_chat_args() {
 
 # Validate chat passthrough args, rejecting flags managed by gh-ai.
 #
-# Returns 1 if --worktree, --session-id, or --resume are found.
+# Returns 1 if --session-id or --resume are found.
 #
 # Usage: _validate_chat_passthrough passthrough_ref
 _validate_chat_passthrough() {
@@ -384,7 +377,7 @@ _validate_chat_passthrough() {
 	local _vcp_flag
 	for _vcp_flag in "${_vcp_args[@]}"; do
 		case "$_vcp_flag" in
-		--worktree | --session-id | --resume)
+		--session-id | --resume)
 			gum log --level error "$_vcp_flag is managed by gh-ai and cannot be passed through"
 			return 1
 			;;

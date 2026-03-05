@@ -182,62 +182,15 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
 ## Session Management
 
 Chat commands automatically persist sessions per resource. The first
-invocation creates a new session with a dedicated worktree; subsequent runs
-resume it. Issue and run sessions create a local branch named after the
-resource (e.g. `issue-42`, `run-123`); PR sessions check out the PR head
-branch directly. Session state is stored in the repository at:
+invocation creates a new session; subsequent runs resume it. Session state
+is stored in the repository at:
 
 ```text
 <repo-root>/.claude/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
-  session.id       — Claude session UUID used to resume the conversation
-  worktree.json    — worktree spec (branch, remote ref, pinned SHA)
+  session.id   — Claude session UUID used to resume the conversation
 ```
 
 Use `--new-session` (or `-n`) to discard the existing session and start fresh.
-
-When a session ends, the worktree is automatically removed. If the worktree
-has uncommitted changes, they are auto-stashed before removal so nothing is
-lost. Recover them with `git stash list` and look for entries prefixed with
-`gh-ai: auto-stash worktree`. Unpushed commits remain in the branch reflog.
-
-## Worktrees & Branches
-
-Each chat session runs inside a dedicated git worktree so the agent can read,
-edit, and commit files without touching your working tree or switching branches.
-
-**Worktree location:** `<repo-root>/.claude/worktrees/<name>`
-
-The worktree name and branch strategy depend on the resource type:
-
-| Command               | Worktree name | Branch                                                      |
-| --------------------- | ------------- | ----------------------------------------------------------- |
-| `gh ai pr chat 42`    | `pull-42`     | Checks out the PR head branch directly                      |
-| `gh ai issue chat 42` | `issue-42`    | Creates a new `issue-42` branch from `origin/<default>`     |
-| `gh ai run chat 123`  | `run-123`     | Creates a new `run-123` branch from `origin/<run's branch>` |
-
-**PR chat** checks out the PR's head branch directly. If the branch already
-exists locally it is fast-forwarded to the remote tip first (unless it has
-diverged, in which case the local state is used as-is). Any commit the agent
-makes can be pushed with a plain `git push` to update the PR — no extra flags
-needed.
-
-**Issue chat** starts a fresh branch from the repository's default branch.
-The agent can commit work-in-progress there. Push the branch and open a PR
-when ready:
-
-```bash
-git push -u origin issue-42
-gh pr create --head issue-42
-```
-
-**Run chat** starts a fresh branch pinned to the run's exact `headSha` — the
-commit that actually triggered the failure — regardless of how far the branch
-has moved since. Push the branch and open a PR to land the fix:
-
-```bash
-git push -u origin run-123
-gh pr create --head run-123
-```
 
 ## Configuration
 
@@ -298,6 +251,7 @@ and always run inline.
 
 ## See Also
 
+- [gh-worktree](https://github.com/gh-extensions/gh-worktree) — Isolated git worktrees for PRs, issues, and workflow runs
 - [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
 - [gh-fzf](https://github.com/gh-extensions/gh-fzf) — Fuzzy finder for GitHub CLI
 

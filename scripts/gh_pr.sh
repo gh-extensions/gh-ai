@@ -769,12 +769,6 @@ _gh_pr_chat() {
 		gh_pr_focus="<focus>${gh_pr_description}</focus>"
 	fi
 
-	local gh_pr_worktree
-	gh_pr_worktree="pull-$gh_pr_number"
-	if ! _gh_in_worktree; then
-		_save_worktree_state "$gh_pr_dir" "$gh_pr_worktree" "$gh_pr_head" "" "$gh_pr_head"
-	fi
-
 	local gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
 
@@ -787,17 +781,12 @@ _gh_pr_chat() {
 				GH_PR_FOCUS="$gh_pr_focus" \
 				GH_SESSION_DIR="$gh_pr_dir" \
 				GH_PR_HEAD="$gh_pr_head" \
-				GH_WT_BRANCH="$gh_pr_worktree" \
 				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 		)
 	fi
 
 	_set_terminal_title "$(_get_agent):P#${gh_pr_number}"
-	if _gh_in_worktree; then
-		_cmd_chat "$gh_pr_preamble" "${gh_pr_session_args[@]}" "${passthrough[@]}"
-	else
-		_cmd_chat "$gh_pr_preamble" --worktree "$gh_pr_worktree" "${gh_pr_session_args[@]}" "${passthrough[@]}"
-	fi
+	_cmd_chat "$gh_pr_preamble" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 
 # Parse PR comment arguments (before -- separator).

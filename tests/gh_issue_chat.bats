@@ -167,7 +167,6 @@ _setup_chat_mocks() {
 	}
 	export -f gum
 
-	_save_worktree_state() { :; }
 }
 
 @test "_gh_issue_chat: calls _cmd_chat with rendered preamble and session args" {
@@ -186,7 +185,6 @@ _setup_chat_mocks() {
 	[[ "$output" == *"PREAMBLE:"* ]]
 	[[ "$output" == *"Test Issue"* ]]
 	[[ "$output" == *"--session-id"* ]]
-	[[ "$output" == *"--worktree issue-42"* ]]
 }
 
 
