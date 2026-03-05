@@ -164,7 +164,7 @@ pull request.
 GH_ISSUE=195 && \
   gh issue develop $GH_ISSUE --checkout && \
   git commit --allow-empty -m "chore: start work on #$GH_ISSUE" && git push && \
-  gh ai issue plan $GH_ISSUE | gh pr create --title "Log authentication flow for auditing" -F -
+  gh ai issue plan $GH_ISSUE | gh pr create --title "Implementation plan for #$GH_ISSUE" -F -
 ```
 
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
