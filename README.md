@@ -1,4 +1,4 @@
-# gh ai
+# gh-ai
 
 Your AI-powered copilot for the GitHub CLI. Draft pull requests, plan issue
 implementations, review code, debug CI failures, and drop into interactive
@@ -214,14 +214,14 @@ Use `--new-session` (or `-n`) to discard the existing session and start fresh.
 
 Override the AI agent and model via `gh config`.
 
-| Key              | Default            | Description                            |
-| ---------------- | ------------------ | -------------------------------------- |
-| `ai.agent`       | `claude`           | Agent binary (used by all commands)    |
-| `ai.model`       | `haiku`            | Model for all commands (fallback)      |
-| `ai.pr.model`    |                    | Model override for `pr` subcommands    |
-| `ai.issue.model` |                    | Model override for `issue` subcommands |
-| `ai.run.model`   |                    | Model override for `run` subcommands   |
-| `ai.session.dir`   | `.github/sessions` | Base directory for persistent chat sessions (relative to git root, or absolute) |
+| Key              | Default            | Description                                                                     |
+| ---------------- | ------------------ | ------------------------------------------------------------------------------- |
+| `ai.agent`       | `claude`           | Agent binary (used by all commands)                                             |
+| `ai.model`       | `haiku`            | Model for all commands (fallback)                                               |
+| `ai.pr.model`    |                    | Model override for `pr` subcommands                                             |
+| `ai.issue.model` |                    | Model override for `issue` subcommands                                          |
+| `ai.run.model`   |                    | Model override for `run` subcommands                                            |
+| `ai.session.dir` | `.github/sessions` | Base directory for persistent chat sessions (relative to git root, or absolute) |
 
 Per-command keys take priority over `ai.model`. The `GH_SESSION_DIR` environment variable overrides `ai.session.dir` with highest priority.
 
