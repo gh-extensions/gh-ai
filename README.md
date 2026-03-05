@@ -167,6 +167,25 @@ GH_ISSUE=195 && \
   gh ai issue plan $GH_ISSUE | gh pr create --title "Implementation plan for #$GH_ISSUE" -F -
 ```
 
+**Open a chat session inside an isolated worktree with [gh-worktree](https://github.com/gh-extensions/gh-worktree)**
+
+[gh-worktree](https://github.com/gh-extensions/gh-worktree) creates a dedicated git worktree for the
+resource, then runs a command inside it. Combine it with `gh ai` to get a
+chat session that starts in the correct branch with no impact on your working tree.
+
+```bash
+gh worktree pr 42 -- gh ai pr chat 42
+gh worktree issue 42 -- gh ai issue chat 42
+gh worktree run 12345678 -- gh ai run chat 12345678
+```
+
+Inside tmux, open the session in a new window so your current work is not interrupted:
+
+```bash
+tmux new-window -n "P#42" "gh worktree pr 42 -- gh ai pr chat 42"
+tmux new-window -n "I#42" "gh worktree issue 42 -- gh ai issue chat 42"
+```
+
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
 
 Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
