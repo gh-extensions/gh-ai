@@ -7,6 +7,8 @@
 #            tracking the matching remote branch, prints worktree path
 #   remove — reads JSON {worktree_path} from stdin, removes the worktree
 
+[ -z "${DEBUG:-}" ] || set -x
+
 set -euo pipefail
 
 # Returns 0 if the current directory is inside a git worktree (not the main tree).
@@ -92,7 +94,7 @@ _gh_worktree_create() {
 	eval "$(printf '%s' "$hook_json" | jq -rf "$(dirname "${BASH_SOURCE[0]}")/gh_worktree_meta.jq")"
 
 	if [[ -z "$gh_worktree_name" || -z "$gh_worktree_cwd" ]]; then
-		echo "gh_worktree_create: missing name or cwd in hook JSON" >&2
+		gum log --level error "gh_worktree_create: missing name or cwd in hook JSON"
 		return 1
 	fi
 
@@ -100,7 +102,7 @@ _gh_worktree_create() {
 	local session_dir="$gh_worktree_cwd/.claude/sessions/$gh_worktree_name"
 	local gh_worktree_remote_ref="" gh_worktree_sha="" gh_worktree_branch=""
 	if ! _load_worktree_state "$session_dir" gh_worktree_remote_ref gh_worktree_sha gh_worktree_branch; then
-		echo "gh_worktree_create: worktree.json not found in $session_dir" >&2
+		gum log --level error "gh_worktree_create: worktree.json not found in $session_dir"
 		return 1
 	fi
 
@@ -127,7 +129,7 @@ _gh_worktree_create() {
 	# elsewhere — git itself would fail, and silently using a different branch
 	# would break auto-tracking for PR sessions.
 	if grep -qxF "branch refs/heads/${checkout_branch}" <<<"$wt_list"; then
-		echo "gh_worktree_create: branch '${checkout_branch}' is already checked out in another worktree" >&2
+		gum log --level error "branch '${checkout_branch}' is already checked out in another worktree"
 		return 1
 	fi
 
@@ -212,7 +214,7 @@ _gh_worktree_remove() {
 		# Stage everything (including untracked) so stash captures it all
 		git -C "$worktree_path" add -A 2>/dev/null || true
 		if git -C "$worktree_path" stash push -m "gh-ai: auto-stash worktree '${wt_name}'" 2>/dev/null; then
-			echo "Auto-stashed uncommitted changes from worktree '${wt_name}' — recover with: git stash list" >&2
+			gum log --level info "Auto-stashed uncommitted changes from worktree '${wt_name}' — recover with: git stash list"
 		fi
 	fi
 
@@ -220,15 +222,17 @@ _gh_worktree_remove() {
 	if _gh_worktree_has_unpushed "$worktree_path"; then
 		local branch
 		branch=$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-		echo "Warning: branch '${branch}' has unpushed commits — they remain in the reflog" >&2
+		gum log --level warn "branch '${branch}' has unpushed commits — they remain in the reflog"
 	fi
 
 	git -C "$worktree_path" worktree remove -f "$worktree_path" 2>/dev/null || true
 }
 
-# CLI entry point (when executed directly, not sourced)
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-	case "${1:-}" in
+main() {
+	local command="${1:-}"
+	shift || true
+
+	case $command in
 	create)
 		_gh_worktree_create
 		;;
@@ -236,8 +240,13 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 		_gh_worktree_remove
 		;;
 	*)
-		echo "Usage: gh_worktree.sh <create|remove>" >&2
+		gum log --level error "unknown command '${command}'"
 		exit 1
 		;;
 	esac
+}
+
+# CLI entry point (when executed directly, not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	main "$@"
 fi
