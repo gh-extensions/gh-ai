@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.14.0](https://github.com/gh-extensions/gh-ai/compare/v0.13.1...v0.14.0) (2026-03-06)
+
+
+### Features
+
+* add configurable sessions directory via ai.session.dir and GH_SESSION_DIR ([fe4b4f6](https://github.com/gh-extensions/gh-ai/commit/fe4b4f62a7c27bd56b1c97e62be5960d4e3ce892))
+* include PR and issue URLs in templates ([a80e51a](https://github.com/gh-extensions/gh-ai/commit/a80e51a9ce6fa3fd557515cd3a961e7b2b9cdae0)), closes [#55](https://github.com/gh-extensions/gh-ai/issues/55)
+* remove tmux terminal title setting from chat commands ([2599cc2](https://github.com/gh-extensions/gh-ai/commit/2599cc2b3597ed1fcda44d625983a0e609a20450))
+* remove worktree lifecycle from gh-ai ([7fd754d](https://github.com/gh-extensions/gh-ai/commit/7fd754d0755a0783cb5e55a6762e0b6425280804))
+* set terminal title when starting a chat session ([09ba6d4](https://github.com/gh-extensions/gh-ai/commit/09ba6d46d2284cfd59547c80543a8b0144f00d51))
+* skip worktree lifecycle when running inside an existing worktree ([93976ee](https://github.com/gh-extensions/gh-ai/commit/93976eeea8718d9828ce1433ef6ba3bceede3e7e))
+* store sessions in .github/sessions instead of .claude/sessions ([bf3cccf](https://github.com/gh-extensions/gh-ai/commit/bf3cccf413495fc4ea261424814a67f94082d5b8))
+* warn when skipping worktree setup inside an existing worktree ([d6a8752](https://github.com/gh-extensions/gh-ai/commit/d6a87524a71bd78f41c413cea8e800b0f4743f85))
+
+
+### Bug Fixes
+
+* add _gh_session_base_dir to declare -f lists in chat test setups ([74eb3f2](https://github.com/gh-extensions/gh-ai/commit/74eb3f2e8ec27f619e16f8b5ff3082c18a396d7d))
+* add _git_main_worktree_path and --git-common-dir mock to chat test setups ([c0881b1](https://github.com/gh-extensions/gh-ai/commit/c0881b11b25546e7440611e2b1a13e85ecb686c5))
+* add rev-parse --git-common-dir to _setup_chat_mocks git mock in gh_pr_chat.bats ([04f6816](https://github.com/gh-extensions/gh-ai/commit/04f6816adb4bc9369ec5be1b778ae37cdfcc5e58))
+* address deep review findings in gh_worktree.sh ([75d3c97](https://github.com/gh-extensions/gh-ai/commit/75d3c97627adf9f226cd24224ff2584ddec426b8))
+* **extras:** prevent tmux from renaming chat windows ([9d0cd1b](https://github.com/gh-extensions/gh-ai/commit/9d0cd1b6e52ff4f2c4b7882659d2acdec518ef62))
+* normalize routing error casing to lowercase ([34ad1f1](https://github.com/gh-extensions/gh-ai/commit/34ad1f158d398c4881db222b84e3afb9ba27a5c8))
+* remove noisy warn log when running inside a worktree ([3ef835f](https://github.com/gh-extensions/gh-ai/commit/3ef835f1c10618313677f320cbe6e49665b02835))
+* resolve sessions from main worktree root ([39a2c97](https://github.com/gh-extensions/gh-ai/commit/39a2c9739a05c5733dde1199057dc06f93377111))
+* update test mocks to include url field in gh issue/pr view responses ([ad32dbc](https://github.com/gh-extensions/gh-ai/commit/ad32dbc41d89d033642a9316c981d5b1dc0fa345))
+
 ## [0.13.1](https://github.com/gh-extensions/gh-ai/compare/v0.13.0...v0.13.1) (2026-03-04)
 
 
