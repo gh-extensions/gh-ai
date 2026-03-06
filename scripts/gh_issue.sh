@@ -707,9 +707,9 @@ _gh_issue_chat() {
 	local gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "$gh_issue_dir" "$gh_issue_new_session" gh_issue_is_new_chat gh_issue_session_args || return 1
 
-	local gh_issue_preamble=""
+	local gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
-		gh_issue_preamble=$(
+		gh_issue_prompt=$(
 			GH_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
 				GH_ISSUE_URL="$gh_issue_url" \
@@ -720,7 +720,7 @@ _gh_issue_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_issue_preamble" "${gh_issue_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
 
 # Issue help function

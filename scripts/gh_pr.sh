@@ -776,10 +776,10 @@ _gh_pr_chat() {
 	local gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
 
-	local gh_pr_preamble=""
+	local gh_pr_prompt=""
 	if [[ -n "$gh_pr_is_new_chat" ]]; then
 		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
-		gh_pr_preamble=$(
+		gh_pr_prompt=$(
 			GH_PR_NUMBER="$gh_pr_number" \
 				GH_PR_TITLE="$gh_pr_title" \
 				GH_PR_URL="$gh_pr_url" \
@@ -790,7 +790,7 @@ _gh_pr_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_pr_preamble" "${gh_pr_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 
 # Parse PR comment arguments (before -- separator).

@@ -273,9 +273,9 @@ _gh_run_chat() {
 	local gh_run_is_new_chat="" gh_run_session_args=()
 	_resolve_chat_session "$gh_run_dir" "$gh_run_new_session" gh_run_is_new_chat gh_run_session_args || return 1
 
-	local gh_run_preamble=""
+	local gh_run_prompt=""
 	if [[ -n "$gh_run_is_new_chat" ]]; then
-		gh_run_preamble=$(
+		gh_run_prompt=$(
 			GH_RUN_ID="$gh_run_id" \
 				GH_RUN_TITLE="$gh_run_title" \
 				GH_RUN_CONCLUSION="$gh_run_conclusion" \
@@ -289,7 +289,7 @@ _gh_run_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_run_preamble" "${gh_run_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_run_url" "$gh_run_prompt" "${gh_run_session_args[@]}" "${passthrough[@]}"
 }
 
 # Run help function

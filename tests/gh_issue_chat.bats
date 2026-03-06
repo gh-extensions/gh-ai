@@ -172,20 +172,21 @@ _setup_chat_mocks() {
 
 }
 
-@test "_gh_issue_chat: calls _cmd_chat with rendered preamble and session args" {
+@test "_gh_issue_chat: calls _cmd_chat with rendered prompt and session args" {
 	_setup_chat_mocks
 
 	# Mock _cmd_chat to capture what it receives
 	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
+		printf 'URL:%s\n' "$1"
+		printf 'PROMPT:%s\n' "$2"
+		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
 
 	run _gh_issue_chat 42
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"PREAMBLE:"* ]]
+	[[ "$output" == *"PROMPT:"* ]]
 	[[ "$output" == *"Test Issue"* ]]
 	[[ "$output" == *"--session-id"* ]]
 }
@@ -229,8 +230,9 @@ _setup_chat_mocks() {
 	_setup_chat_mocks
 
 	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
+		printf 'URL:%s\n' "$1"
+		printf 'PROMPT:%s\n' "$2"
+		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
 
@@ -239,10 +241,11 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"--session-id"* ]]
 
-	# Second call should resume with empty preamble
+	# Second call should resume with empty prompt
 	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
+		printf 'URL:%s\n' "$1"
+		printf 'PROMPT:%s\n' "$2"
+		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
 
@@ -267,8 +270,9 @@ _setup_chat_mocks() {
 	_setup_chat_mocks
 
 	_cmd_chat() {
-		printf 'PREAMBLE:%s\n' "$1"
-		shift
+		printf 'URL:%s\n' "$1"
+		printf 'PROMPT:%s\n' "$2"
+		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
 

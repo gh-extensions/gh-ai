@@ -104,16 +104,17 @@ _trust_workspace() {
 	mv "$tmp" "$claude_json"
 }
 
-# Pipe a preamble into the configured agent binary
+# Pipe a prompt into the configured agent binary
 #
 # Resolves ai.agent (default: claude), verifies the binary exists, then
-# pipes the preamble into it. Extra positional args are forwarded to the agent.
+# pipes the prompt into it. Extra positional args are forwarded to the agent.
 # Pre-trusts the current directory so Claude skips the "trust this folder" dialog.
 #
-# Usage: _cmd_chat "context preamble" [AGENT_ARGS...]
+# Usage: _cmd_chat "url" "context prompt" [AGENT_ARGS...]
 _cmd_chat() {
-	local preamble="$1"
-	shift
+	local url="$1"
+	local prompt="$2"
+	shift 2
 
 	local agent
 	agent=$(_get_agent)
@@ -127,7 +128,11 @@ _cmd_chat() {
 	# trust the directory when starting a session.
 	_trust_workspace "$(pwd -P)"
 
-	printf '%s' "$preamble" | cat -s | "$agent" "$@"
+	if [[ -n "$prompt" ]]; then
+		printf "%s" "$url" | "$agent" --append-system-prompt "$prompt" "$@"
+	else
+		"$agent" "$@"
+	fi
 }
 
 # Extract title from AI response
