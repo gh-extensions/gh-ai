@@ -30,7 +30,8 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _parse_chat_args _parse_issue_chat_args _validate_chat_passthrough _show_issue_chat_help _gh_issue_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
-			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file
+			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file \
+			_gh_session_base_dir
 	)"
 }
 
