@@ -1,5 +1,9 @@
-Write a GitHub issue title and structured body from the description below.
+<task>
+As a GitHub assistant, generate an issue title and structured body from the
+description.
+</task>
 
+<context>
 <description>
 ${GH_ISSUE_DESCRIPTION}
 </description>
@@ -7,44 +11,45 @@ ${GH_ISSUE_DESCRIPTION}
 <labels>
 ${GH_ISSUE_LABELS}
 </labels>
+</context>
 
 <additional_context>
 ${GH_ISSUE_CONTEXT}
 </additional_context>
 
-<format>
-- First line: issue title — `# {title}`, clear and specific, under 72 chars
-- Body: GitHub-flavored Markdown
-- Adapt structure to bug vs feature based on the description
-- Omit sections that do not apply; do not write "N/A"
-- Output only the issue content, no preamble or commentary
-</format>
+<rules>
+- Use concise technical language suitable for GitHub issues.
+- Adapt the structure based on whether the issue describes a bug or feature.
+- If the description is incomplete, note missing details rather than inventing them.
+- If <additional_context> is empty, no extra context was provided.
+</rules>
 
-<body>
+<output_format>
+First line: issue title — `# {title}`, clear and specific, under 72 chars
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+Omit sections that are not relevant to the input.
+
+<example>
 # {title}
 
 ## Description
-
-{clear explanation of the issue or feature request — 2–3 sentences}
+{clear explanation of the issue or feature request}
 
 ## Steps to Reproduce
-
-{numbered steps if this is a bug report}
+{steps if bug}
 
 ## Expected Behavior
-
-{what should happen}
+{expected result}
 
 ## Actual Behavior
-
-{what actually happens, including error messages if available}
+{current behavior}
 
 ## Acceptance Criteria
-
-{checkboxes for feature requests — what "done" looks like}
+{checkboxes describing completion}
 
 ## Additional Context
-
-{any extra information, logs, or environment details}
-
-</body>
+{logs, environment, or extra information}
+</example>
+</output_format>

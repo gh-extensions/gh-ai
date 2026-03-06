@@ -1,5 +1,8 @@
-Analyze this GitHub Actions workflow run and explain what happened.
+<task>
+As a GitHub assistant, analyze the workflow run and explain what happened.
+</task>
 
+<context>
 <run>
 Title: ${GH_RUN_TITLE}
 Conclusion: ${GH_RUN_CONCLUSION}
@@ -16,27 +19,37 @@ ${GH_RUN_JOBS}
 <log>
 ${GH_RUN_LOG}
 </log>
+</context>
 
-<format>
-- Focus on root cause and actionable fixes
-- Highlight error messages and stack traces
-- Reference specific job/step names
-- Body: GitHub-flavored Markdown
-- Omit sections that do not apply; do not write "N/A"
-- Output only the explanation, no preamble or commentary
-- Do NOT include a title line
-</format>
+<instructions>
+First identify the run outcome, then trace the failure to specific jobs
+and steps, and finally determine the root cause.
+</instructions>
 
-<body>
+<rules>
+- Focus on root cause rather than symptoms.
+- Reference specific job and step names.
+- Highlight relevant error messages or stack traces.
+- If logs appear truncated, mention the limitation.
+</rules>
+
+<output_format>
+Format: GitHub-flavored Markdown
+Output only the explanation.
+Do not include a title or commentary.
+Omit sections that are not relevant (e.g. no Root Cause if the run succeeded).
+
+<example>
 ## Summary
-{1–2 sentence overview of what happened}
+{overview of what happened}
 
 ## Root Cause
-{clear explanation of why the run failed}
+{why the run failed}
 
 ## Failed Steps
-{list of failed jobs/steps with key error messages}
+{jobs or steps with key errors}
 
 ## How to Fix
-{actionable steps to resolve the failure}
-</body>
+{actionable remediation steps}
+</example>
+</output_format>

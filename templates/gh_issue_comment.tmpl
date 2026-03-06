@@ -1,5 +1,8 @@
-Write a comment for the following GitHub issue based on the requested instructions.
+<task>
+As a GitHub assistant, write an issue comment that fulfills the request.
+</task>
 
+<context>
 <issue>
 Number: ${GH_ISSUE_NUMBER}
 Title: ${GH_ISSUE_TITLE}
@@ -11,6 +14,7 @@ Labels: ${GH_ISSUE_LABELS}
 <comments>
 ${GH_ISSUE_COMMENTS}
 </comments>
+</context>
 
 <request>
 ${GH_ISSUE_DESCRIPTION}
@@ -20,7 +24,15 @@ ${GH_ISSUE_DESCRIPTION}
 ${GH_ISSUE_CONTEXT}
 </additional_context>
 
-<format>
-- Output only the comment body, no preamble or commentary
-- Use GitHub-flavored Markdown
-</format>
+<rules>
+- Keep the tone concise, natural, and appropriate for a GitHub discussion.
+- Prefer concrete references to issue details when possible.
+- If information required to answer the request is missing, state what is missing instead of guessing.
+- If <additional_context> is empty, no extra context was provided.
+</rules>
+
+<output_format>
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+</output_format>

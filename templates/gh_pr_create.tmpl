@@ -1,6 +1,9 @@
-Write a GitHub pull request title and body for the changes below.
-If a description is provided, use it as guidance for emphasis and framing.
+<task>
+As a GitHub assistant, generate a pull request title and body from the
+provided changes.
+</task>
 
+<context>
 <diffstat>
 ${GH_PR_DIFF_STAT}
 </diffstat>
@@ -12,51 +15,41 @@ ${GH_PR_DIFF}
 <commits>
 ${GH_PR_COMMITS}
 </commits>
+</context>
 
 <description>
 ${GH_PR_DESCRIPTION}
 </description>
 
-<format>
-- First line: PR title — imperative mood, under 72 chars, no trailing period
-- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
-- Omit sections that do not apply; do not write "N/A"
-- Output only the PR content, no preamble or commentary
-</format>
+<rules>
+- Focus on what changed and why.
+- Do not speculate beyond visible changes in the diff or commits.
+- Reference relevant files when useful.
+</rules>
 
-<body>
+<output_format>
+First line: PR title — imperative mood, under 72 chars
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+Omit sections that are not relevant to the input.
+
+<example>
 # {title}
 
 ## Summary
-
-{what changed and why — 2–3 sentences}
-
-## Risk Level
-
-**{Low / Medium / High}** — {rationale}
+{what changed and why}
 
 ## Changes
+{logical groups of changes}
 
-### Behavior & Execution Flow
-
-{how code behaves after the change}
-
-### Design Decisions
-
-{key tradeoffs and patterns used}
-
-### Edge Cases
-
-{boundary conditions and how they are handled}
+## Risk Level
+{Low / Medium / High with explanation}
 
 ## Testing
-
-{how to verify these changes — manual steps, relevant test files, commands to run}
+{how changes should be verified}
 
 ## Impact
-
-- **Breaking Changes:** {yes/no with details}
-- **Performance:** {improved / regressed / no change}
-- **Security:** {auth, data handling, trust boundaries}
-
-</body>
+{users affected, breaking changes, dependencies}
+</example>
+</output_format>

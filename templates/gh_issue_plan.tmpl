@@ -1,5 +1,8 @@
-Create an implementation plan for the following GitHub issue.
+<task>
+As a GitHub assistant, create an implementation plan for the issue.
+</task>
 
+<context>
 <issue>
 Number: ${GH_ISSUE_NUMBER}
 Title: ${GH_ISSUE_TITLE}
@@ -11,40 +14,55 @@ Labels: ${GH_ISSUE_LABELS}
 <comments>
 ${GH_ISSUE_COMMENTS}
 </comments>
+</context>
 
+<focus>
 ${GH_ISSUE_FOCUS}
+</focus>
 
 <additional_context>
 ${GH_ISSUE_CONTEXT}
 </additional_context>
 
-<format>
-- First line: PR title — `# {title}`, clear and specific, under 72 chars
-- Body: GitHub-flavored Markdown
-- Include `Closes #N` reference to the issue
-- Implementation plan as a TODO checklist with concrete steps, each prefixed with a sequential ID: `T001 - {step}`
-- Acceptance criteria as checkboxes
-- Omit sections that do not apply; do not write "N/A"
-- Output only the PR content, no preamble or commentary
-</format>
+<instructions>
+Think step by step: first understand the issue requirements, then identify
+the affected components, and finally break the work into concrete tasks.
 
-<body>
+If <focus> is empty, no specific focus area was requested — plan the full
+implementation.
+</instructions>
+
+<rules>
+- Focus on concrete engineering tasks rather than vague descriptions.
+- Use sequential step IDs for implementation steps.
+- If the issue lacks sufficient detail, highlight missing information.
+- If <additional_context> is empty, no extra context was provided.
+</rules>
+
+<output_format>
+First line: PR title — `# {title}`, under 72 chars
+Include `Closes #${GH_ISSUE_NUMBER}`
+Implementation plan as TODO checklist
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+Omit sections that are not relevant to the input.
+
+<example>
 # {title}
 
 Closes #${GH_ISSUE_NUMBER}
 
 ## Summary
-
-{1–2 sentence overview of what this PR will implement}
+{1–2 sentence description of the planned change}
 
 ## Implementation Plan
-
-- [ ] T001 - {concrete implementation step}
-- [ ] T002 - {concrete implementation step}
-- [ ] T003 - {concrete implementation step}
+- [ ] T001 - {implementation step}
+- [ ] T002 - {implementation step}
+- [ ] T003 - {implementation step}
 
 ## Acceptance Criteria
-
-- [ ] {criterion that defines "done"}
-- [ ] {criterion that defines "done"}
-</body>
+- [ ] {criterion defining completion}
+- [ ] {criterion defining completion}
+</example>
+</output_format>

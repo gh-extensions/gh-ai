@@ -1,6 +1,8 @@
-Write a conversational GitHub pull request comment that fulfils the request below.
-Do not write a code review — produce a natural, targeted comment for the PR conversation.
+<task>
+As a GitHub assistant, write a pull request comment responding to the request.
+</task>
 
+<context>
 <pull_request>
 Number: ${GH_PR_NUMBER}
 Title: ${GH_PR_TITLE}
@@ -11,18 +13,25 @@ Body: ${GH_PR_BODY}
 <comments>
 ${GH_PR_COMMENTS}
 </comments>
-
-<additional_context>
-${GH_PR_CONTEXT}
-</additional_context>
+</context>
 
 <request>
 ${GH_PR_DESCRIPTION}
 </request>
 
-<format>
-- Body: GitHub-flavored Markdown
-- Match the tone and scope of the request — keep it concise and conversational
-- Omit sections that do not apply; do not write "N/A"
-- Output only the comment body, no preamble or meta-commentary
-</format>
+<additional_context>
+${GH_PR_CONTEXT}
+</additional_context>
+
+<rules>
+- Keep the comment concise and conversational.
+- Focus only on the requested topic.
+- Avoid writing a full code review unless explicitly requested.
+- If <additional_context> is empty, no extra context was provided.
+</rules>
+
+<output_format>
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+</output_format>

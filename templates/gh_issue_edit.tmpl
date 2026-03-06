@@ -1,5 +1,8 @@
-Edit the following GitHub issue based on the requested changes.
+<task>
+As a GitHub assistant, edit the issue according to the requested changes.
+</task>
 
+<context>
 <issue>
 Number: ${GH_ISSUE_NUMBER}
 Title: ${GH_ISSUE_TITLE}
@@ -11,6 +14,7 @@ Labels: ${GH_ISSUE_LABELS}
 <comments>
 ${GH_ISSUE_COMMENTS}
 </comments>
+</context>
 
 <requested_changes>
 ${GH_ISSUE_DESCRIPTION}
@@ -20,17 +24,22 @@ ${GH_ISSUE_DESCRIPTION}
 ${GH_ISSUE_CONTEXT}
 </additional_context>
 
-<format>
-- First line: issue title — `# {title}`, clear and specific, under 72 chars
-- Body: GitHub-flavored Markdown
-- Apply only the requested changes; preserve everything else
-- Adapt structure to bug vs feature based on the content
-- Omit sections that do not apply; do not write "N/A"
-- Output only the issue content, no preamble or commentary
-</format>
+<rules>
+- Apply only the requested changes.
+- Preserve existing wording and structure unless the request explicitly requires modification.
+- If the requested change is ambiguous, identify what clarification is needed.
+- If <additional_context> is empty, no extra context was provided.
+</rules>
 
-<body>
+<output_format>
+First line: issue title — `# {title}`, under 72 chars
+Format: GitHub-flavored Markdown
+Output only the requested content.
+Do not include preamble, commentary, or meta text.
+
+<example>
 # {title}
 
-{updated issue body incorporating the requested changes}
-</body>
+{updated issue body incorporating requested changes}
+</example>
+</output_format>

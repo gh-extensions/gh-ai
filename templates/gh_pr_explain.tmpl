@@ -1,5 +1,8 @@
-Explain what this pull request does in clear, accessible language.
+<task>
+As a GitHub assistant, explain what the pull request does in clear language.
+</task>
 
+<context>
 <pull_request>
 Number: ${GH_PR_NUMBER}
 Title: ${GH_PR_TITLE}
@@ -22,30 +25,35 @@ ${GH_PR_DIFF}
 <commits>
 ${GH_PR_COMMITS}
 </commits>
+</context>
 
-<format>
-- Focus on *what* changed and *why*, not low-level code details
-- Organize by logical change group, not by file
-- 3–8 bullets per section
-- Body: GitHub-flavored Markdown; reference code as `file.ext:line`
-- Omit sections that do not apply; do not write "N/A"
-- Output only the explanation, no preamble or commentary
-- Do NOT include a title line — the entire response is the explanation body
-</format>
+<instructions>
+First review the diff to understand what changed, then group the changes
+logically, and finally assess the impact.
+</instructions>
 
-<body>
+<rules>
+- Focus on what changed and why.
+- Organize explanation by logical change groups, not files.
+- If diff or context appears incomplete, state that limitation.
+</rules>
+
+<output_format>
+Format: GitHub-flavored Markdown
+Output only the explanation.
+Do not include preamble or title.
+Omit sections that are not relevant to the input.
+
+<example>
 ## Summary
-
-{1–2 sentence overview of the PR's purpose}
+{overview of the PR}
 
 ## What Changed
-
-{bulleted list of logical changes, grouped by feature or concern}
+{grouped logical changes}
 
 ## Impact
-
-- **Who is affected:** {users, developers, CI, etc.}
-- **Breaking changes:** {yes/no with details}
-- **Dependencies:** {new, removed, or updated dependencies}
-
-</body>
+- Who is affected
+- Breaking changes
+- Dependencies
+</example>
+</output_format>
