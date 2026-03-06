@@ -185,6 +185,16 @@ tmux new-window -n "P#42" "gh worktree pr 42 -- gh ai pr chat 42"
 tmux new-window -n "I#42" "gh worktree issue 42 -- gh ai issue chat 42"
 ```
 
+**Start a dedicated tmux session for a PR or issue**
+
+Create a named tmux session in the background, then attach to it. Useful when you want a fully isolated terminal session you can detach from and return to later.
+
+```bash
+gh worktree pr 42 --keep -- tmux new-session -d -s "pr-42" "gh ai pr chat 42" && tmux attach -t "pr-42"
+gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh ai issue chat 42" && tmux attach -t "issue-42"
+gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh ai run chat 123" && tmux attach -t "run-123"
+```
+
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
 
 Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
