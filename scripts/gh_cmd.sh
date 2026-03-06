@@ -127,7 +127,6 @@ _cmd_chat() {
 	# trust the directory when starting a session.
 	_trust_workspace "$(pwd -P)"
 
-	printf "Starting %s — loading context..." "$agent"
 	printf '%s' "$preamble" | cat -s | "$agent" "$@"
 }
 
