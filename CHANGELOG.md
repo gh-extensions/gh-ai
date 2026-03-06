@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.1](https://github.com/gh-extensions/gh-ai/compare/v0.14.0...v0.14.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* resolve gh_tmux.sh path as absolute in both bash and zsh ([b276b77](https://github.com/gh-extensions/gh-ai/commit/b276b77a67db2262955cea105a28b20d5abd4219))
+
 ## [0.14.0](https://github.com/gh-extensions/gh-ai/compare/v0.13.1...v0.14.0) (2026-03-06)
 
 
