@@ -203,7 +203,7 @@ each PR in the issue body, then hand off the implementation plan to an AI agent.
 ```bash
 # Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
-  | gh ai issue create -d "Consolidate Dependabot PRs into a single update" \
+  | gh ai issue create -d "Your task is to consolidate Dependabot pull requests." \
   | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
 ```
 
@@ -227,13 +227,14 @@ Use `--new-session` (or `-n`) to discard the existing session and start fresh.
 
 Override the AI agent and model via `gh config`.
 
-| Key              | Default            | Description                                                                     |
-| ---------------- | ------------------ | ------------------------------------------------------------------------------- |
-| `ai.agent`       | `claude`           | Agent binary (used by all commands)                                             |
-| `ai.model`       | `haiku`            | Model for all commands (fallback)                                               |
-| `ai.pr.model`    |                    | Model override for `pr` subcommands                                             |
-| `ai.issue.model` |                    | Model override for `issue` subcommands                                          |
-| `ai.run.model`   |                    | Model override for `run` subcommands                                            |
+| Key              | Default  | Description                            |
+| ---------------- | -------- | -------------------------------------- |
+| `ai.agent`       | `claude` | Agent binary (used by all commands)    |
+| `ai.model`       | `haiku`  | Model for all commands (fallback)      |
+| `ai.pr.model`    |          | Model override for `pr` subcommands    |
+| `ai.issue.model` |          | Model override for `issue` subcommands |
+| `ai.run.model`   |          | Model override for `run` subcommands   |
+
 Per-command keys take priority over `ai.model`.
 
 ```bash
