@@ -23,7 +23,8 @@
 # When inside tmux, chat bindings (alt-C) open in a new tmux window so fzf
 # stays interactive.
 
-_gh_fzf_dir=$(dirname "${BASH_SOURCE[0]}")
+_gh_fzf_dir=$(dirname "${BASH_SOURCE[0]:-$0}")
+[[ "$_gh_fzf_dir" = /* ]] || _gh_fzf_dir="$(cd "$_gh_fzf_dir" && pwd)"
 _gh_fzf_tmux="$_gh_fzf_dir/gh_tmux.sh"
 _gh_fzf_agent=$(gh config get ai.agent 2>/dev/null || true)
 _gh_fzf_agent="${_gh_fzf_agent:-claude}"
