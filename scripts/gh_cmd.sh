@@ -327,7 +327,7 @@ _resolve_context_dir() {
 
 	if [[ "$_rcd_type" == "chat" ]]; then
 		local _rcd_git_root
-		_git_main_worktree_path _rcd_git_root || return 1
+		_git_repo_path _rcd_git_root || return 1
 		_rcd_dir="$(_gh_session_base_dir "$_rcd_git_root")/$_rcd_name"
 		mkdir -p "$_rcd_dir"
 	else
