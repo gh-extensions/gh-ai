@@ -211,12 +211,15 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
 
 Chat commands automatically persist sessions per resource. The first
 invocation creates a new session; subsequent runs resume it. Session state
-is stored in the repository at:
+is stored in the current worktree at:
 
 ```text
-<repo-root>/.github/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
+<worktree-root>/.github/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
   session.id   — Claude session UUID used to resume the conversation
 ```
+
+When working inside a linked worktree (e.g. created by `gh worktree`),
+sessions are scoped to that worktree — not the main repository root.
 
 Use `--new-session` (or `-n`) to discard the existing session and start fresh.
 
