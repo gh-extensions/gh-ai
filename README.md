@@ -181,8 +181,8 @@ gh worktree run 12345678 -- gh ai run chat 12345678
 Inside tmux, open the session in a new window so your current work is not interrupted:
 
 ```bash
-tmux new-window -n "P#42" "gh worktree pr 42 -- gh ai pr chat 42"
-tmux new-window -n "I#42" "gh worktree issue 42 -- gh ai issue chat 42"
+tmux new-window -n "pull-42" "gh worktree pr 42 -- gh ai pr chat 42"
+tmux new-window -n "issue-42" "gh worktree issue 42 -- gh ai issue chat 42"
 ```
 
 **Start a dedicated tmux session for a PR or issue**
@@ -190,7 +190,7 @@ tmux new-window -n "I#42" "gh worktree issue 42 -- gh ai issue chat 42"
 Create a named tmux session in the background, then attach to it. Useful when you want a fully isolated terminal session you can detach from and return to later.
 
 ```bash
-gh worktree pr 42 --keep -- tmux new-session -d -s "pr-42" "gh ai pr chat 42" && tmux attach -t "pr-42"
+gh worktree pr 42 --keep -- tmux new-session -d -s "pull-42" "gh ai pr chat 42" && tmux attach -t "pull-42"
 gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh ai issue chat 42" && tmux attach -t "issue-42"
 gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh ai run chat 123" && tmux attach -t "run-123"
 ```
