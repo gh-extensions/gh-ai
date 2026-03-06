@@ -284,7 +284,7 @@ _gh_run_chat() {
 				GH_RUN_EVENT="$gh_run_event" \
 				GH_RUN_BRANCH="$gh_run_branch" \
 				GH_RUN_SHA="$gh_run_sha" \
-				GH_SESSION_DIR="$gh_run_dir" \
+				GH_AI_SESSION_DIR="$gh_run_dir" \
 				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 		)
 	fi

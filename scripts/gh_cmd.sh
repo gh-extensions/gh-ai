@@ -289,7 +289,7 @@ _create_context_dir() {
 # Resolve the base directory for persistent chat sessions.
 #
 # Resolution order:
-#   1. GH_SESSION_DIR env var
+#   1. GH_AI_SESSION_DIR env var
 #   2. gh config get ai.session.dir
 #   3. Default: .github/sessions
 #
@@ -299,8 +299,8 @@ _gh_session_base_dir() {
 	local git_root="$1"
 	local dir
 
-	if [[ -n "${GH_SESSION_DIR:-}" ]]; then
-		dir="$GH_SESSION_DIR"
+	if [[ -n "${GH_AI_SESSION_DIR:-}" ]]; then
+		dir="$GH_AI_SESSION_DIR"
 	else
 		dir=$(gh config get ai.session.dir 2>/dev/null || true)
 		dir="${dir:-.github/sessions}"

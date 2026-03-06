@@ -715,7 +715,7 @@ _gh_issue_chat() {
 				GH_ISSUE_URL="$gh_issue_url" \
 				GH_ISSUE_LABELS="$gh_issue_labels" \
 				GH_ISSUE_FOCUS="$gh_issue_focus" \
-				GH_SESSION_DIR="$gh_issue_dir" \
+				GH_AI_SESSION_DIR="$gh_issue_dir" \
 				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 		)
 	fi
