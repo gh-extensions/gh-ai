@@ -163,6 +163,7 @@ _setup_chat_mocks() {
 		case "$1 $2" in
 		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
 		"rev-parse --abbrev-ref") echo "" ;;
+		"rev-parse --git-common-dir") echo "$BATS_TEST_TMPDIR/.git" ;;
 		"apply --stat") echo " file.txt | 1 +" ;;
 		*) ;;
 		esac
