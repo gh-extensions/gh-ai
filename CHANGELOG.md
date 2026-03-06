@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/gh-extensions/gh-ai/compare/v0.14.1...v0.15.0) (2026-03-06)
+
+
+### Features
+
+* store sessions in current worktree instead of main worktree ([85fcd3c](https://github.com/gh-extensions/gh-ai/commit/85fcd3c5de8cb959b692eaebcf656afe0461bb13))
+
 ## [0.14.1](https://github.com/gh-extensions/gh-ai/compare/v0.14.0...v0.14.1) (2026-03-06)
 
 
