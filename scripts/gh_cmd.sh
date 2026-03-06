@@ -286,31 +286,12 @@ _create_context_dir() {
 }
 
 # Resolve the base directory for persistent chat sessions.
-#
-# Resolution order:
-#   1. GH_AI_SESSION_DIR env var
-#   2. gh config get ai.session.dir
-#   3. Default: .github/sessions
+# Always <worktree-root>/.github/sessions.
 #
 # Stdout: base directory path
 # Usage: base=$(_gh_session_base_dir <git_root>)
 _gh_session_base_dir() {
-	local git_root="$1"
-	local dir
-
-	if [[ -n "${GH_AI_SESSION_DIR:-}" ]]; then
-		dir="$GH_AI_SESSION_DIR"
-	else
-		dir=$(gh config get ai.session.dir 2>/dev/null || true)
-		dir="${dir:-.github/sessions}"
-	fi
-
-	# Resolve relative paths against the git root
-	if [[ "$dir" != /* ]]; then
-		dir="${git_root}/${dir}"
-	fi
-
-	printf '%s' "$dir"
+	printf '%s/.github/sessions' "$1"
 }
 
 # Resolve context directory: persistent session dir for chat, temp dir otherwise

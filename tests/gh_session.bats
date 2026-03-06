@@ -161,76 +161,8 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_gh_session_base_dir: default path is .github/sessions under git root" {
-	gh() { return 1; }
-	export -f gh
-	unset GH_AI_SESSION_DIR
-
 	local result
 	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
 
 	[[ "$result" == "$BATS_TEST_TMPDIR/.github/sessions" ]]
-}
-
-@test "_gh_session_base_dir: ai.session.dir gh config (relative) is anchored to git root" {
-	gh() {
-		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
-			echo "custom/sessions"
-			return 0
-		fi
-		return 1
-	}
-	export -f gh
-	unset GH_AI_SESSION_DIR
-
-	local result
-	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
-
-	[[ "$result" == "$BATS_TEST_TMPDIR/custom/sessions" ]]
-}
-
-@test "_gh_session_base_dir: ai.session.dir gh config (absolute) is used as-is" {
-	gh() {
-		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
-			echo "/abs/path/sessions"
-			return 0
-		fi
-		return 1
-	}
-	export -f gh
-	unset GH_AI_SESSION_DIR
-
-	local result
-	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
-
-	[[ "$result" == "/abs/path/sessions" ]]
-}
-
-@test "_gh_session_base_dir: GH_AI_SESSION_DIR env var takes highest priority" {
-	gh() {
-		if [[ "$1 $2 $3" == "config get ai.session.dir" ]]; then
-			echo "should-not-be-used"
-			return 0
-		fi
-		return 1
-	}
-	export -f gh
-	export GH_AI_SESSION_DIR="/env/override/sessions"
-
-	local result
-	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
-
-	[[ "$result" == "/env/override/sessions" ]]
-	unset GH_AI_SESSION_DIR
-}
-
-@test "_gh_session_base_dir: GH_AI_SESSION_DIR overrides default when config absent" {
-	gh() { return 1; }
-	export -f gh
-	export GH_AI_SESSION_DIR="/tmp/my-sessions"
-
-	local result
-	result=$(_gh_session_base_dir "$BATS_TEST_TMPDIR")
-
-	[[ "$result" == "/tmp/my-sessions" ]]
-	unset GH_AI_SESSION_DIR
 }
