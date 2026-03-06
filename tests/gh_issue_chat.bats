@@ -11,12 +11,14 @@ setup() {
 	export _gh_ai_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
 
+	mkdir -p "$BATS_TEST_TMPDIR/.git"
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
 	git() {
 		case "$1 $2" in
 		"rev-parse --show-toplevel") echo "$BATS_TEST_TMPDIR" ;;
 		"rev-parse --abbrev-ref") echo "" ;;
+		"rev-parse --git-common-dir") echo "$BATS_TEST_TMPDIR/.git" ;;
 		esac
 	}
 	export -f gum gh git
@@ -31,7 +33,7 @@ setup() {
 		declare -f _parse_chat_args _parse_issue_chat_args _validate_chat_passthrough _show_issue_chat_help _gh_issue_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file \
-			_gh_session_base_dir
+			_gh_session_base_dir _git_main_worktree_path
 	)"
 }
 
