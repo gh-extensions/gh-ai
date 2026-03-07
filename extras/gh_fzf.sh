@@ -25,58 +25,58 @@
 
 _gh_fzf_dir=$(dirname "${BASH_SOURCE[0]:-$0}")
 [[ "$_gh_fzf_dir" = /* ]] || _gh_fzf_dir="$(cd "$_gh_fzf_dir" && pwd)"
-_gh_fzf_tmux="$_gh_fzf_dir/gh_tmux.sh"
+
 _gh_fzf_agent=$(gh config get ai.agent 2>/dev/null || true)
 _gh_fzf_agent="${_gh_fzf_agent:-claude}"
 
-_gh_fzf_use_tmux=0
+_gh_fzf_tmux_use=0
 if [[ -n "${TMUX:-}" ]]; then
-	_gh_fzf_session=$(tmux display-message -p '#S')
-	_gh_fzf_use_tmux=1
+	_gh_fzf_tmux="$_gh_fzf_dir/gh_tmux.sh"
+	_gh_fzf_tmux_use=1
 fi
 
-if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
+if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_issue_opts=(
-		'--bind "alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"'
-		"--bind \"alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})\""
+		--bind "alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
+		--bind "alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})"
 	)
 else
 	_gh_fzf_issue_opts=(
-		'--bind "alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"'
-		'--bind "alt-C:execute(gh ai issue chat {1})"'
+		--bind "alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
+		--bind "alt-C:execute(gh ai issue chat {1})"
 	)
 fi
 export GH_FZF_ISSUE_OPTS="${GH_FZF_ISSUE_OPTS:+${GH_FZF_ISSUE_OPTS} }${_gh_fzf_issue_opts[*]}"
 unset _gh_fzf_issue_opts
 
-if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
+if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_pr_opts=(
-		'--bind "alt-E:execute(gh ai pr explain {1} | gum pager)"'
-		'--bind "alt-A:execute(gh ai pr review {1} -- --approve)"'
-		'--bind "alt-N:execute(gh ai pr review {1} -- --request-changes)"'
-		"--bind \"alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/pr-{1} gh ai pr chat {1})\""
+		--bind "alt-E:execute(gh ai pr explain {1} | gum pager)"
+		--bind "alt-A:execute(gh ai pr review {1} -- --approve)"
+		--bind "alt-N:execute(gh ai pr review {1} -- --request-changes)"
+		--bind "alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})"
 	)
 else
 	_gh_fzf_pr_opts=(
-		'--bind "alt-E:execute(gh ai pr explain {1} | gum pager)"'
-		'--bind "alt-A:execute(gh ai pr review {1} -- --approve)"'
-		'--bind "alt-N:execute(gh ai pr review {1} -- --request-changes)"'
-		'--bind "alt-C:execute(gh ai pr chat {1})"'
+		--bind "alt-E:execute(gh ai pr explain {1} | gum pager)"
+		--bind "alt-A:execute(gh ai pr review {1} -- --approve)"
+		--bind "alt-N:execute(gh ai pr review {1} -- --request-changes)"
+		--bind "alt-C:execute(gh ai pr chat {1})"
 	)
 fi
 export GH_FZF_PR_OPTS="${GH_FZF_PR_OPTS:+${GH_FZF_PR_OPTS} }${_gh_fzf_pr_opts[*]}"
 unset _gh_fzf_pr_opts
 
-if [[ "$_gh_fzf_use_tmux" -eq 1 ]]; then
+if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_run_opts=(
-		'--bind "alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"'
-		"--bind \"alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})\""
+		--bind "alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
+		--bind "alt-C:execute-silent(${_gh_fzf_tmux} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})"
 	)
 else
 	_gh_fzf_run_opts=(
-		'--bind "alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"'
-		'--bind "alt-C:execute(gh ai run chat {-1})"'
+		--bind "alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
+		--bind "alt-C:execute(gh ai run chat {-1})"
 	)
 fi
 export GH_FZF_RUN_OPTS="${GH_FZF_RUN_OPTS:+${GH_FZF_RUN_OPTS} }${_gh_fzf_run_opts[*]}"
-unset _gh_fzf_run_opts _gh_fzf_use_tmux _gh_fzf_session _gh_fzf_tmux _gh_fzf_dir _gh_fzf_agent
+unset _gh_fzf_run_opts _gh_fzf_tmux_use _gh_fzf_tmux _gh_fzf_dir _gh_fzf_agent
