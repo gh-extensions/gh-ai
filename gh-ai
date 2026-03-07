@@ -80,10 +80,10 @@ _show_version() {
 
 # Main entry point
 main() {
-	local command="${1:-}"
+	local cmd="${1:-}"
 	shift || true
 
-	case $command in
+	case $cmd in
 	pr)
 		_gh_pr "$@"
 		;;
@@ -100,7 +100,7 @@ main() {
 		_show_help
 		;;
 	*)
-		gum log --level error "unknown command '$command'"
+		gum log --level error "unknown command '$cmd'"
 		gum log --level info "Available commands: pr, issue, run"
 		gum log --level info "Run 'gh ai --help' for usage information"
 		exit 1
