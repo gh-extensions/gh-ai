@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.15.1](https://github.com/gh-extensions/gh-ai/compare/v0.15.0...v0.15.1) (2026-03-08)
+
+
+### Bug Fixes
+
+* add +abort to terminal action bindings in gh_fzf.sh ([b7f3516](https://github.com/gh-extensions/gh-ai/commit/b7f3516c04994e96ccb9c0a3745c0f86f058c88c))
+* serialize GH_FZF_*_OPTS with printf %q for eval-safe format ([fb6572a](https://github.com/gh-extensions/gh-ai/commit/fb6572af47be34b21dc4de690d03cec25bb07e6b))
+
 ## [0.15.0](https://github.com/gh-extensions/gh-ai/compare/v0.14.1...v0.15.0) (2026-03-06)
 
 
