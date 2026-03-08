@@ -29,15 +29,24 @@ EOF
 }
 
 # Strip '#' and replace '.' with '_' in a tmux session or window name.
+# tmux treats '#' as a format string prefix, so it must be removed.
+# '.' is replaced with '_' because tmux uses '.' as a target separator.
 #
-# Usage: _tmux_strip_name <name>
+# Usage:  _tmux_strip_name <name>
+# Input:  name  — raw session or window name
+# Output: sanitized name printed to stdout
 _tmux_strip_name() {
 	printf '%s' "${1//#/}" | tr . _
 }
 
-# Create a tmux session (if it does not already exist) and switch to it.
+# Create a named tmux session if it does not already exist, then switch the
+# client to it. If no tmux client is attached (e.g. running non-interactively),
+# the switch-client call is silently ignored.
 #
-# Usage: _tmux_new_session <name> [command...]
+# Usage:   _tmux_new_session <name> [command...]
+# Args:
+#   name     — session name (sanitized via _tmux_strip_name before use)
+#   command  — optional command to run inside the new session
 _tmux_new_session() {
 	local name
 	name=$(_tmux_strip_name "$1")
@@ -47,12 +56,18 @@ _tmux_new_session() {
 	if ! tmux has-session -t "=$name" 2>/dev/null; then
 		tmux new-session -d -s "$name" "${cmd[@]+"${cmd[@]}"}"
 	fi
+
 	tmux switch-client -t "=$name" 2>/dev/null || true
 }
 
-# Open a new tmux window with the given name and command.
+# Open a new tmux window in the current session with the given name and
+# optional command. Unlike new-session, a new window is always created even if
+# one with the same name already exists.
 #
-# Usage: _tmux_new_window <name> [command...]
+# Usage:   _tmux_new_window <name> [command...]
+# Args:
+#   name     — window name (sanitized via _tmux_strip_name before use)
+#   command  — optional command to run inside the new window
 _tmux_new_window() {
 	local name
 	name=$(_tmux_strip_name "$1")
