@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.16.0](https://github.com/gh-extensions/gh-ai/compare/v0.15.1...v0.16.0) (2026-03-08)
+
+
+### Features
+
+* add zsh plugin entry point for plugin manager support ([9dada57](https://github.com/gh-extensions/gh-ai/commit/9dada57de2eaef84bcc99221538511cb9811f32b))
+
+
+### Bug Fixes
+
+* improve fzf keybinding mnemonics ([80d9e9d](https://github.com/gh-extensions/gh-ai/commit/80d9e9d5376f0a79278718af323986685e29d377))
+
 ## [0.15.1](https://github.com/gh-extensions/gh-ai/compare/v0.15.0...v0.15.1) (2026-03-08)
 
 
