@@ -38,12 +38,12 @@ fi
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_issue_opts=(
 		"--bind=alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})+abort"
 	)
 else
 	_gh_fzf_issue_opts=(
 		"--bind=alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
-		"--bind=alt-C:execute(gh ai issue chat {1})"
+		"--bind=alt-C:execute(gh ai issue chat {1})+abort"
 	)
 fi
 GH_FZF_ISSUE_OPTS+="${GH_FZF_ISSUE_OPTS:+ }$(printf '%q ' "${_gh_fzf_issue_opts[@]}")"
@@ -54,16 +54,16 @@ unset _gh_fzf_issue_opts
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_pr_opts=(
 		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
-		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)"
-		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})"
+		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)+abort"
+		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})+abort"
 	)
 else
 	_gh_fzf_pr_opts=(
 		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
-		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)"
-		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)"
-		"--bind=alt-C:execute(gh ai pr chat {1})"
+		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)+abort"
+		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-C:execute(gh ai pr chat {1})+abort"
 	)
 fi
 GH_FZF_PR_OPTS+="${GH_FZF_PR_OPTS:+ }$(printf '%q ' "${_gh_fzf_pr_opts[@]}")"
@@ -74,12 +74,12 @@ unset _gh_fzf_pr_opts
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_run_opts=(
 		"--bind=alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})+abort"
 	)
 else
 	_gh_fzf_run_opts=(
 		"--bind=alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
-		"--bind=alt-C:execute(gh ai run chat {-1})"
+		"--bind=alt-C:execute(gh ai run chat {-1})+abort"
 	)
 fi
 GH_FZF_RUN_OPTS+="${GH_FZF_RUN_OPTS:+ }$(printf '%q ' "${_gh_fzf_run_opts[@]}")"
