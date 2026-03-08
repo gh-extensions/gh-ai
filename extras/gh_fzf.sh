@@ -12,8 +12,7 @@
 #
 #   gh-fzf pr
 #     alt-E   Explain the selected PR with AI
-#     alt-A   Approve the selected PR via AI review
-#     alt-N   Request changes on the selected PR via AI review
+#     alt-R   Request changes on the selected PR via AI review
 #     alt-C   Chat about the selected PR with AI
 #
 #   gh-fzf run
@@ -54,15 +53,13 @@ unset _gh_fzf_issue_opts
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_pr_opts=(
 		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
-		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)+abort"
-		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
 		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})+abort"
 	)
 else
 	_gh_fzf_pr_opts=(
 		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
-		"--bind=alt-A:execute(gh ai pr review {1} -- --approve)+abort"
-		"--bind=alt-N:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
 		"--bind=alt-C:execute(gh ai pr chat {1})+abort"
 	)
 fi

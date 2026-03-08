@@ -270,8 +270,7 @@ source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 | `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue          |
 | `gh-fzf issue` | `alt-C` | Chat about the selected issue with AI            |
 | `gh-fzf pr`    | `alt-E` | Explain the selected PR                          |
-| `gh-fzf pr`    | `alt-A` | Approve the selected PR via AI review            |
-| `gh-fzf pr`    | `alt-N` | Request changes on the selected PR via AI review |
+| `gh-fzf pr`    | `alt-R` | Request changes on the selected PR via AI review |
 | `gh-fzf pr`    | `alt-C` | Chat about the selected PR with AI               |
 | `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
 | `gh-fzf run`   | `alt-C` | Chat about the selected workflow run with AI     |
