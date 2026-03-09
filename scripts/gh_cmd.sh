@@ -228,6 +228,19 @@ _gh_repo_name() {
 	fi
 }
 
+# Resolve the repository's default branch name
+#
+# Tries origin/HEAD first, then falls back to the GitHub API, and finally
+# defaults to "main".
+#
+# Usage: branch=$(_git_default_branch)
+_git_default_branch() {
+	local branch
+	branch=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
+		gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+	printf '%s' "$branch"
+}
+
 # Resolve the git repository root directory
 #
 # Writes the result into the nameref; returns 1 and logs an error on failure.

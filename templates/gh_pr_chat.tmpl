@@ -50,7 +50,9 @@ For your opening reply, read only the context files listed above to get the
 full context for GitHub pull request #${GH_PR_NUMBER}, then summarize the
 changes. Do not read any other files or run any other tools. Then ask how the user
 would like to proceed — review specific areas, discuss trade-offs, or ask
-questions. When the user requests implementation or code changes, first run
+questions. 
+
+When the user requests implementation or code changes, first run
 `git branch --show-current` to verify the branch. If the current branch does
 not match the expected branch, stop and ask the user how they want to proceed
 (see <git_context>). Otherwise continue with implementation.

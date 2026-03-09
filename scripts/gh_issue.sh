@@ -712,6 +712,9 @@ _gh_issue_chat() {
 
 	local gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
+		local gh_default_branch
+		gh_default_branch=$(_git_default_branch)
+
 		gh_issue_prompt=$(
 			GH_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
@@ -719,6 +722,7 @@ _gh_issue_chat() {
 				GH_ISSUE_LABELS="$gh_issue_labels" \
 				GH_ISSUE_FOCUS="$gh_issue_focus" \
 				GH_AI_SESSION_DIR="$gh_issue_dir" \
+				GH_DEFAULT_BRANCH="$gh_default_branch" \
 				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 		)
 	fi
