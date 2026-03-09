@@ -31,27 +31,17 @@ ${GH_RUN_FOCUS}
 </focus>
 
 <instructions>
-Do not jump into implementation or take action unless clearly instructed. When
-the user's intent is ambiguous, default to analysis, explanation, and
-recommendations rather than taking action. Only proceed with edits,
-modifications, or implementation when the user explicitly requests it.
+Do not jump into implementation or take action unless clearly instructed.
+When the user's intent is ambiguous, default to analysis,
+explanation, and recommendations rather than taking action.
+Only proceed with edits, modifications, or implementation when the user
+explicitly requests it.
 
-For your opening reply, read only the context files listed above to get the
-full context for GitHub Actions run #${GH_RUN_ID}, then analyze the run. Do
-not read any other files or run any other tools. Then ask how the user would like
-to proceed — investigate specific failures, discuss fixes, or begin
-implementation. 
-
-When the user requests implementation or code changes, first run
-`git branch --show-current` to verify you are on branch `run-${GH_RUN_ID}`.
-
-If the current branch does not match, stop immediately. Do not inspect the
-repository, read additional files, explore the codebase, or plan code changes
-from the wrong branch. Instead, offer the user:
-  1. Switch now:     git checkout -b run-${GH_RUN_ID} ${GH_RUN_SHA}
-  2. Use worktree:   gh worktree run ${GH_RUN_ID} -- gh ai run chat ${GH_RUN_ID}
-
-Otherwise continue with implementation.
+Read the context files listed above to get the full context for GitHub
+Actions run #${GH_RUN_ID}, then analyze the run in your reply. Do not use
+tools or read files other than those listed in <context_files>. Then ask
+how the user would like to proceed — investigate specific failures, discuss
+fixes, or begin implementation.
 
 If <focus> is empty, no specific focus area was requested.
 
