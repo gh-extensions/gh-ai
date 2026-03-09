@@ -202,8 +202,7 @@ _prepare_pr_create_context() {
 	_ctx_head=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)
 
 	if [[ -z "$_ctx_base" ]]; then
-		_ctx_base=$(git rev-parse --abbrev-ref origin/HEAD 2>/dev/null | sed 's|origin/||' ||
-			gh repo view --json defaultBranchRef -q '.defaultBranchRef.name' 2>/dev/null || echo "main")
+		_ctx_base=$(_git_default_branch)
 	fi
 
 	local _ctx_diff="" _ctx_diff_stat="" _ctx_log="" _ctx_commits=""
