@@ -26,16 +26,6 @@ The following files contain detailed context for this workflow run:
 - ${GH_AI_SESSION_DIR}/run_log.txt — full workflow log
 </context_files>
 
-<git_context>
-Expected branch: run-${GH_RUN_ID}
-
-When the user requests implementation or code changes, run
-`git branch --show-current` to verify you are on the expected branch.
-If not, stop and ask the user whether to:
-  1. Switch now:     git checkout -b run-${GH_RUN_ID} ${GH_RUN_SHA}
-  2. Use worktree:   gh worktree run ${GH_RUN_ID} -- gh ai run chat ${GH_RUN_ID}
-</git_context>
-
 <focus>
 ${GH_RUN_FOCUS}
 </focus>
@@ -52,10 +42,16 @@ not read any other files or run any other tools. Then ask how the user would lik
 to proceed — investigate specific failures, discuss fixes, or begin
 implementation. 
 
-When the user requests implementation or code changes, first
-run `git branch --show-current` to verify the branch. If the current branch
-does not match the expected branch, stop and ask the user how they want to
-proceed (see <git_context>). Otherwise continue with implementation.
+When the user requests implementation or code changes, first run
+`git branch --show-current` to verify you are on branch `run-${GH_RUN_ID}`.
+
+If the current branch does not match, stop immediately. Do not inspect the
+repository, read additional files, explore the codebase, or plan code changes
+from the wrong branch. Instead, offer the user:
+  1. Switch now:     git checkout -b run-${GH_RUN_ID} ${GH_RUN_SHA}
+  2. Use worktree:   gh worktree run ${GH_RUN_ID} -- gh ai run chat ${GH_RUN_ID}
+
+Otherwise continue with implementation.
 
 If <focus> is empty, no specific focus area was requested.
 
