@@ -26,16 +26,6 @@ The following files contain detailed context for this pull request:
 - ${GH_AI_SESSION_DIR}/pr_commits.txt — commit messages
 </context_files>
 
-<git_context>
-Expected branch: ${GH_PR_HEAD}
-
-When the user requests implementation or code changes, run
-`git branch --show-current` to verify you are on the expected branch.
-If not, stop and ask the user whether to:
-  1. Switch now:     git checkout ${GH_PR_HEAD}
-  2. Use worktree:   gh worktree pr ${GH_PR_NUMBER} -- gh ai pr chat ${GH_PR_NUMBER}
-</git_context>
-
 <focus>
 ${GH_PR_FOCUS}
 </focus>
@@ -53,9 +43,15 @@ would like to proceed — review specific areas, discuss trade-offs, or ask
 questions. 
 
 When the user requests implementation or code changes, first run
-`git branch --show-current` to verify the branch. If the current branch does
-not match the expected branch, stop and ask the user how they want to proceed
-(see <git_context>). Otherwise continue with implementation.
+`git branch --show-current` to verify you are on branch `${GH_PR_HEAD}`.
+
+If the current branch does not match, stop immediately. Do not inspect the
+repository, read additional files, explore the codebase, or plan code changes
+from the wrong branch. Instead, offer the user:
+  1. Switch now:     git checkout ${GH_PR_HEAD}
+  2. Use worktree:   gh worktree pr ${GH_PR_NUMBER} -- gh ai pr chat ${GH_PR_NUMBER}
+
+Otherwise continue with implementation.
 
 If <focus> is empty, no specific focus area was requested.
 

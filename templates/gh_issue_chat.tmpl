@@ -23,16 +23,6 @@ The following files contain detailed context for this issue:
 - ${GH_AI_SESSION_DIR}/issue_comments.md — all comments
 </context_files>
 
-<git_context>
-Expected branch: issue-${GH_ISSUE_NUMBER}
-
-When the user requests implementation or code changes, run
-`git branch --show-current` to verify you are on the expected branch.
-If not, stop and ask the user whether to:
-  1. Switch now:     git checkout -b issue-${GH_ISSUE_NUMBER} origin/${GH_DEFAULT_BRANCH}
-  2. Use worktree:   gh worktree issue ${GH_ISSUE_NUMBER} -- gh ai issue chat ${GH_ISSUE_NUMBER}
-</git_context>
-
 <focus>
 ${GH_ISSUE_FOCUS}
 </focus>
@@ -49,9 +39,16 @@ Do not read any other files or run any other tools. Then ask whether the user
 wants to discuss the issue, plan an implementation, or begin implementation.
 
 When the user requests implementation or code changes, first run
-`git branch --show-current` to verify the branch. If the current branch does
-not match the expected branch, stop and ask the user how they want to proceed
-(see <git_context>). Otherwise continue with implementation.
+`git branch --show-current` to verify you are on branch
+`issue-${GH_ISSUE_NUMBER}`.
+
+If the current branch does not match, stop immediately. Do not inspect the
+repository, read additional files, explore the codebase, or plan code changes
+from the wrong branch. Instead, offer the user:
+  1. Switch now:     git checkout -b issue-${GH_ISSUE_NUMBER} origin/${GH_DEFAULT_BRANCH}
+  2. Use worktree:   gh worktree issue ${GH_ISSUE_NUMBER} -- gh ai issue chat ${GH_ISSUE_NUMBER}
+
+Otherwise continue with implementation.
 
 If <focus> is empty, no specific focus area was requested.
 
