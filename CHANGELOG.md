@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.17.0](https://github.com/gh-extensions/gh-ai/compare/v0.16.0...v0.17.0) (2026-03-09)
+
+
+### Features
+
+* add git branch verification guidance to chat templates ([4cf3b86](https://github.com/gh-extensions/gh-ai/commit/4cf3b8650638c76c49919b214a52e1650b0f9347))
+* enforce gh-worktree branching rules in chat templates ([e1d944d](https://github.com/gh-extensions/gh-ai/commit/e1d944d8feaaac5e310277c5bd842bc083aac0c5))
+
+
+### Reverts
+
+* remove git branch verification from chat templates ([ffef87e](https://github.com/gh-extensions/gh-ai/commit/ffef87ecbf914a46045f5a97b318d9d1de9b73d1))
+
 ## [0.16.0](https://github.com/gh-extensions/gh-ai/compare/v0.15.1...v0.16.0) (2026-03-08)
 
 
