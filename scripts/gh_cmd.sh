@@ -35,14 +35,27 @@ _cmd_render() {
 }
 
 # Resolve the configured agent binary name
-#
 # Reads ai.agent from gh config (default: claude).
-#
-# Usage: _get_agent       # prints binary name to stdout
-_get_agent() {
+# Usage: _gh_config_ai_agent
+_gh_config_ai_agent() {
 	local agent
 	agent=$(gh config get ai.agent 2>/dev/null || true)
 	printf '%s' "${agent:-claude}"
+}
+
+# Resolve the configured model for a given scope
+# Resolves: ai.<scope>.model → ai.model → haiku
+# Usage: _gh_config_ai_model [SCOPE]   (SCOPE: pr | issue | run | empty)
+_gh_config_ai_model() {
+	local scope="${1:-}"
+	local model=""
+	if [[ -n "$scope" ]]; then
+		model=$(gh config get "ai.${scope}.model" 2>/dev/null || true)
+	fi
+	if [[ -z "$model" ]]; then
+		model=$(gh config get ai.model 2>/dev/null || true)
+	fi
+	printf '%s' "${model:-haiku}"
 }
 
 # Send a prompt to the AI agent in non-interactive (prompt) mode
@@ -54,12 +67,11 @@ _get_agent() {
 # Usage: echo "prompt" | _cmd_ask [MODEL]
 _cmd_ask() {
 	local agent
-	agent=$(_get_agent)
+	agent=$(_gh_config_ai_agent)
 
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
-		agent_model=$(gh config get ai.model 2>/dev/null || true)
-		agent_model="${agent_model:-haiku}"
+		agent_model=$(_gh_config_ai_model)
 	fi
 
 	case "$agent" in
@@ -117,7 +129,7 @@ _cmd_chat() {
 	shift 2
 
 	local agent
-	agent=$(_get_agent)
+	agent=$(_gh_config_ai_agent)
 	if ! command -v "$agent" &>/dev/null; then
 		gum log --level error "Agent '$agent' not found"
 		gum log --level info "Install it or set: gh config set ai.agent <binary>"

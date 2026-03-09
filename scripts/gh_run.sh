@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# shellcheck source=gh_cmd.sh
+source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
+
 # Run-related functions for gh-ai
 
 # Shared context helper for run commands.
@@ -153,7 +156,7 @@ _gh_run_explain() {
 	_prepare_run_explain_context "$gh_run_id" gh_run_dir gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_sha || return 1
 
 	local gh_run_agent_model
-	gh_run_agent_model=$(gh config get ai.run.model 2>/dev/null || true)
+	gh_run_agent_model=$(_gh_config_ai_model "run")
 
 	local gh_run_explain
 	# Generate explanation using assistant run

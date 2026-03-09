@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# shellcheck source=gh_cmd.sh
+source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
+
 # PR-related functions for gh-ai
 
 # Detect the PR number for the current branch
@@ -280,7 +283,7 @@ _gh_pr_create() {
 	_prepare_pr_create_context gh_pr_dir "$git_base_branch" || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_content
 	# Generate PR content using assistant run
@@ -399,7 +402,7 @@ _gh_pr_edit() {
 	_prepare_pr_edit_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_content
 	# Generate updated PR content using assistant
@@ -516,7 +519,7 @@ _gh_pr_review() {
 	_prepare_pr_review_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_review
 	# Generate review content using assistant run
@@ -647,7 +650,7 @@ _gh_pr_explain() {
 	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_explain
 	# Generate explanation using assistant run
@@ -906,7 +909,7 @@ _gh_pr_comment() {
 	_prepare_pr_comment_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(gh config get ai.pr.model 2>/dev/null || true)
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_comment
 	# Generate comment content using assistant

@@ -22,7 +22,8 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _split_on_separator _cmd_render _parse_title _parse_body \
-			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace
+			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace \
+			_gh_config_ai_agent _gh_config_ai_model
 	)"
 }
 
@@ -463,4 +464,93 @@ Actual body.")
 	local new_accepted
 	new_accepted=$(jq -r '.projects["/tmp/new-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
 	[[ "$new_accepted" == "true" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _gh_config_ai_agent
+# ---------------------------------------------------------------------------
+
+@test "_gh_config_ai_agent: returns claude by default" {
+	gh() { :; }
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_agent)
+
+	[[ "$output" == "claude" ]]
+}
+
+@test "_gh_config_ai_agent: returns configured value when ai.agent is set" {
+	gh() { echo "gemini"; }
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_agent)
+
+	[[ "$output" == "gemini" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _gh_config_ai_model
+# ---------------------------------------------------------------------------
+
+@test "_gh_config_ai_model: returns haiku by default with no scope" {
+	gh() { :; }
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model)
+
+	[[ "$output" == "haiku" ]]
+}
+
+@test "_gh_config_ai_model: returns ai.model when set, no scope" {
+	gh() { echo "sonnet"; }
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model)
+
+	[[ "$output" == "sonnet" ]]
+}
+
+@test "_gh_config_ai_model: returns ai.pr.model when set with pr scope" {
+	gh() {
+		case "$*" in
+		*"ai.pr.model"*) echo "opus" ;;
+		*) :; ;;
+		esac
+	}
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model "pr")
+
+	[[ "$output" == "opus" ]]
+}
+
+@test "_gh_config_ai_model: falls back to ai.model when ai.pr.model unset" {
+	gh() {
+		case "$*" in
+		*"ai.pr.model"*) :; ;;
+		*"ai.model"*) echo "sonnet" ;;
+		*) :; ;;
+		esac
+	}
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model "pr")
+
+	[[ "$output" == "sonnet" ]]
+}
+
+@test "_gh_config_ai_model: falls back to haiku when neither ai.pr.model nor ai.model set" {
+	gh() { :; }
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model "pr")
+
+	[[ "$output" == "haiku" ]]
 }

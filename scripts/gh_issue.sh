@@ -4,6 +4,9 @@
 
 set -euo pipefail
 
+# shellcheck source=gh_cmd.sh
+source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
+
 # Issue-related functions for gh-ai
 
 # Shared argument parser for issue commands that accept an issue number and -d/--description.
@@ -237,7 +240,7 @@ _gh_issue_create() {
 	_prepare_issue_create_context gh_issue_dir || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
+	gh_issue_agent_model=$(_gh_config_ai_model "issue")
 
 	local gh_issue_content
 	# Generate issue content using assistant run
@@ -356,7 +359,7 @@ _gh_issue_edit() {
 	_prepare_issue_edit_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
+	gh_issue_agent_model=$(_gh_config_ai_model "issue")
 
 	local gh_issue_content
 	# Generate updated issue content using assistant
@@ -481,7 +484,7 @@ _gh_issue_comment() {
 	_prepare_issue_comment_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
+	gh_issue_agent_model=$(_gh_config_ai_model "issue")
 
 	local gh_issue_comment
 	# Generate comment using assistant
@@ -584,7 +587,7 @@ _gh_issue_plan() {
 	_prepare_issue_plan_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(gh config get ai.issue.model 2>/dev/null || true)
+	gh_issue_agent_model=$(_gh_config_ai_model "issue")
 
 	local gh_issue_focus=""
 	if [[ -n "$gh_issue_description" ]]; then

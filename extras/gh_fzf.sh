@@ -25,8 +25,9 @@
 _gh_fzf_dir=$(dirname "${BASH_SOURCE[0]:-$0}")
 [[ "$_gh_fzf_dir" = /* ]] || _gh_fzf_dir="$(cd "$_gh_fzf_dir" && pwd)"
 
-_gh_fzf_agent=$(gh config get ai.agent 2>/dev/null || true)
-_gh_fzf_agent="${_gh_fzf_agent:-claude}"
+# shellcheck source=../scripts/gh_cmd.sh
+source "$_gh_fzf_dir/../scripts/gh_cmd.sh"
+_gh_fzf_agent=$(_gh_config_ai_agent)
 
 _gh_fzf_tmux_use=0
 if [[ -n "${TMUX:-}" ]]; then
