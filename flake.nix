@@ -25,6 +25,7 @@
             gum
             bats
             shellcheck
+            util-linux
           ];
 
           shellHook = ''
