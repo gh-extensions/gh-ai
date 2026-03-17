@@ -9,6 +9,37 @@ source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
 
 # Issue-related functions for gh-ai
 
+# Extract an issue number from a raw user-supplied argument.
+#
+# Accepts bare numbers ("42"), hash-prefixed numbers ("#42"), and full
+# GitHub issue URLs with optional trailing slash, query string, or fragment:
+#   https://github.com/owner/repo/issues/123
+#   https://github.com/owner/repo/issues/123/
+#   https://github.com/owner/repo/issues/123?tab=timeline
+#   https://github.com/owner/repo/issues/123#issuecomment-456
+#
+# Outputs the issue number to stdout on success.
+# Returns 1 without output if the input is not recognised.
+#
+# Usage: num=$(_extract_issue_number "$raw_arg") || return 1
+_extract_issue_number() {
+	local _ein_input="${1#\#}"   # strip leading '#'
+
+	# Fast path: purely numeric
+	if [[ "$_ein_input" =~ ^[0-9]+$ ]]; then
+		printf '%s\n' "$_ein_input"
+		return 0
+	fi
+
+	# GitHub issue URL: https://github.com/<owner>/<repo>/issues/<number>[/|?|#|end]
+	if [[ "$_ein_input" =~ ^https://github\.com/[^/]+/[^/]+/issues/([0-9]+)(/|\?|#|$) ]]; then
+		printf '%s\n' "${BASH_REMATCH[1]}"
+		return 0
+	fi
+
+	return 1
+}
+
 # Shared argument parser for issue commands that accept an issue number and -d/--description.
 #
 # Extracts the issue number (first numeric arg) and -d/--description value.
@@ -55,9 +86,14 @@ _parse_issue_args() {
 			return 1
 			;;
 		*)
-			local _pia_arg="${_pia_raw[$_pia_i]#\#}"
-			if [[ -z "$_pia_num" && "$_pia_arg" =~ ^[0-9]+$ ]]; then
-				_pia_num="$_pia_arg"
+			if [[ -z "$_pia_num" ]]; then
+				local _pia_extracted
+				if _pia_extracted=$(_extract_issue_number "${_pia_raw[$_pia_i]}"); then
+					_pia_num="$_pia_extracted"
+				else
+					gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
+					return 1
+				fi
 			else
 				gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
 				return 1
@@ -310,6 +346,7 @@ FLAGS:
 
 EXAMPLES:
     gh ai issue edit 42 -d "add acceptance criteria"
+    gh ai issue edit https://github.com/owner/repo/issues/42 -d "add acceptance criteria"
     gh ai issue edit 42 -d "fix typos and improve clarity"
     gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
     some_command 2>&1 | gh ai issue edit 42 -d "add error output"
@@ -433,6 +470,7 @@ FLAGS:
 
 EXAMPLES:
     gh ai issue comment 42 -d "post a status update: implementation is in progress"
+    gh ai issue comment https://github.com/owner/repo/issues/42 -d "post a status update: implementation is in progress"
     gh ai issue comment 42 -d "acknowledge the report and ask for more details"
     gh ai issue comment 42 -d "summarize the discussion so far"
     echo "error: connection refused" | gh ai issue comment 42 -d "add this error as context"
@@ -547,6 +585,7 @@ FLAGS:
 
 EXAMPLES:
     gh ai issue plan 42
+    gh ai issue plan https://github.com/owner/repo/issues/42
     gh ai issue plan 42 -d "focus on the auth module"
     gh ai issue plan 42 | pbcopy
     gh ai issue plan 42 | claude
@@ -625,8 +664,31 @@ _gh_issue_plan() {
 	printf '%s\n' "$gh_issue_plan"
 }
 
-# Thin wrapper around _parse_chat_args for the chat subcommand.
-_parse_issue_chat_args() { _parse_chat_args "$@"; }
+# Argument parser for the issue chat subcommand.
+#
+# Pre-processes the argument list to convert any GitHub issue URL to a bare
+# numeric issue number before delegating to the shared _parse_chat_args.
+#
+# Usage: _parse_issue_chat_args num_ref desc_ref new_session_ref [args...]
+_parse_issue_chat_args() {
+	local _pica_num_ref="$1"
+	local _pica_desc_ref="$2"
+	local _pica_ns_ref="$3"
+	shift 3
+
+	local _pica_processed=()
+	local _pica_arg
+	for _pica_arg in "$@"; do
+		local _pica_extracted
+		if _pica_extracted=$(_extract_issue_number "$_pica_arg") 2>/dev/null; then
+			_pica_processed+=("$_pica_extracted")
+		else
+			_pica_processed+=("$_pica_arg")
+		fi
+	done
+
+	_parse_chat_args "$_pica_num_ref" "$_pica_desc_ref" "$_pica_ns_ref" "${_pica_processed[@]}"
+}
 
 # Fetches issue metadata into .github/sessions/issue-<num> for use by _gh_issue_chat.
 # The session directory persists across invocations so Claude can resume context.
@@ -659,6 +721,7 @@ FLAGS:
 
 EXAMPLES:
     gh ai issue chat 42
+    gh ai issue chat https://github.com/owner/repo/issues/42
     gh ai issue chat 42 -d "focus on the auth module"
     gh ai issue chat 42 --new-session
     gh ai issue chat 42 -- --model sonnet --verbose
@@ -736,10 +799,10 @@ gh ai issue - Issue commands with AI assistance
 
 USAGE:
     gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-    gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
-    gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-    gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh ai issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh ai issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh ai issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
+    gh ai issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
