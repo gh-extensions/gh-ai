@@ -23,7 +23,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_pr_args _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment \
+		declare -f _extract_pr_number _parse_pr_args _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment \
 			_detect_pr_number _split_on_separator _create_context_dir _save_context_file \
 			_prepare_pr_comment_context
 	)"
@@ -128,6 +128,32 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"use -- to pass flags to gh pr comment"* ]]
+}
+
+@test "_parse_pr_comment_args: extracts PR number from canonical GitHub URL" {
+	local number=""
+	local description=""
+	_parse_pr_comment_args number description "https://github.com/owner/repo/pull/42" -d "context"
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "context" ]]
+}
+
+@test "_parse_pr_comment_args: extracts PR number from URL with trailing slash" {
+	local number=""
+	local description=""
+	_parse_pr_comment_args number description "https://github.com/owner/repo/pull/42/"
+
+	[[ "$number" == "42" ]]
+}
+
+@test "_parse_pr_comment_args: returns error for non-GitHub URL" {
+	local number=""
+	local description=""
+	run _parse_pr_comment_args number description "https://gitlab.com/owner/repo/merge_requests/42"
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"unexpected argument"* ]]
 }
 
 @test "_parse_pr_comment_args: returns error for unexpected non-numeric argument" {

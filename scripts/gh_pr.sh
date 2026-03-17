@@ -19,6 +19,37 @@ _detect_pr_number() {
 	gh pr view --json number -q '.number' 2>/dev/null || true
 }
 
+# Extract a PR number from a raw user-supplied argument.
+#
+# Accepts bare numbers ("42"), hash-prefixed numbers ("#42"), and full
+# GitHub PR URLs with optional trailing slash, query string, or fragment:
+#   https://github.com/owner/repo/pull/123
+#   https://github.com/owner/repo/pull/123/
+#   https://github.com/owner/repo/pull/123?tab=files
+#   https://github.com/owner/repo/pull/123#issuecomment-456
+#
+# Outputs the PR number to stdout on success.
+# Returns 1 without output if the input is not recognised.
+#
+# Usage: num=$(_extract_pr_number "$raw_arg") || return 1
+_extract_pr_number() {
+	local _epn_input="${1#\#}"   # strip leading '#'
+
+	# Fast path: purely numeric
+	if [[ "$_epn_input" =~ ^[0-9]+$ ]]; then
+		printf '%s\n' "$_epn_input"
+		return 0
+	fi
+
+	# GitHub PR URL: https://github.com/<owner>/<repo>/pull/<number>[/|?|#|end]
+	if [[ "$_epn_input" =~ ^https://github\.com/[^/]+/[^/]+/pull/([0-9]+)(/|\?|#|$) ]]; then
+		printf '%s\n' "${BASH_REMATCH[1]}"
+		return 0
+	fi
+
+	return 1
+}
+
 # Shared argument parser for PR commands that accept a PR number and -d/--description.
 #
 # Extracts the PR number (first numeric arg, with auto-detect fallback)
@@ -61,9 +92,14 @@ _parse_pr_args() {
 			return 1
 			;;
 		*)
-			local _ppa_arg="${_ppa_raw[$_ppa_i]#\#}"
-			if [[ -z "$_ppa_num" && "$_ppa_arg" =~ ^[0-9]+$ ]]; then
-				_ppa_num="$_ppa_arg"
+			if [[ -z "$_ppa_num" ]]; then
+				local _ppa_extracted
+				if _ppa_extracted=$(_extract_pr_number "${_ppa_raw[$_ppa_i]}"); then
+					_ppa_num="$_ppa_extracted"
+				else
+					gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
+					return 1
+				fi
 			else
 				gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
 				return 1
@@ -573,9 +609,14 @@ _parse_pr_explain_args() {
 			return 1
 			;;
 		*)
-			local _ppea_arg="${_ppea_raw[$_ppea_i]#\#}"
-			if [[ -z "$_ppea_num_ref" && "$_ppea_arg" =~ ^[0-9]+$ ]]; then
-				_ppea_num_ref="$_ppea_arg"
+			if [[ -z "$_ppea_num_ref" ]]; then
+				local _ppea_extracted
+				if _ppea_extracted=$(_extract_pr_number "${_ppea_raw[$_ppea_i]}"); then
+					_ppea_num_ref="$_ppea_extracted"
+				else
+					gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
+					return 1
+				fi
 			else
 				gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
 				return 1
@@ -682,8 +723,31 @@ _gh_pr_explain() {
 	printf '%s\n' "$gh_pr_explain"
 }
 
-# Thin wrapper around _parse_chat_args for the chat subcommand.
-_parse_pr_chat_args() { _parse_chat_args "$@"; }
+# Argument parser for the pr chat subcommand.
+#
+# Pre-processes the argument list to convert any GitHub PR URL to a bare
+# numeric PR number before delegating to the shared _parse_chat_args.
+#
+# Usage: _parse_pr_chat_args num_ref desc_ref new_session_ref [args...]
+_parse_pr_chat_args() {
+	local _ppca_num_ref="$1"
+	local _ppca_desc_ref="$2"
+	local _ppca_ns_ref="$3"
+	shift 3
+
+	local _ppca_processed=()
+	local _ppca_arg
+	for _ppca_arg in "$@"; do
+		local _ppca_extracted
+		if _ppca_extracted=$(_extract_pr_number "$_ppca_arg") 2>/dev/null; then
+			_ppca_processed+=("$_ppca_extracted")
+		else
+			_ppca_processed+=("$_ppca_arg")
+		fi
+	done
+
+	_parse_chat_args "$_ppca_num_ref" "$_ppca_desc_ref" "$_ppca_ns_ref" "${_ppca_processed[@]}"
+}
 
 # Fetches PR metadata and diff into .github/sessions/pull-<num> for use by _gh_pr_chat.
 # The session directory persists across invocations so Claude can resume context.

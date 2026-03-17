@@ -30,7 +30,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _parse_chat_args _parse_pr_chat_args _validate_chat_passthrough _show_pr_chat_help _gh_pr_chat _detect_pr_number \
+		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _validate_chat_passthrough _show_pr_chat_help _gh_pr_chat _detect_pr_number \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_pr_chat_context _prepare_pr_diff_context _resolve_context_dir _create_context_dir _save_context_file \
 			_gh_session_base_dir
@@ -133,6 +133,30 @@ setup() {
 	[[ "$output" == *"unexpected argument '99'"* ]]
 }
 
+@test "_parse_pr_chat_args: extracts PR number from canonical GitHub URL" {
+	local number="" description="" reset=""
+	_parse_pr_chat_args number description reset "https://github.com/owner/repo/pull/42"
+
+	[[ "$number" == "42" ]]
+	[[ -z "$description" ]]
+}
+
+@test "_parse_pr_chat_args: extracts PR number from URL with query string" {
+	local number="" description="" reset=""
+	_parse_pr_chat_args number description reset "https://github.com/owner/repo/pull/42?tab=files" -d "focus on security"
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "focus on security" ]]
+}
+
+@test "_parse_pr_chat_args: returns error for non-GitHub URL" {
+	local number="" description="" reset=""
+	run _parse_pr_chat_args number description reset "https://gitlab.com/owner/repo/merge_requests/42"
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"unexpected argument"* ]]
+}
+
 # ---------------------------------------------------------------------------
 # _show_pr_chat_help
 # ---------------------------------------------------------------------------
@@ -182,6 +206,9 @@ _setup_chat_mocks() {
 	}
 	export -f gum
 
+	uuidgen() { echo "00000000-0000-0000-0000-000000000042"; }
+	export -f uuidgen
+
 }
 
 @test "_gh_pr_chat: calls _cmd_chat with rendered prompt and session args" {
@@ -193,6 +220,7 @@ _setup_chat_mocks() {
 		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
+	export -f _cmd_chat
 
 	run _gh_pr_chat 42
 
@@ -264,6 +292,7 @@ _setup_chat_mocks() {
 		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
+	export -f _cmd_chat
 
 	# First call creates session
 	run _gh_pr_chat 42
@@ -277,6 +306,7 @@ _setup_chat_mocks() {
 		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
+	export -f _cmd_chat
 
 	run _gh_pr_chat 42
 	[[ "$status" -eq 0 ]]
@@ -332,6 +362,7 @@ _setup_chat_mocks() {
 		shift 2
 		printf 'ARGS:%s\n' "$*"
 	}
+	export -f _cmd_chat
 
 	run _gh_pr_chat 42 -- --model sonnet --verbose
 
