@@ -23,7 +23,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _detect_pr_number _parse_pr_args _parse_pr_review_args _show_pr_review_help _gh_pr_review _split_on_separator
+		declare -f _extract_pr_number _detect_pr_number _parse_pr_args _parse_pr_review_args _show_pr_review_help _gh_pr_review _split_on_separator
 	)"
 }
 
@@ -116,4 +116,30 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"use -- to pass flags to gh pr review"* ]]
+}
+
+@test "_parse_pr_review_args: extracts PR number from canonical GitHub URL" {
+	local number=""
+	local description=""
+	_parse_pr_review_args number description "https://github.com/owner/repo/pull/42"
+
+	[[ "$number" == "42" ]]
+}
+
+@test "_parse_pr_review_args: extracts PR number from URL with query string" {
+	local number=""
+	local description=""
+	_parse_pr_review_args number description "https://github.com/owner/repo/pull/42?tab=files" -d "focus on security"
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "focus on security" ]]
+}
+
+@test "_parse_pr_review_args: returns error for non-GitHub URL" {
+	local number=""
+	local description=""
+	run _parse_pr_review_args number description "https://gitlab.com/owner/repo/merge_requests/42"
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"unexpected argument"* ]]
 }
