@@ -22,7 +22,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
-		declare -f _parse_issue_args _parse_issue_comment_args _show_issue_comment_help _gh_issue_comment _split_on_separator
+		declare -f _extract_issue_number _parse_issue_args _parse_issue_comment_args _show_issue_comment_help _gh_issue_comment _split_on_separator
 	)"
 }
 
@@ -116,4 +116,13 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"use -- to pass flags to gh issue comment"* ]]
+}
+
+@test "_parse_issue_comment_args: accepts GitHub issue URL as issue number" {
+	local number=""
+	local description=""
+	_parse_issue_comment_args number description "https://github.com/owner/repo/issues/42" -d "post a status update"
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "post a status update" ]]
 }

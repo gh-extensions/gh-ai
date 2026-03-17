@@ -30,7 +30,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _parse_chat_args _parse_issue_chat_args _validate_chat_passthrough _show_issue_chat_help _gh_issue_chat \
+		declare -f _extract_issue_number _parse_chat_args _parse_issue_chat_args _validate_chat_passthrough _show_issue_chat_help _gh_issue_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file \
 			_gh_session_base_dir
@@ -131,6 +131,15 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument '99'"* ]]
+}
+
+@test "_parse_issue_chat_args: accepts GitHub issue URL as issue number" {
+	local number="" description="" reset=""
+	_parse_issue_chat_args number description reset "https://github.com/owner/repo/issues/42"
+
+	[[ "$number" == "42" ]]
+	[[ -z "$description" ]]
+	[[ -z "$reset" ]]
 }
 
 # ---------------------------------------------------------------------------
