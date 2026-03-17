@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/gh-extensions/gh-ai/compare/v0.17.0...v0.18.0) (2026-03-17)
+
+
+### Features
+
+* add GitHub issue URL support to issue commands ([38c83d9](https://github.com/gh-extensions/gh-ai/commit/38c83d9ae41625a431207ef5d25b999f4940204f)), closes [#68](https://github.com/gh-extensions/gh-ai/issues/68)
+* add GitHub PR URL support to pr commands ([8692cc8](https://github.com/gh-extensions/gh-ai/commit/8692cc81b76fa3a3f3b0c10cc73a3e6b82ecd5f1))
+
 ## [0.17.0](https://github.com/gh-extensions/gh-ai/compare/v0.16.0...v0.17.0) (2026-03-09)
 
 
