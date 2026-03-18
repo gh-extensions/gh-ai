@@ -9,17 +9,7 @@ description: >
   TODO list or task checklist for an issue.
 argument-hint: [focus area]
 disable-model-invocation: true
-allowed-tools: >
-  Bash(git status --short),
-  Bash(git diff --stat HEAD),
-  Bash(gh repo view *),
-  Bash(gh issue *),
-  Bash(gh api *),
-  Bash(printf *),
-  Bash(mkdir *),
-  Bash(cat *),
-  Bash(jq *),
-  Write
+allowed-tools: Bash(*), Write
 ---
 
 Draft an implementation plan for a GitHub issue, then post it as a comment after confirmation.
