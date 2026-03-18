@@ -12,13 +12,20 @@ focus on shipping.
 
 - [GitHub CLI](https://cli.github.com/) (`gh`)
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`)
+- [jq](https://jqlang.github.io/jq/) (`jq`)
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
 - [Gum](https://github.com/charmbracelet/gum) (`gum`) _(optional)_
 
 **macOS (Homebrew):**
 
 ```bash
-brew install gh bash gum
+brew install gh bash jq gum
+```
+
+**Nix:**
+
+```bash
+nix-env -iA nixpkgs.gh nixpkgs.bash nixpkgs.jq nixpkgs.gum
 ```
 
 Install `claude` separately: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
