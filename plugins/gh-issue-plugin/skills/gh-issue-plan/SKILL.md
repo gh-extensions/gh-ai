@@ -12,12 +12,11 @@ disable-model-invocation: true
 allowed-tools: >
   Bash(git status --short),
   Bash(git diff --stat HEAD),
-  Bash(gh issue view *),
   Bash(gh repo view *),
+  Bash(gh issue *),
   Bash(gh api *),
-  Bash(gh issue comment *),
-  Bash(mkdir -p *),
   Bash(printf *),
+  Bash(mkdir *),
   Bash(jq *),
   Write
 ---
@@ -101,13 +100,16 @@ ALWAYS present the draft clearly so the user can read it before confirming:
 **Draft implementation plan for issue #N:**
 
 ## Summary
+
 {1-2 sentence description of the proposed approach}
 
 ## Plan
+
 - T001 — {step}
 - T002 — {step}
 
 ## Open Questions
+
 - {anything that needs clarification before implementation; omit this section if there are none}
 
 ---
