@@ -25,7 +25,8 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_pr.sh"
 		declare -f _extract_pr_number _parse_pr_args _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment \
 			_detect_pr_number _split_on_separator _create_context_dir _save_context_file \
-			_prepare_pr_comment_context
+			_prepare_pr_comment_context \
+			_gum _has_gum
 	)"
 }
 

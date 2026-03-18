@@ -23,7 +23,8 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _extract_issue_number _parse_issue_args _parse_issue_plan_args _show_issue_plan_help _gh_issue_plan \
 			_prepare_issue_context _prepare_issue_plan_context _resolve_context_dir _create_context_dir _save_context_file \
-			_cmd_render _cmd_ask _get_agent _parse_title _parse_body
+			_cmd_render _cmd_ask _get_agent _parse_title _parse_body \
+			_gum _has_gum
 	)"
 }
 

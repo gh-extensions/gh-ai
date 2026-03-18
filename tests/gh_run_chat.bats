@@ -33,7 +33,8 @@ setup() {
 		declare -f _parse_chat_args _parse_run_chat_args _validate_chat_passthrough _show_run_chat_help _gh_run_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_run_chat_context _prepare_run_context _resolve_context_dir _create_context_dir _save_context_file \
-			_parse_run_args _gh_session_base_dir
+			_parse_run_args _gh_session_base_dir \
+			_gum _has_gum
 	)"
 }
 
