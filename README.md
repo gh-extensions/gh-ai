@@ -106,35 +106,38 @@ gh ai pr chat 42 -n # start a new session
 
 #### Slash Commands
 
-These slash commands are available inside a `gh ai pr chat` session. Each command fetches live PR data, generates a draft, and waits for confirmation before executing.
+These slash commands are available inside a `gh ai pr chat` session. The PR
+number is already known from the session — no need to pass it. Each command
+fetches live PR data, generates a draft, and waits for confirmation before
+executing.
 
 ```
-/gh:pr:comment <pr-number> [what to say]
-/gh:pr:edit    <pr-number> [what to change]
-/gh:pr:review  <pr-number> [approve|request-changes|comment] [focus area]
+/gh:pr:comment [what to say]
+/gh:pr:edit    [what to change]
+/gh:pr:review  [approve|request-changes|comment] [focus area]
 ```
 
 **Post a comment on a pull request:**
 
 ```
-/gh:pr:comment 67 ask about the failing CI check
-/gh:pr:comment 67 summarize the changes in this PR
+/gh:pr:comment ask about the failing CI check
+/gh:pr:comment summarize the changes in this PR
 ```
 
 **Edit a pull request title and body:**
 
 ```
-/gh:pr:edit 67 add a testing section
-/gh:pr:edit 67 rewrite the description to include risk level
+/gh:pr:edit add a testing section
+/gh:pr:edit rewrite the description to include risk level
 ```
 
 **Review a pull request:**
 
 ```
-/gh:pr:review 67
-/gh:pr:review 67 approve
-/gh:pr:review 67 request-changes focus on error handling
-/gh:pr:review 67 comment check the auth module
+/gh:pr:review
+/gh:pr:review approve
+/gh:pr:review request-changes focus on error handling
+/gh:pr:review comment check the auth module
 ```
 
 > These are Claude Code skill equivalents to `gh ai pr comment`,
@@ -181,12 +184,15 @@ gh ai issue chat 42 -n                # start a new session
 
 #### Slash Commands
 
-These slash commands are available inside a `gh ai issue chat` session. Each command fetches live issue data, generates a draft, and waits for confirmation before executing.
+These slash commands are available inside a `gh ai issue chat` session. The
+issue number is already known from the session — no need to pass it. Each
+command fetches live issue data, generates a draft, and waits for confirmation
+before executing.
 
 ```
-/gh:issue:comment <issue-number> [what to say]
-/gh:issue:edit    <issue-number> [what to change]
-/gh:issue:plan    <issue-number> [focus area]
+/gh:issue:comment [what to say]
+/gh:issue:edit    [what to change]
+/gh:issue:plan    [focus area]
 ```
 
 All three commands follow a **draft → iterate → confirm → execute** workflow:
@@ -196,22 +202,22 @@ the `gh` CLI command once the user confirms.
 **Post a comment on an issue:**
 
 ```
-/gh:issue:comment 42 ask for clarification on the acceptance criteria
-/gh:issue:comment 42 summarize the discussion so far
+/gh:issue:comment ask for clarification on the acceptance criteria
+/gh:issue:comment summarize the discussion so far
 ```
 
 **Edit an issue title and body:**
 
 ```
-/gh:issue:edit 42 add a definition of done section
-/gh:issue:edit 42 rewrite the description as a bug report
+/gh:issue:edit add a definition of done section
+/gh:issue:edit rewrite the description as a bug report
 ```
 
 **Generate an implementation plan and post it as a comment:**
 
 ```
-/gh:issue:plan 42
-/gh:issue:plan 42 focus on the auth module
+/gh:issue:plan
+/gh:issue:plan focus on the auth module
 ```
 
 > These are Claude Code skill equivalents to `gh ai issue comment`,
