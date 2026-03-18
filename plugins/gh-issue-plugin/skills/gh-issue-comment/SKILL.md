@@ -78,15 +78,12 @@ _Post this comment, or tell me what to change?_
 
 ### 5. **Save & Post**
 
-```bash
-mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
-cat > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md" << 'EOF'
-{comment body}
-EOF
-
-gh issue comment "${GH_ISSUE_NUMBER}" \
-  --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md"
-```
+- Use the Write tool to save the comment body to `${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md`
+- Post it:
+  ```bash
+  gh issue comment "${GH_ISSUE_NUMBER}" \
+    --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md"
+  ```
 
 ### 6. **Confirm Success**
 

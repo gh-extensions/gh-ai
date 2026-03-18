@@ -140,13 +140,7 @@ _Post this plan as a comment, or tell me what to change?_
 
 ### 7. **Save Draft**
 
-```bash
-mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
-cat > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" << 'EOF'
-{plan body}
-<!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->
-EOF
-```
+- Use the Write tool to save the plan body (with tracking marker `<!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->` appended at the end) to `${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
 
 ### 8. **Post or Update Comment**
 

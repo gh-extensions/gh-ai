@@ -171,19 +171,16 @@ _Submit this review, or tell me what to change?_
 
 ### 9. **Save & Submit**
 
-```bash
-mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
-cat > "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md" << 'EOF'
-{review body with tracking marker}
-EOF
-
-# Based on outcome:
-gh pr review "${GH_PR_NUMBER}" --approve --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
-# OR
-gh pr review "${GH_PR_NUMBER}" --request-changes --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
-# OR
-gh pr review "${GH_PR_NUMBER}" --comment --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
-```
+- Use the Write tool to save the review body (with tracking marker appended) to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
+- Submit based on outcome:
+  ```bash
+  # approve:
+  gh pr review "${GH_PR_NUMBER}" --approve --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
+  # OR request-changes:
+  gh pr review "${GH_PR_NUMBER}" --request-changes --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
+  # OR comment:
+  gh pr review "${GH_PR_NUMBER}" --comment --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
+  ```
 
 ### 10. **Confirm Success**
 
