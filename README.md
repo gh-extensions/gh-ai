@@ -25,7 +25,7 @@ brew install gh bash jq gum
 **Nix:**
 
 ```bash
-nix-env -iA nixpkgs.gh nixpkgs.bash nixpkgs.jq nixpkgs.gum
+nix profile install nixpkgs#gh nixpkgs#bash nixpkgs#jq nixpkgs#gum
 ```
 
 Install `claude` separately: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
