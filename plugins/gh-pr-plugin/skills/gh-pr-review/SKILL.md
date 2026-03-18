@@ -55,9 +55,9 @@ is determined during the review and confirmed before submission.
    > (`<HEAD_SHA>`). Submit a new review anyway, or cancel?"
    Wait for their response. If they cancel, stop here.
 1. Fetch the PR diff and save it locally for analysis:
-   `gh pr diff $GH_AI_PR_NUMBER --patch > $GH_AI_SESSION_DIR/pr_diff.patch 2>/dev/null`
+   `gh pr diff $GH_AI_PR_NUMBER --patch > $GH_AI_SESSION_DIR/state/pr_diff.patch 2>/dev/null`
    Then generate a diffstat:
-   `git apply --stat < $GH_AI_SESSION_DIR/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
+   `git apply --stat < $GH_AI_SESSION_DIR/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
 2. Read the full diff and analyze the relevant changed files for bugs, security
    issues, logic errors, missing error handling, and performance concerns.
 3. Write the review draft with a recommended outcome. If a review type was
