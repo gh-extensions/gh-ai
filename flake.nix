@@ -1,5 +1,5 @@
 {
-  description = "gh-ai development shell";
+  description = "gh-claude development shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";

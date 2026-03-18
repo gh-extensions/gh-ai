@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Unit tests for gh ai issue chat arg parsing and integration
+# Unit tests for gh claude issue chat arg parsing and integration
 #
 # Requires bats-core: https://github.com/bats-core/bats-core
 # Run: bats tests/gh_issue_chat.bats
@@ -8,7 +8,7 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_ai_source_dir="$REPO_ROOT"
+	export _gh_claude_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
 
 	mkdir -p "$BATS_TEST_TMPDIR/.git"
@@ -25,7 +25,7 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_ai_source_dir="$REPO_ROOT"
+		export _gh_claude_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
@@ -295,5 +295,5 @@ _setup_chat_mocks() {
 	run _gh_issue_chat 42 -- --resume abc123
 
 	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"--resume is managed by gh-ai"* ]]
+	[[ "$output" == *"--resume is managed by gh-claude"* ]]
 }

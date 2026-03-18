@@ -15,11 +15,11 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 
 ## Issue context
 
-!`gh issue view $GH_AI_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view $GH_CLAUDE_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 
 ## Additional context
 
-!`cat "$GH_AI_SESSION_DIR/state/issue_context.md" 2>/dev/null || true`
+!`cat "$GH_CLAUDE_SESSION_DIR/state/issue_context.md" 2>/dev/null || true`
 
 ## Requested changes
 
@@ -34,11 +34,11 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 3. Ask the user: "Apply this edit, or tell me what to change?"
 4. If the user requests changes, revise and repeat from step 2.
 5. When the user confirms:
-   - Ensure the drafts directory exists: `mkdir -p $GH_AI_SESSION_DIR/drafts`
+   - Ensure the drafts directory exists: `mkdir -p $GH_CLAUDE_SESSION_DIR/drafts`
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
-   - Write the extracted title (without the `# ` prefix) to `$GH_AI_SESSION_DIR/drafts/issue_title_draft.txt`
-   - Write ONLY the body (everything after the title line) to `$GH_AI_SESSION_DIR/drafts/issue_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh issue edit $GH_AI_ISSUE_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/issue_title_draft.txt | tr -d '\n')" --body-file $GH_AI_SESSION_DIR/drafts/issue_body_draft.md`
+   - Write the extracted title (without the `# ` prefix) to `$GH_CLAUDE_SESSION_DIR/drafts/issue_title_draft.txt`
+   - Write ONLY the body (everything after the title line) to `$GH_CLAUDE_SESSION_DIR/drafts/issue_body_draft.md` — do NOT include the `# Title` line in the file
+   - Run: `gh issue edit $GH_CLAUDE_ISSUE_NUMBER --title "$(cat $GH_CLAUDE_SESSION_DIR/drafts/issue_title_draft.txt | tr -d '\n')" --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_body_draft.md`
 6. Confirm success with the issue URL.
 
 ## Rules

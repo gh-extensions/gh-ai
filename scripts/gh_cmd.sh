@@ -6,7 +6,7 @@ set -euo pipefail
 
 _gh_cmd_dir=$(dirname "${BASH_SOURCE[0]}")
 
-# Core utility functions for gh-ai
+# Core utility functions for gh-claude
 
 # Render a template file by substituting ${VAR} placeholders with env var values
 #
@@ -34,62 +34,41 @@ _cmd_render() {
 	awk -f "$_gh_cmd_dir/gh_render.awk" "$template_file"
 }
 
-# Resolve the configured agent binary name
-# Reads ai.agent from gh config (default: claude).
-# Usage: _gh_config_ai_agent
-_gh_config_ai_agent() {
-	local agent
-	agent=$(gh config get ai.agent 2>/dev/null || true)
-	printf '%s' "${agent:-claude}"
-}
-
 # Resolve the configured model for a given scope
-# Resolves: ai.<scope>.model → ai.model → haiku
-# Usage: _gh_config_ai_model [SCOPE]   (SCOPE: pr | issue | run | empty)
-_gh_config_ai_model() {
+# Resolves: claude.<scope>.model → claude.model → haiku
+# Usage: _gh_config_claude_model [SCOPE]   (SCOPE: pr | issue | run | empty)
+_gh_config_claude_model() {
 	local scope="${1:-}"
 	local model=""
 	if [[ -n "$scope" ]]; then
-		model=$(gh config get "ai.${scope}.model" 2>/dev/null || true)
+		model=$(gh config get "claude.${scope}.model" 2>/dev/null || true)
 	fi
 	if [[ -z "$model" ]]; then
-		model=$(gh config get ai.model 2>/dev/null || true)
+		model=$(gh config get claude.model 2>/dev/null || true)
 	fi
 	printf '%s' "${model:-haiku}"
 }
 
-# Send a prompt to the AI agent in non-interactive (prompt) mode
+# Send a prompt to Claude in non-interactive (prompt) mode
 #
-# Reads a prompt from stdin and sends it to the configured agent binary.
-# Uses the given model or falls back to ai.model / haiku.
-# Currently supports claude as the agent.
+# Reads a prompt from stdin and sends it to claude.
+# Uses the given model or falls back to claude.model / haiku.
 #
 # Usage: echo "prompt" | _cmd_ask [MODEL]
 _cmd_ask() {
-	local agent
-	agent=$(_gh_config_ai_agent)
-
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
-		agent_model=$(_gh_config_ai_model)
+		agent_model=$(_gh_config_claude_model)
 	fi
 
-	case "$agent" in
-	claude)
-		MAX_THINKING_TOKENS=0 claude -p \
-			--model="$agent_model" \
-			--no-session-persistence \
-			--disable-slash-commands \
-			--setting-sources='' \
-			--system-prompt='' \
-			--tools='' \
-			- || true
-		;;
-	*)
-		gum log --level error "Unsupported agent '$agent' for ask (supported: claude)"
-		return 1
-		;;
-	esac
+	MAX_THINKING_TOKENS=0 claude -p \
+		--model="$agent_model" \
+		--no-session-persistence \
+		--disable-slash-commands \
+		--setting-sources='' \
+		--system-prompt='' \
+		--tools='' \
+		- || true
 }
 
 # Pre-trust a workspace directory in Claude Code so the trust dialog is skipped.
@@ -116,10 +95,10 @@ _trust_workspace() {
 	mv "$tmp" "$claude_json"
 }
 
-# Pipe a prompt into the configured agent binary
+# Pipe a prompt into Claude
 #
-# Resolves ai.agent (default: claude), verifies the binary exists, then
-# pipes the prompt into it. Extra positional args are forwarded to the agent.
+# Verifies the claude binary exists, then pipes the prompt into it.
+# Extra positional args are forwarded to claude.
 # Pre-trusts the current directory so Claude skips the "trust this folder" dialog.
 #
 # Usage: _cmd_chat "url" "context prompt" [AGENT_ARGS...]
@@ -128,11 +107,9 @@ _cmd_chat() {
 	local prompt="$2"
 	shift 2
 
-	local agent
-	agent=$(_gh_config_ai_agent)
-	if ! command -v "$agent" &>/dev/null; then
-		gum log --level error "Agent '$agent' not found"
-		gum log --level info "Install it or set: gh config set ai.agent <binary>"
+	if ! command -v claude &>/dev/null; then
+		gum log --level error "claude not found"
+		gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code"
 		return 1
 	fi
 
@@ -141,9 +118,9 @@ _cmd_chat() {
 	_trust_workspace "$(pwd -P)"
 
 	if [[ -n "$prompt" ]]; then
-		printf "%s" "$url" | "$agent" --append-system-prompt "$prompt" "$@"
+		printf "%s" "$url" | claude --append-system-prompt "$prompt" "$@"
 	else
-		"$agent" "$@"
+		claude "$@"
 	fi
 }
 
@@ -312,7 +289,7 @@ _git_branch_diff() {
 _create_context_dir() {
 	local -n _cdir_ref="$1"
 	local _ctx_tmpdir="${TMPDIR:-/tmp}"
-	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
+	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-claude-ctx.XXXXXXXXXX")
 }
 
 # Resolve the base directory for persistent chat sessions.
@@ -417,7 +394,7 @@ _parse_chat_args() {
 	done
 }
 
-# Validate chat passthrough args, rejecting flags managed by gh-ai.
+# Validate chat passthrough args, rejecting flags managed by gh-claude.
 #
 # Returns 1 if --session-id or --resume are found.
 #
@@ -428,7 +405,7 @@ _validate_chat_passthrough() {
 	for _vcp_flag in "${_vcp_args[@]}"; do
 		case "$_vcp_flag" in
 		--session-id | --resume)
-			gum log --level error -- "$_vcp_flag is managed by gh-ai and cannot be passed through"
+			gum log --level error -- "$_vcp_flag is managed by gh-claude and cannot be passed through"
 			return 1
 			;;
 		esac

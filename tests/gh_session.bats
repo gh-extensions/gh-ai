@@ -8,7 +8,7 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_ai_source_dir="$REPO_ROOT"
+	export _gh_claude_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
 
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
@@ -23,7 +23,7 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_ai_source_dir="$REPO_ROOT"
+		export _gh_claude_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _git_repo_path _resolve_chat_session _gh_session_base_dir

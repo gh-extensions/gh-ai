@@ -7,7 +7,7 @@ set -euo pipefail
 # Print usage to stdout
 _show_help() {
 	cat <<'EOF'
-gh_tmux_cmd.sh - tmux helpers for gh-ai
+gh_tmux_cmd.sh - tmux helpers for gh-claude
 
 USAGE:
     gh_tmux_cmd.sh new-session <name> [command...]

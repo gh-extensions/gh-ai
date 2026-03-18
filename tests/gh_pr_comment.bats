@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Unit tests for gh ai pr comment arg parsing
+# Unit tests for gh claude pr comment arg parsing
 #
 # Requires bats-core: https://github.com/bats-core/bats-core
 # Run: bats tests/gh_pr_comment.bats
@@ -8,7 +8,7 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_ai_source_dir="$REPO_ROOT"
+	export _gh_claude_source_dir="$REPO_ROOT"
 
 	# Mock external commands not under test
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
@@ -18,7 +18,7 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_ai_source_dir="$REPO_ROOT"
+		export _gh_claude_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
@@ -185,23 +185,23 @@ setup() {
 	run _show_pr_comment_help
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"gh ai pr comment"* ]]
+	[[ "$output" == *"gh claude pr comment"* ]]
 	[[ "$output" == *"-d, --description"* ]]
-	[[ "$output" == *"gh ai pr comment 42 -d"* ]]
+	[[ "$output" == *"gh claude pr comment 42 -d"* ]]
 }
 
 @test "_gh_pr_comment: shows help with --help" {
 	run _gh_pr_comment --help
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"gh ai pr comment"* ]]
+	[[ "$output" == *"gh claude pr comment"* ]]
 }
 
 @test "_gh_pr_comment: shows help with -h" {
 	run _gh_pr_comment -h
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"gh ai pr comment"* ]]
+	[[ "$output" == *"gh claude pr comment"* ]]
 }
 
 @test "_gh_pr_comment: errors when no PR number and auto-detect fails" {

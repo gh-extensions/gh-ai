@@ -7,7 +7,7 @@ set -euo pipefail
 # shellcheck source=gh_cmd.sh
 source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
 
-# Issue-related functions for gh-ai
+# Issue-related functions for gh-claude
 
 # Extract an issue number from a raw user-supplied argument.
 #
@@ -134,7 +134,7 @@ _prepare_issue_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_body="" _ctx_comments=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_issue_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_issue_meta.jq")"
 
 	_resolve_context_dir "$_ctx_type" "issue-$_ctx_num" _ctx_dir || return 1
 
@@ -220,10 +220,10 @@ _prepare_issue_create_context() {
 # including usage examples and available options.
 _show_issue_create_help() {
 	cat <<'EOF'
-gh ai issue create - Create issues with AI-generated content
+gh claude issue create - Create issues with AI-generated content
 
 USAGE:
-    gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+    gh claude issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub issue with an AI-generated title and structured body
@@ -234,9 +234,9 @@ FLAGS:
     -d, --description string   Brief description of the issue (required)
 
 EXAMPLES:
-    gh ai issue create -d "Login page crashes with special chars"
-    gh ai issue create -d "Login crash" -- --label bug --assignee @me
-    some_command 2>&1 | gh ai issue create -d "Command X fails"
+    gh claude issue create -d "Login page crashes with special chars"
+    gh claude issue create -d "Login crash" -- --label bug --assignee @me
+    some_command 2>&1 | gh claude issue create -d "Command X fails"
 EOF
 }
 
@@ -261,14 +261,14 @@ _gh_issue_create() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_create.tmpl"
+	template_file="$_gh_claude_source_dir/templates/gh_issue_create.tmpl"
 
 	local gh_issue_description=""
 	_parse_issue_create_args gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue create -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -276,18 +276,18 @@ _gh_issue_create() {
 	_prepare_issue_create_context gh_issue_dir || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(_gh_config_ai_model "issue")
+	gh_issue_agent_model=$(_gh_config_claude_model "issue")
 
 	local gh_issue_content
 	# Generate issue content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_content=$(
 		gum spin --title "Generating GitHub issue..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
 					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -330,10 +330,10 @@ _prepare_issue_edit_context() { _prepare_issue_context "edit" "$@"; }
 # including usage examples and available options.
 _show_issue_edit_help() {
 	cat <<'EOF'
-gh ai issue edit - Edit an existing issue with AI-generated content
+gh claude issue edit - Edit an existing issue with AI-generated content
 
 USAGE:
-    gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub issue using AI. Fetches the current issue
@@ -345,11 +345,11 @@ FLAGS:
     -d, --description string   Description of the changes to make (required)
 
 EXAMPLES:
-    gh ai issue edit 42 -d "add acceptance criteria"
-    gh ai issue edit https://github.com/owner/repo/issues/42 -d "add acceptance criteria"
-    gh ai issue edit 42 -d "fix typos and improve clarity"
-    gh ai issue edit 42 -d "rephrase as a bug report" -- --add-label bug
-    some_command 2>&1 | gh ai issue edit 42 -d "add error output"
+    gh claude issue edit 42 -d "add acceptance criteria"
+    gh claude issue edit https://github.com/owner/repo/issues/42 -d "add acceptance criteria"
+    gh claude issue edit 42 -d "fix typos and improve clarity"
+    gh claude issue edit 42 -d "rephrase as a bug report" -- --add-label bug
+    some_command 2>&1 | gh claude issue edit 42 -d "add error output"
 EOF
 }
 
@@ -375,20 +375,20 @@ _gh_issue_edit() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_edit.tmpl"
+	template_file="$_gh_claude_source_dir/templates/gh_issue_edit.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
 	_parse_issue_edit_args gh_issue_number gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -396,15 +396,15 @@ _gh_issue_edit() {
 	_prepare_issue_edit_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(_gh_config_ai_model "issue")
+	gh_issue_agent_model=$(_gh_config_claude_model "issue")
 
 	local gh_issue_content
 	# Generate updated issue content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_content=$(
 		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
+				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -412,7 +412,7 @@ _gh_issue_edit() {
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -454,10 +454,10 @@ _prepare_issue_comment_context() { _prepare_issue_context "comment" "$@"; }
 # including usage examples and available options.
 _show_issue_comment_help() {
 	cat <<'EOF'
-gh ai issue comment - Post an AI-generated comment on an existing issue
+gh claude issue comment - Post an AI-generated comment on an existing issue
 
 USAGE:
-    gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Posts an AI-generated comment on an existing GitHub issue. Fetches the
@@ -469,13 +469,13 @@ FLAGS:
     -d, --description string   Instructions for the comment (required)
 
 EXAMPLES:
-    gh ai issue comment 42 -d "post a status update: implementation is in progress"
-    gh ai issue comment https://github.com/owner/repo/issues/42 -d "post a status update: implementation is in progress"
-    gh ai issue comment 42 -d "acknowledge the report and ask for more details"
-    gh ai issue comment 42 -d "summarize the discussion so far"
-    echo "error: connection refused" | gh ai issue comment 42 -d "add this error as context"
-    some_command 2>&1 | gh ai issue comment 42 -d "add the output as context"
-    gh ai issue comment 42 -d "acknowledge the report" -- --edit
+    gh claude issue comment 42 -d "post a status update: implementation is in progress"
+    gh claude issue comment https://github.com/owner/repo/issues/42 -d "post a status update: implementation is in progress"
+    gh claude issue comment 42 -d "acknowledge the report and ask for more details"
+    gh claude issue comment 42 -d "summarize the discussion so far"
+    echo "error: connection refused" | gh claude issue comment 42 -d "add this error as context"
+    some_command 2>&1 | gh claude issue comment 42 -d "add the output as context"
+    gh claude issue comment 42 -d "acknowledge the report" -- --edit
 EOF
 }
 
@@ -501,20 +501,20 @@ _gh_issue_comment() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_comment.tmpl"
+	template_file="$_gh_claude_source_dir/templates/gh_issue_comment.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
 	_parse_issue_comment_args gh_issue_number gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -522,15 +522,15 @@ _gh_issue_comment() {
 	_prepare_issue_comment_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(_gh_config_ai_model "issue")
+	gh_issue_agent_model=$(_gh_config_claude_model "issue")
 
 	local gh_issue_comment
 	# Generate comment using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_comment=$(
 		gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
+				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -538,7 +538,7 @@ _gh_issue_comment() {
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -570,10 +570,10 @@ _prepare_issue_plan_context() { _prepare_issue_context "plan" "$@"; }
 # including usage examples and available options.
 _show_issue_plan_help() {
 	cat <<'EOF'
-gh ai issue plan - Generate an AI implementation plan from a GitHub issue
+gh claude issue plan - Generate an AI implementation plan from a GitHub issue
 
 USAGE:
-    gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
+    gh claude issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub issue and generates an AI implementation plan,
@@ -584,14 +584,14 @@ FLAGS:
     -d, --description string   Extra context or focus for the plan (optional)
 
 EXAMPLES:
-    gh ai issue plan 42
-    gh ai issue plan https://github.com/owner/repo/issues/42
-    gh ai issue plan 42 -d "focus on the auth module"
-    gh ai issue plan 42 | pbcopy
-    gh ai issue plan 42 | claude
-    gh ai issue plan 42 | jules new
-    gh ai issue plan 42 | gh agent-task create --body -
-    gh issue develop 42 --checkout && git commit --allow-empty -m "chore: start work on #42" && gh ai issue plan 42 | gh pr create --body -
+    gh claude issue plan 42
+    gh claude issue plan https://github.com/owner/repo/issues/42
+    gh claude issue plan 42 -d "focus on the auth module"
+    gh claude issue plan 42 | pbcopy
+    gh claude issue plan 42 | claude
+    gh claude issue plan 42 | jules new
+    gh claude issue plan 42 | gh agent-task create --body -
+    gh issue develop 42 --checkout && git commit --allow-empty -m "chore: start work on #42" && gh claude issue plan 42 | gh pr create --body -
 EOF
 }
 
@@ -611,14 +611,14 @@ _gh_issue_plan() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_plan.tmpl"
+	template_file="$_gh_claude_source_dir/templates/gh_issue_plan.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
 	_parse_issue_plan_args gh_issue_number gh_issue_description "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
+		gum log --level info "Usage: gh claude issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
 		return 1
 	fi
 
@@ -626,7 +626,7 @@ _gh_issue_plan() {
 	_prepare_issue_plan_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_agent_model
-	gh_issue_agent_model=$(_gh_config_ai_model "issue")
+	gh_issue_agent_model=$(_gh_config_claude_model "issue")
 
 	local gh_issue_focus=""
 	if [[ -n "$gh_issue_description" ]]; then
@@ -638,8 +638,8 @@ _gh_issue_plan() {
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_plan=$(
 		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
+				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -647,7 +647,7 @@ _gh_issue_plan() {
 					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_FOCUS="$gh_issue_focus" \
 					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -702,29 +702,28 @@ _prepare_issue_chat_context() { _prepare_issue_context "chat" "$@"; }
 # including usage examples and available options.
 _show_issue_chat_help() {
 	cat <<'EOF'
-gh ai issue chat - Open an agent session with issue context
+gh claude issue chat - Open an agent session with issue context
 
 USAGE:
-    gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Fetches the GitHub issue metadata, renders it as context, and pipes
     it into the configured agent binary (default: claude).
     Options after -- are passed directly to the agent binary.
 
-    Configure the agent: gh config set ai.agent <binary>
-    Configure the model: gh config set ai.issue.model <model>
+    Configure the model: gh config set claude.issue.model <model>
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
     -n, --new-session          Start a new session
 
 EXAMPLES:
-    gh ai issue chat 42
-    gh ai issue chat https://github.com/owner/repo/issues/42
-    gh ai issue chat 42 -d "focus on the auth module"
-    gh ai issue chat 42 --new-session
-    gh ai issue chat 42 -- --model sonnet --verbose
+    gh claude issue chat 42
+    gh claude issue chat https://github.com/owner/repo/issues/42
+    gh claude issue chat 42 -d "focus on the auth module"
+    gh claude issue chat 42 --new-session
+    gh claude issue chat 42 -- --model sonnet --verbose
 EOF
 }
 
@@ -751,14 +750,14 @@ _gh_issue_chat() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_chat.tmpl"
+	template_file="$_gh_claude_source_dir/templates/gh_issue_chat.tmpl"
 
 	local gh_issue_number="" gh_issue_description="" gh_issue_new_session=""
 	_parse_issue_chat_args gh_issue_number gh_issue_description gh_issue_new_session "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]"
+		gum log --level info "Usage: gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]"
 		return 1
 	fi
 
@@ -772,23 +771,23 @@ _gh_issue_chat() {
 
 	local gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "$gh_issue_dir" "$gh_issue_new_session" gh_issue_is_new_chat gh_issue_session_args || return 1
-	gh_issue_session_args+=(--plugin-dir "$_gh_ai_source_dir/plugins/gh-issue-plugin")
+	gh_issue_session_args+=(--plugin-dir "$_gh_claude_source_dir/plugins/gh-issue-plugin")
 
 	local gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
 		gh_issue_prompt=$(
-			GH_AI_ISSUE_NUMBER="$gh_issue_number" \
+			GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
 				GH_ISSUE_URL="$gh_issue_url" \
 				GH_ISSUE_LABELS="$gh_issue_labels" \
 				GH_ISSUE_FOCUS="$gh_issue_focus" \
-				GH_AI_SESSION_DIR="$gh_issue_dir" \
-				"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
+				GH_CLAUDE_SESSION_DIR="$gh_issue_dir" \
+				"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 		)
 	fi
 
-	export GH_AI_ISSUE_NUMBER="$gh_issue_number"
-	export GH_AI_SESSION_DIR="$gh_issue_dir"
+	export GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number"
+	export GH_CLAUDE_SESSION_DIR="$gh_issue_dir"
 	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
 
@@ -798,14 +797,14 @@ _gh_issue_chat() {
 # including usage examples and available options.
 _show_issue_help() {
 	cat <<'EOF'
-gh ai issue - Issue commands with AI assistance
+gh claude issue - Issue commands with AI assistance
 
 USAGE:
-    gh ai issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-    gh ai issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-    gh ai issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
-    gh ai issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
-    gh ai issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+    gh claude issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh claude issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh claude issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
+    gh claude issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
@@ -821,11 +820,11 @@ COMMANDS:
     chat        Open an agent session with issue context
 
 SEE ALSO:
-    gh ai issue create --help     # Issue create usage
-    gh ai issue edit --help       # Issue edit usage
-    gh ai issue comment --help    # Issue comment usage
-    gh ai issue plan --help       # Issue plan usage
-    gh ai issue chat --help       # Issue chat usage
+    gh claude issue create --help     # Issue create usage
+    gh claude issue edit --help       # Issue edit usage
+    gh claude issue comment --help    # Issue comment usage
+    gh claude issue plan --help       # Issue plan usage
+    gh claude issue chat --help       # Issue chat usage
 EOF
 }
 
@@ -862,7 +861,7 @@ _gh_issue() {
 	*)
 		gum log --level error "unknown issue command '$subcommand'"
 		gum log --level info "Available commands: create, edit, comment, plan, chat"
-		gum log --level info "Run 'gh ai issue --help' for usage information"
+		gum log --level info "Run 'gh claude issue --help' for usage information"
 		return 1
 		;;
 	esac
