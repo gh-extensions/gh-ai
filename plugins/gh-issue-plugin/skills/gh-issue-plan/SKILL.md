@@ -41,6 +41,12 @@ Your role: **read the issue → understand the requirements → draft a concrete
 !`cat "${GH_CLAUDE_SESSION_DIR}/state/session_notes.md" 2>/dev/null || true`
 ```
 
+**Repository Info:**
+
+```
+!`gh repo view --json url,defaultBranchRef --jq '"URL: \(.url)\nDefault branch: \(.defaultBranchRef.name)"' 2>/dev/null || echo "Unable to fetch repo info."`
+```
+
 **User Request:**
 
 ```
@@ -94,7 +100,8 @@ Your role: **read the issue → understand the requirements → draft a concrete
 - Use plain English; talk like you're briefing a teammate
 - Break work into **small, sequential, concrete tasks**
 - Label every task with sequential ID: `T001`, `T002`, `T003`, ...
-- Call out likely files, modules, components, or systems that need changes
+- Hyperlink file references to GitHub (use repo URL and default branch from context); include line anchors when known
+- Do NOT insert blank lines between task bullet items (keeps the list compact on GitHub)
 - Include Open Questions section for anything that must be clarified before implementation
 - Keep Likely Affected Areas section relevant to the issue context
 - Format per specification below
@@ -109,7 +116,8 @@ Your role: **read the issue → understand the requirements → draft a concrete
 {1-2 sentence description of the proposed approach}
 
 ## Likely Affected Areas
-- `{path, module, component, or subsystem}` — {why it likely matters}
+- [`{path/to/file.ext}`]({repo_url}/blob/{branch}/{path/to/file.ext}) — {why it likely matters}
+- [`{path/to/file.ext#L10-L20}`]({repo_url}/blob/{branch}/{path/to/file.ext}#L10-L20) — {specific lines, if known}
 
 ## Tasks
 - T001 — {small, concrete task}
@@ -150,11 +158,12 @@ EOF
   ```bash
   # --paginate returns one array per page; -s wraps them in an outer array
   # so .[][] flattens [[page1...],[page2...]] into a single stream
-  COMMENT_ID="$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty')"
+  COMMENT_ID=$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | test("gh-claude:issue-plan issue=" + $n))] | last | .id // empty')
   ```
 - If existing comment found, **update** it:
   ```bash
-  jq -Rs '{body: .}' "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" | gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH --input - --jq .html_url
+  jq -Rs '{body: .}' "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft_body.json"
+  gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" --method PATCH --input "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft_body.json" --jq .html_url
   ```
 - Otherwise, **create** new comment:
   ```bash
@@ -176,15 +185,15 @@ EOF
 - **Tone:** Plain English, like briefing a teammate; avoid jargon where possible
 - **Task granularity:** Small, concrete, sequential tasks; avoid vague descriptions
 - **Naming:** Every task gets `T001`, `T002`, `T003`, ... labels
-- **Components:** Name likely affected files, modules, components, or systems
+- **Components:** Hyperlink file references to GitHub; name modules, components, or systems
 - **Honesty:** If you don't have enough info, say so and ask in Open Questions
 - **Scope awareness:** If issue spans multiple independent areas, recommend splitting
 
 ### Content & Structure
 
 - **Summary:** 1–2 sentences describing the proposed approach
-- **Likely Affected Areas:** Only include if issue context provides useful clues; otherwise omit
-- **Tasks:** Sequential, small, concrete, with clear IDs and descriptions
+- **Likely Affected Areas:** Hyperlink to files on GitHub using `[path](repo_url/blob/branch/path)` format; include `#L10` or `#L10-L20` line anchors when specific lines are known; omit section if no useful clues from issue context
+- **Tasks:** Sequential, small, concrete, with clear IDs (`- T001 — ...`); hyperlink file and line references to GitHub; no blank lines between items (compact list)
 - **Open Questions:** List anything requiring clarification before implementation starts; omit section if none
 - **Tracking marker:** Always append at the end of the draft
 
@@ -285,4 +294,3 @@ User: "Plan issue #15 to add a deployment section"
 User: "Good, post it"
 → Updates the existing comment instead of creating duplicate
 ```
-
