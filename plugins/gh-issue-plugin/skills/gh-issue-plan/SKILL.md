@@ -38,7 +38,7 @@ and ask the user for clarification.
 
 ## Additional context
 
-!`cat "${GH_CLAUDE_SESSION_DIR}/state/issue_context.md" 2>/dev/null || true`
+!`cat "$GH_CLAUDE_SESSION_DIR/state/issue_context.md" 2>/dev/null || true`
 
 ## Focus
 
