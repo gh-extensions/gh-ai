@@ -38,7 +38,7 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
    - Write the extracted title (without the `# ` prefix) to `$GH_AI_SESSION_DIR/drafts/issue_title_draft.txt`
    - Write ONLY the body (everything after the title line) to `$GH_AI_SESSION_DIR/drafts/issue_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh issue edit $GH_AI_ISSUE_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/issue_title_draft.txt)" --body-file $GH_AI_SESSION_DIR/drafts/issue_body_draft.md`
+   - Run: `gh issue edit $GH_AI_ISSUE_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/issue_title_draft.txt | tr -d '\n')" --body-file $GH_AI_SESSION_DIR/drafts/issue_body_draft.md`
 6. Confirm success with the issue URL.
 
 ## Rules

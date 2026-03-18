@@ -39,7 +39,7 @@ Edit a GitHub pull request according to the requested changes, then apply it aft
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
    - Write the extracted title (without the `# ` prefix) to `$GH_AI_SESSION_DIR/drafts/pr_title_draft.txt`
    - Write ONLY the body (everything after the title line) to `$GH_AI_SESSION_DIR/drafts/pr_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh pr edit $GH_AI_PR_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/pr_title_draft.txt)" --body-file $GH_AI_SESSION_DIR/drafts/pr_body_draft.md`
+   - Run: `gh pr edit $GH_AI_PR_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/pr_title_draft.txt | tr -d '\n')" --body-file $GH_AI_SESSION_DIR/drafts/pr_body_draft.md`
 6. Confirm success with the PR URL.
 
 ## Rules
