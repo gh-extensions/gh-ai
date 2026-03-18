@@ -8,12 +8,20 @@ Stop context-switching between your editor, browser, and terminal. `gh ai`
 meets you where you already work and handles the tedious parts so you can
 focus on shipping.
 
-## Prerequisites
+## Requirements
 
-- [GitHub CLI](https://cli.github.com/) (`gh`) — macOS: `brew install gh`
-- [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`) — macOS: `brew install bash`
-- [Gum](https://github.com/charmbracelet/gum) (`gum`) — macOS: `brew install gum` _(optional — provides enhanced UI; falls back to plain output when absent)_
+- [GitHub CLI](https://cli.github.com/) (`gh`)
+- [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`)
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
+- [Gum](https://github.com/charmbracelet/gum) (`gum`) _(optional)_
+
+**macOS (Homebrew):**
+
+```bash
+brew install gh bash gum
+```
+
+Install `claude` separately: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
 
 ## Installation
 
