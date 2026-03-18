@@ -114,6 +114,7 @@ setup() {
 	run _parse_pr_create_args base description --description
 
 	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--description requires a value"* ]]
 }
 
 @test "_parse_pr_create_args: returns error when --base has no value" {
@@ -122,6 +123,7 @@ setup() {
 	run _parse_pr_create_args base description --base
 
 	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--base requires a value"* ]]
 }
 
 @test "_parse_pr_create_args: returns error when -B has no value" {

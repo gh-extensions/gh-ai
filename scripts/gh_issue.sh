@@ -66,7 +66,7 @@ _parse_issue_args() {
 		case "${_pia_raw[$_pia_i]}" in
 		--description | -d)
 			if ((_pia_i + 1 >= ${#_pia_raw[@]})); then
-				gum log --level error "${_pia_raw[$_pia_i]} requires a value"
+				gum log --level error -- "${_pia_raw[$_pia_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -172,7 +172,7 @@ _parse_issue_create_args() {
 		case "${_pica_raw[$_pica_i]}" in
 		--description | -d)
 			if ((_pica_i + 1 >= ${#_pica_raw[@]})); then
-				gum log --level error "${_pica_raw[$_pica_i]} requires a value"
+				gum log --level error -- "${_pica_raw[$_pica_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller

@@ -109,6 +109,14 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
+@test "_parse_run_chat_args: error message includes flag name when --description has no value" {
+	local id="" description="" reset=""
+	run _parse_run_chat_args id description reset 12345678 --description
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--description requires a value"* ]]
+}
+
 @test "_parse_run_chat_args: returns error for unknown flags" {
 	local id="" description="" reset=""
 	run _parse_run_chat_args id description reset --failed

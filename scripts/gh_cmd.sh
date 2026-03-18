@@ -383,7 +383,7 @@ _parse_chat_args() {
 		case "${_pca_raw[$_pca_i]}" in
 		--description | -d)
 			if ((_pca_i + 1 >= ${#_pca_raw[@]})); then
-				gum log --level error "${_pca_raw[$_pca_i]} requires a value"
+				gum log --level error -- "${_pca_raw[$_pca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -427,7 +427,7 @@ _validate_chat_passthrough() {
 	for _vcp_flag in "${_vcp_args[@]}"; do
 		case "$_vcp_flag" in
 		--session-id | --resume)
-			gum log --level error "$_vcp_flag is managed by gh-ai and cannot be passed through"
+			gum log --level error -- "$_vcp_flag is managed by gh-ai and cannot be passed through"
 			return 1
 			;;
 		esac

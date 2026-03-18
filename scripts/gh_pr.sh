@@ -76,7 +76,7 @@ _parse_pr_args() {
 		case "${_ppa_raw[$_ppa_i]}" in
 		--description | -d)
 			if ((_ppa_i + 1 >= ${#_ppa_raw[@]})); then
-				gum log --level error "${_ppa_raw[$_ppa_i]} requires a value"
+				gum log --level error -- "${_ppa_raw[$_ppa_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -190,7 +190,7 @@ _parse_pr_create_args() {
 		case "${_prca_raw[$_prca_i]}" in
 		--description | -d)
 			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
-				gum log --level error "${_prca_raw[$_prca_i]} requires a value"
+				gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -203,7 +203,7 @@ _parse_pr_create_args() {
 			;;
 		--base | -B)
 			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
-				gum log --level error "${_prca_raw[$_prca_i]} requires a value"
+				gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller

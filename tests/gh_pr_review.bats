@@ -107,6 +107,7 @@ setup() {
 	run _parse_pr_review_args number description --description
 
 	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--description requires a value"* ]]
 }
 
 @test "_parse_pr_review_args: returns error with hint for unknown flags" {

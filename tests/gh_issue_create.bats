@@ -76,6 +76,14 @@ setup() {
 	[[ "$status" -eq 1 ]]
 }
 
+@test "_parse_issue_create_args: error message includes flag name when --description has no value" {
+	local description=""
+	run _parse_issue_create_args description --description
+
+	[[ "$status" -eq 1 ]]
+	[[ "$output" == *"--description requires a value"* ]]
+}
+
 @test "_parse_issue_create_args: returns error with hint for unknown flags" {
 	local description=""
 	run _parse_issue_create_args description --label bug
