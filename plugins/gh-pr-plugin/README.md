@@ -2,6 +2,20 @@
 
 A Claude Code plugin that provides slash commands for working with GitHub pull requests inside `gh claude pr chat` sessions.
 
+## Slash Commands
+
+Available inside a `gh claude pr chat` session. The PR number is already known from the session — no need to pass it.
+
+```
+/gh:pr:comment [what to say]
+/gh:pr:edit    [what to change]
+/gh:pr:review  [approve|request-changes|comment] [focus area]
+```
+
+All three commands follow a **draft → iterate → confirm → execute** workflow: generate a draft, show it, accept revisions, and only run the `gh` CLI command once confirmed.
+
+> These are Claude Code skill equivalents to `gh claude pr comment`, `gh claude pr edit`, and `gh claude pr review`.
+
 ## Skills
 
 ### gh:pr:comment

@@ -2,6 +2,20 @@
 
 A Claude Code plugin that provides slash commands for working with GitHub issues inside `gh claude issue chat` sessions.
 
+## Slash Commands
+
+Available inside a `gh claude issue chat` session. The issue number is already known from the session — no need to pass it.
+
+```
+/gh:issue:comment [what to say]
+/gh:issue:edit    [what to change]
+/gh:issue:plan    [focus area]
+```
+
+All three commands follow a **draft → iterate → confirm → execute** workflow: generate a draft, show it, accept revisions, and only run the `gh` CLI command once confirmed.
+
+> These are Claude Code skill equivalents to `gh claude issue comment`, `gh claude issue edit`, and `gh claude issue plan`.
+
 ## Skills
 
 ### gh:issue:comment

@@ -106,42 +106,7 @@ gh claude pr chat 42 -n # start a new session
 
 #### Slash Commands
 
-These slash commands are available inside a `gh claude pr chat` session. The PR
-number is already known from the session — no need to pass it. Each command
-fetches live PR data, generates a draft, and waits for confirmation before
-executing.
-
-```
-/gh:pr:comment [what to say]
-/gh:pr:edit    [what to change]
-/gh:pr:review  [approve|request-changes|comment] [focus area]
-```
-
-**Post a comment on a pull request:**
-
-```
-/gh:pr:comment ask about the failing CI check
-/gh:pr:comment summarize the changes in this PR
-```
-
-**Edit a pull request title and body:**
-
-```
-/gh:pr:edit add a testing section
-/gh:pr:edit rewrite the description to include risk level
-```
-
-**Review a pull request:**
-
-```
-/gh:pr:review
-/gh:pr:review approve
-/gh:pr:review request-changes focus on error handling
-/gh:pr:review comment check the auth module
-```
-
-> These are Claude Code skill equivalents to `gh claude pr comment`,
-> `gh claude pr edit`, and `gh claude pr review`.
+See [gh-pr-plugin](plugins/gh-pr-plugin/README.md) for the full slash command reference.
 
 ### Issue
 
@@ -184,44 +149,7 @@ gh claude issue chat 42 -n                # start a new session
 
 #### Slash Commands
 
-These slash commands are available inside a `gh claude issue chat` session. The
-issue number is already known from the session — no need to pass it. Each
-command fetches live issue data, generates a draft, and waits for confirmation
-before executing.
-
-```
-/gh:issue:comment [what to say]
-/gh:issue:edit    [what to change]
-/gh:issue:plan    [focus area]
-```
-
-All three commands follow a **draft → iterate → confirm → execute** workflow:
-generate a draft, show it to the user, accept revision requests, and only run
-the `gh` CLI command once the user confirms.
-
-**Post a comment on an issue:**
-
-```
-/gh:issue:comment ask for clarification on the acceptance criteria
-/gh:issue:comment summarize the discussion so far
-```
-
-**Edit an issue title and body:**
-
-```
-/gh:issue:edit add a definition of done section
-/gh:issue:edit rewrite the description as a bug report
-```
-
-**Generate an implementation plan and post it as a comment:**
-
-```
-/gh:issue:plan
-/gh:issue:plan focus on the auth module
-```
-
-> These are Claude Code skill equivalents to `gh claude issue comment`,
-> `gh claude issue edit`, and `gh claude issue plan`.
+See [gh-issue-plugin](plugins/gh-issue-plugin/README.md) for the full slash command reference.
 
 ### Run
 
