@@ -373,8 +373,8 @@ and always run inline.
 ## See Also
 
 - [gh-worktree](https://github.com/gh-extensions/gh-worktree) — Isolated git worktrees for PRs, issues, and workflow runs
-- [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
 - [gh-fzf](https://github.com/gh-extensions/gh-fzf) — Fuzzy finder for GitHub CLI
+- [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
 
 ## License
 
