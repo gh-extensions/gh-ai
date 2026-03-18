@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/gh-extensions/gh-claude/compare/v0.21.0...v1.0.0) (2026-03-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* extension renamed from gh-ai to gh-claude. Config keys change from ai.* to claude.* and the ai.agent key is removed.
+
+### Features
+
+* rename gh-ai to gh-claude ([93487e8](https://github.com/gh-extensions/gh-claude/commit/93487e892a8d1982361d7bf176f6f6618910156e))
+
 ## [0.21.0](https://github.com/gh-extensions/gh-ai/compare/v0.20.0...v0.21.0) (2026-03-18)
 
 
