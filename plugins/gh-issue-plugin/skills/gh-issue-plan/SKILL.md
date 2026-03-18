@@ -1,93 +1,337 @@
 ---
 name: gh:issue:plan
 description: >
-  Drafts an implementation plan for the current GitHub issue and posts it as a
-  comment after user confirmation. Trigger when the user says "plan this issue",
-  "create an implementation plan", "break down this issue into tasks", "draft
-  a plan for #N", or "what steps do I need to implement this?". The plan is
-  for discussion only and never triggers implementation.
-argument-hint: [focus area]
+  Drafts an implementation plan for the current GitHub issue and posts it as a 
+  comment after explicit user confirmation. Use when the user wants a concrete 
+  implementation approach, task breakdown, TODO list, or phased plan. Recognizes 
+  invocations like "plan this issue", "create an implementation plan", "break 
+  down this issue into tasks", "draft a plan for #N", or "what steps do I need?"
+argument-hint: "[focus area or aspect to plan]"
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
 
-Draft an implementation plan for a GitHub issue, then post or update it as a comment after confirmation.
+# Draft and Post GitHub Issue Implementation Plans
 
 ## Mode: PLAN-ONLY
 
-Your job: understand the issue → draft a plan → revise → post. Nothing else.
+Your role: **read the issue → understand the requirements → draft a concrete implementation plan → revise → post the plan as a comment to GitHub.**
 
-**Confirming means: post or update the plan comment. It never means: implement anything.**
+**Posting the plan** means creating or updating a plan comment. It does NOT mean: implementing anything, writing code, running tests, or making changes to the repo.
+
+## Prerequisites
+
+- `gh` CLI installed and authenticated (`gh auth status` to verify)
+- Environment: `$GH_ISSUE_NUMBER` (set or pass explicitly)
+- Directories: `$GH_CLAUDE_SESSION_DIR` must be writable
+- Write permissions on the repository
+- Git repo recommended (for working-tree context, optional)
 
 ## Context
 
+**Current Issue (always fresh):**
+
+```
 !`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+```
 
-## Arguments
+**Session Notes (optional, non-authoritative):**
 
+```
+!`cat "${GH_CLAUDE_SESSION_DIR}/state/session_notes.md" 2>/dev/null || true`
+```
+
+**User Request:**
+
+```
 !`echo "$ARGUMENTS"`
+```
 
-(If empty, plan the full implementation.)
+## Forbidden Actions
+
+**Do NOT:**
+
+- Edit source files or configuration
+- Create branches, commit, push, or open PRs
+- Run build, test, formatter, linter, or package-manager commands
+- Implement any part of the plan
+- Write local files other than `${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
+
+(Creating the `${GH_CLAUDE_SESSION_DIR}/drafts/` directory is allowed.)
 
 ## Workflow
 
-1. Inspect the working tree:
-   - `git status --short`
-   - `git diff --stat HEAD`
-   (If git unavailable, skip to step 3.)
-2. If local changes present, include at the top of the draft:
-   > **Note:** Local changes detected. This plan reflects the issue as described, not the working-tree state.
-3. Draft the plan using the format below.
-4. Show the draft framed with horizontal rules.
-5. Ask: `Post this plan as a comment, or tell me what to change?`
-6. If the user requests changes, revise and return to step 4.
-7. When the user confirms, save the draft:
-   - `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`
-   - Write to `${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
-   - Append marker: `<!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->`
-8. Resolve repo: `REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"`
-9. Find existing plan comment:
-   - `COMMENT_ID="$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty')"`
-10. Post or update:
-    - If `COMMENT_ID` non-empty: `jq -Rs '{body: .}' ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md | gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH --input - --jq .html_url`
-    - Otherwise: `gh issue comment ${GH_ISSUE_NUMBER} --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
-11. Confirm success with URL; say whether created or updated.
+### 1. **Validate & Fetch**
 
-## Rules
+- Verify `$GH_ISSUE_NUMBER` is set; if not, ask the user
+- Fetch issue details (title, body, labels, comments); if fetch fails, stop and show error
+- Check user has write permissions to the repo (auth required)
+- **Optional:** Check working tree status for context:
+  ```bash
+  git status --short
+  git diff --stat HEAD
+  ```
+  (If git is unavailable or not a repo, skip silently and proceed)
 
-- Write as if the implementer has little context. Plain English, concrete tasks.
-- Label tasks sequentially: `T001`, `T002`, `T003`, ...
-- Call out likely affected files, modules, or systems.
-- If the issue is too broad, recommend splitting. Wait for the user to decide.
-- Use Open Questions for anything that needs clarification.
-- Do not: edit source files, create branches, commit, push, run builds/tests, or implement the plan.
-- Only writable file: `${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
-- Always keep the tracking marker at the end of the posted comment.
-- If issue fetch fails, stop and ask the user to verify the number and run `gh auth status`.
-- If comment-list API fails in step 9, stop and show the full error.
-- If posting/updating fails, show the error and suggest `gh auth status`.
+### 2. **Note Local Changes (If Any)**
 
-## Draft format
+- If local changes detected, include at top of draft:
+  ```
+  **Note:** Local changes were detected in your working tree that may
+  relate to this issue. This plan reflects the issue as described —
+  not the current working-tree state.
+  ```
 
+### 3. **Determine Plan Scope**
+
+- **If focus area provided:** Scope plan to that area only
+- **If empty:** Plan full implementation
+- If issue seems too broad or spans independent areas, **ask user** if they want to split it or plan the full scope
+
+### 4. **Draft the Plan**
+
+- Write as if the implementer has minimal context about the issue
+- Use plain English; talk like you're briefing a teammate
+- Break work into **small, sequential, concrete tasks**
+- Label every task with sequential ID: `T001`, `T002`, `T003`, ...
+- Call out likely files, modules, components, or systems that need changes
+- Include Open Questions section for anything that must be clarified before implementation
+- Keep Likely Affected Areas section relevant to the issue context
+- Format per specification below
+
+### 5. **Present for Review**
+
+```
 ---
-
 **Draft implementation plan for issue #N:**
 
 ## Summary
-{1-2 sentence approach}
+{1-2 sentence description of the proposed approach}
 
 ## Likely Affected Areas
-- `{path or subsystem}` — {why}
+- `{path, module, component, or subsystem}` — {why it likely matters}
 
 ## Tasks
-- T001 — {task}
-- T002 — {task}
+- T001 — {small, concrete task}
+- T002 — {small, concrete task}
 
 ## Open Questions
 - {question}
 
 _Post this plan as a comment, or tell me what to change?_
+---
+```
+
+### 6. **Handle User Feedback**
+
+- **If user confirms** (`"post"`, `"yes"`, `"👍"`): Proceed to step 7
+- **If user requests changes**: Revise and return to step 5
+- **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't post
+- **If scope changes**: Restart from step 3 or re-draft from step 4
+- **If no response after 2 clarifications**: Ask "Should I post this plan or discard it?"
+
+### 7. **Save Draft**
+
+```bash
+mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
+cat > ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md << 'EOF'
+{plan body}
+<!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->
+EOF
+```
+
+### 8. **Post or Update Comment**
+
+- Fetch repo name:
+  ```bash
+  REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
+  ```
+- Find existing plan comment (using tracking marker):
+  ```bash
+  COMMENT_ID="$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty')"
+  ```
+- If existing comment found, **update** it:
+  ```bash
+  jq -Rs '{body: .}' ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md | gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH --input - --jq .html_url
+  ```
+- Otherwise, **create** new comment:
+  ```bash
+  gh issue comment ${GH_ISSUE_NUMBER} --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md
+  ```
+
+### 9. **Confirm Success**
+
+- On success: Show the posted/updated comment URL and confirm whether it was created or updated
+- On failure: Display the full error and suggest `gh auth status`
 
 ---
 
-_Omit Open Questions if none. Omit Likely Affected Areas if insufficient context._
+## Rules & Guidelines
+
+### Planning Style
+
+- **Audience:** Write as if the implementer has minimal context
+- **Tone:** Plain English, like briefing a teammate; avoid jargon where possible
+- **Task granularity:** Small, concrete, sequential tasks; avoid vague descriptions
+- **Naming:** Every task gets `T001`, `T002`, `T003`, ... labels
+- **Components:** Name likely affected files, modules, components, or systems
+- **Honesty:** If you don't have enough info, say so and ask in Open Questions
+- **Scope awareness:** If issue spans multiple independent areas, recommend splitting
+
+### Content & Structure
+
+- **Summary:** 1–2 sentences describing the proposed approach
+- **Likely Affected Areas:** Only include if issue context provides useful clues; otherwise omit
+- **Tasks:** Sequential, small, concrete, with clear IDs and descriptions
+- **Open Questions:** List anything requiring clarification before implementation starts; omit section if none
+- **Tracking marker:** Always append at the end of the draft
+
+### Safety & Scope Boundaries
+
+- **No implementation:** Never write code, edit files, or run commands (except git/gh queries)
+- **No branches/commits:** Never create branches, commit, push, or open PRs
+- **No build/test:** Never run build, test, formatter, linter, or package-manager commands
+- **No side effects:** Only safe to write `${GH_CLAUDE_SESSION_DIR}/drafts/` and create that directory
+- **Focus matters:** If focus area provided, respect it; don't plan the full issue if user asks for one aspect
+
+### Context Awareness
+
+- **Working tree:** If local changes detected, note at top of plan that it reflects the issue, not the working tree
+- **Labels & urgency:** Consider labels (bug, feature, urgent) when prioritizing tasks
+- **Existing discussions:** Reference prior comments if they inform the plan
+- **Scope splits:** If issue is too broad, explicitly recommend splitting before proceeding
+
+### Error Handling
+
+- If issue fetch fails, **stop immediately** and ask user to:
+  - Verify the issue number
+  - Run `gh auth status` to check authentication
+  - Confirm repo accessibility
+- If git unavailable, **skip working-tree check** and proceed without that context
+- If comment API fails, **stop and show error** before continuing
+- If posting/updating fails, show error and suggest `gh auth status`
+
+### Edge Cases
+
+- **Very broad issues:** Recommend splitting; ask user how to proceed
+- **Too little context:** Use Open Questions section; don't invent details
+- **Existing plan comment:** Find and update it (don't create duplicate)
+- **Multiple focus areas:** Ask if user wants all or a specific area
+- **Ambiguous requirements:** Flag in Open Questions; don't guess
+- **No clear tasks:** If issue is too vague, ask for clarification before drafting
+
+---
+
+## Error Messages & Recovery
+
+| Scenario                  | Action                                                              |
+| ------------------------- | ------------------------------------------------------------------- |
+| `GH_ISSUE_NUMBER` not set | Ask user: "Which issue? (use `#123` or set `$GH_ISSUE_NUMBER`)"     |
+| `gh issue view` fails     | Show error, suggest `gh auth status`                                |
+| Git unavailable           | Skip working-tree check, proceed without that context               |
+| Issue context unclear     | Use Open Questions section; ask user to clarify before implementing |
+| User wants to split scope | Ask which part to plan; restart from step 3                         |
+| Comment API call fails    | Show full error, ask user to retry or cancel                        |
+| Posting/updating fails    | Show error, suggest `gh auth status`                                |
+| Plan too vague            | Ask for clarification on specific requirements                      |
+| Existing plan found       | Update it instead of creating duplicate                             |
+
+---
+
+## Example Interactions
+
+**Simple feature plan:**
+
+```
+User: "Plan issue #42 to add dark mode support"
+→ AI fetches issue, drafts plan with affected areas (CSS, config, storage)
+→ Shows 5 sequential tasks, 2 open questions about design tokens
+User: "Looks good, post it"
+→ Posts plan comment successfully
+```
+
+**Scoped plan (focus area):**
+
+```
+User: "Plan the backend part of issue #88"
+→ AI fetches issue (which mentions frontend AND backend)
+→ Drafts plan scoped to backend only
+User: "Add a note about database migrations"
+→ AI revises and re-shows
+User: "Post it"
+→ Posts plan comment
+```
+
+**Broad issue needing split:**
+
+```
+User: "Plan issue #100"
+→ AI fetches issue; sees it covers 3 independent features
+→ Asks: "This issue spans 3 areas. Should I plan all three, or focus on one?"
+User: "Plan all three"
+→ AI drafts comprehensive plan with tasks grouped by area
+User: "Perfect, post it"
+→ Posts plan successfully
+```
+
+**Updating existing plan:**
+
+```
+User: "Plan issue #15 to add a deployment section"
+→ AI finds existing plan comment (with tracking marker)
+→ Revises it to add deployment tasks
+User: "Good, post it"
+→ Updates the existing comment instead of creating duplicate
+```
+
+---
+
+## Dependencies & Assumptions
+
+- **External tools:** `gh` CLI (v2.0+), `jq` (for comment lookup)
+- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq` (must exist)
+- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
+- **Repo state:** User is in a git repo with a remote, or `GH_ISSUE_NUMBER` is explicitly set
+- **Git (optional):** Available for working-tree context; not required
+- **Tracking marker:** Used to detect and update existing plan comments (prevents duplicates)
+
+---
+
+## Implementation Notes
+
+### Tracking Marker Format
+
+```markdown
+<!-- gh-claude:issue-plan issue=<GH_ISSUE_NUMBER> -->
+```
+
+- Always append to plan draft (end of comment body)
+- Used to detect existing plan comments (for updates)
+- Inert for GitHub display (HTML comment)
+
+### Task ID Naming
+
+- Format: `T001`, `T002`, `T003`, ... (zero-padded, 3 digits)
+- Sequential within the plan
+- Helps implementer reference tasks when discussing
+
+### Working-Tree Note
+
+- Show if `git status` or `git diff` detects changes
+- Clarifies that plan is based on issue context, not current state
+- Helps prevent confusion if implementer has uncommitted work
+
+---
+
+## Future Enhancements
+
+- [ ] Effort estimation (add "effort: small|medium|large" to each task)
+- [ ] Dependency graph (detect task dependencies, show ordering constraints)
+- [ ] Risk assessment (flag risky tasks early)
+- [ ] Rollback capability (revert plan to prior version)
+- [ ] Template mode (standard plan structures for common issue types)
+- [ ] Team context (gather input from multiple team members before posting)
+- [ ] Success criteria (add definition of done for each task)
+- [ ] File impact preview (show which files likely affected)
+- [ ] Test strategy (suggest testing approach for each task)
+- [ ] Review cycle (post draft for review before final posting)
