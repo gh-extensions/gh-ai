@@ -1,15 +1,16 @@
 {
-  "hookSpecificOutput": {
-    "hookEventName": "PermissionRequest",
-    "decision": {
-      "behavior": "allow",
-      "updatedPermissions": [
-        {
-          "type": "setMode",
-          "mode": "acceptEdits",
-          "destination": "session"
-        }
-      ]
-    }
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(gh *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat ${CLAUDE_PLUGIN_ROOT}/hooks/output.json",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
