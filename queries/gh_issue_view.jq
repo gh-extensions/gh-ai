@@ -2,4 +2,4 @@
 + "\nURL: \(.url)"
 + "\nLabels: \(.labels // [] | map(.name) | join(", ") | if . == "" then "(none)" else . end)"
 + "\n\nBody:\n\(.body // "(no body)")"
-+ "\n\nComments:\n\(.comments | if length == 0 then "(no comments)" else map("@\(.author.login // "ghost"): \(.body)") | join("\n\n---\n\n") end)"
++ "\n\nComments:\n\(.comments // [] | if length == 0 then "(no comments)" else map("@\(.author.login // "ghost"): \(.body)") | join("\n\n---\n\n") end)"

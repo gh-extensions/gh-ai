@@ -15,7 +15,7 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 
 ## Issue context
 
-!`gh issue view $ARGUMENTS[0] --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f templates/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view $ARGUMENTS[0] --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 
 ## Additional context
 

@@ -183,6 +183,40 @@ the `gh` CLI command once the user confirms.
 > These are Claude Code skill equivalents to `gh ai issue comment`,
 > `gh ai issue edit`, and `gh ai issue plan`.
 
+Slash command equivalents for pull request workflows:
+
+```
+/gh:pr:comment <pr-number> [what to say]
+/gh:pr:edit    <pr-number> [what to change]
+/gh:pr:review  <pr-number> [approve|request-changes|comment] [focus area]
+```
+
+**Post a comment on a pull request:**
+
+```
+/gh:pr:comment 67 ask about the failing CI check
+/gh:pr:comment 67 summarize the changes in this PR
+```
+
+**Edit a pull request title and body:**
+
+```
+/gh:pr:edit 67 add a testing section
+/gh:pr:edit 67 rewrite the description to include risk level
+```
+
+**Review a pull request:**
+
+```
+/gh:pr:review 67
+/gh:pr:review 67 approve
+/gh:pr:review 67 request-changes focus on error handling
+/gh:pr:review 67 comment check the auth module
+```
+
+> These are Claude Code skill equivalents to `gh ai pr comment`,
+> `gh ai pr edit`, and `gh ai pr review`.
+
 ### Run
 
 Analyzes a GitHub Actions workflow run and explains what happened.
