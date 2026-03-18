@@ -25,6 +25,10 @@ is determined during the review and confirmed before submission.
 
 !`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/$GH_AI_PR_NUMBER/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
 
+## Current head commit
+
+!`gh pr view $GH_AI_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
+
 ## Additional context
 
 !`cat "$GH_AI_SESSION_DIR/state/pr_context.md" 2>/dev/null || true`
@@ -43,6 +47,13 @@ is determined during the review and confirmed before submission.
 
 ## Workflow
 
+0. Check the review history above for any entry whose body contains
+   `<!-- gh-ai:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->` (using the
+   actual PR number and current head commit from the sections above).
+   If a match is found, tell the user:
+   > "An AI-generated review already exists on this PR for the current commit
+   > (`<HEAD_SHA>`). Submit a new review anyway, or cancel?"
+   Wait for their response. If they cancel, stop here.
 1. Fetch the PR diff and save it locally for analysis:
    `gh pr diff $GH_AI_PR_NUMBER --patch > $GH_AI_SESSION_DIR/pr_diff.patch 2>/dev/null`
    Then generate a diffstat:
@@ -58,7 +69,9 @@ is determined during the review and confirmed before submission.
 5. Ask the user: "Submit this review, or tell me what to change?"
 6. If the user requests changes to the draft, revise and repeat from step 4.
 7. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, write the review body to
-   `$GH_AI_SESSION_DIR/drafts/pr_review_draft.md` and run the
+   `$GH_AI_SESSION_DIR/drafts/pr_review_draft.md`, appending
+   `<!-- gh-ai:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->` (with the actual
+   PR number and head commit SHA) as the last line. Then run the
    matching command:
    - Approve: `gh pr review $GH_AI_PR_NUMBER --approve --body-file $GH_AI_SESSION_DIR/drafts/pr_review_draft.md`
    - Request changes: `gh pr review $GH_AI_PR_NUMBER --request-changes --body-file $GH_AI_SESSION_DIR/drafts/pr_review_draft.md`
