@@ -21,13 +21,17 @@ is determined during the review and confirmed before submission.
 
 !`gh pr view $GH_AI_PR_NUMBER --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 
+## Review history
+
+!`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/$GH_AI_PR_NUMBER/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
+
 ## Additional context
 
 !`cat "$GH_AI_SESSION_DIR/state/pr_context.md" 2>/dev/null || true`
 
 ## Review type
 
-!`echo "$ARGUMENTS" | awk '{print $1}' | grep -xE 'approve|request-changes|comment' || true`
+!`echo "$ARGUMENTS" | tr ' ' '\n' | head -1 | grep -xE 'approve|request-changes|comment' || true`
 
 (If empty, determine the appropriate outcome based on the review findings.)
 
@@ -70,6 +74,7 @@ is determined during the review and confirmed before submission.
 - If the diff is too large to analyze fully, focus on the most critical files and state which files were skipped.
 - If the `gh pr review` command fails (e.g. reviewing your own PR), show the error and suggest posting as a comment instead.
 - GitHub has no "reject" action — map user requests to "reject" to request-changes.
+- Findings are reported in the top-level review body only. Inline diff comments are not supported — `Location: file:line` references are informational pointers, not attached annotations.
 
 ## Draft format
 
