@@ -2,48 +2,40 @@
 name: gh:pr:review
 description: >
   Drafts a GitHub pull request review with structured code feedback and submits
-  it after user confirmation. Supports approving, requesting changes, or leaving
-  a comment-only review. Use when the user wants to review a PR, give feedback
-  on code changes, approve or reject a pull request, or request changes —
-  "review PR #N", "approve PR #42", "request changes on this PR",
-  "give feedback on PR #N", "do a code review of #N",
-  "LGTM on PR #42", or "review this pull request focusing on security".
+  it after user confirmation. Supports approve, request-changes, or comment.
+  Trigger when the user says "review PR #N", "approve PR #42", "request changes
+  on this PR", "give feedback on PR #N", "do a code review of #N", "LGTM on
+  PR #42", or "review this pull request focusing on security".
 argument-hint: "[approve|request-changes|comment] [focus area]"
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
 
-Draft a GitHub pull request review with structured code feedback, then submit it
-after the user confirms. The review outcome (approve, request-changes, or comment)
-is determined during the review and confirmed before submission.
+Draft a GitHub pull request review with structured code feedback, then submit it after confirmation.
 
-## PR context
+## Mode: REVIEW-ONLY
+
+Your job: read the diff → analyze for issues → draft a review → revise → submit. Nothing else.
+
+**Confirming means: submit the review to GitHub. It never means: merge, edit, or comment separately.**
+
+## Context
 
 !`gh pr view ${GH_PR_NUMBER} --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 
-## Review history
-
 !`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/${GH_PR_NUMBER}/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
-
-## Current head commit
 
 !`gh pr view ${GH_PR_NUMBER} --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
 
-## Prior AI review for current commit
-
 !`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view ${GH_PR_NUMBER} --json headRefOid --jq .headRefOid 2>/dev/null) && [ -n "$REPO" ] && [ -n "$HEAD" ] && MARKER="<!-- gh-claude:pr-review pr=${GH_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -rs '.[].[] | .body' | grep -qF "$MARKER" && echo "exists" || true`
-
-## Additional context
 
 !`cat "${GH_CLAUDE_SESSION_DIR}/state/pr_context.md" 2>/dev/null || true`
 
-## Review type
+## Arguments
 
 !`echo "$ARGUMENTS" | tr ' ' '\n' | head -1 | grep -xE 'approve|request-changes|comment' || true`
 
-(If empty, determine the appropriate outcome based on the review findings.)
-
-## Focus area
+(If empty, determine the outcome based on review findings.)
 
 !`echo "$ARGUMENTS" | tr ' ' '\n' | grep -vxE 'approve|request-changes|comment' | tr '\n' ' ' | xargs || true`
 
@@ -51,28 +43,24 @@ is determined during the review and confirmed before submission.
 
 ## Workflow
 
-0. If "Prior AI review for current commit" above shows "exists", tell the user:
-   > "An AI-generated review already exists on this PR for the current commit. Submit a new review anyway, or cancel?"
-   Wait for their response. If they cancel, stop here.
-1. Fetch the PR diff and save it locally for analysis:
-   `gh pr diff ${GH_PR_NUMBER} --patch > ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null`
-   Then generate a diffstat:
-   `git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
-2. Read the full diff and analyze the relevant changed files for bugs, security
-   issues, logic errors, missing error handling, and performance concerns.
-3. Write the review draft with a recommended outcome. If a review type was
-   specified above, use that outcome. Otherwise, choose based on findings:
-   - approve — no blocking issues found
+0. If a prior AI review exists for the current commit, ask:
+   > "An AI-generated review already exists for this commit. Submit a new one anyway, or cancel?"
+   If they cancel, stop.
+1. Fetch the diff:
+   - `gh pr diff ${GH_PR_NUMBER} --patch > ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null`
+   - `git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
+2. Analyze the diff for bugs, security issues, logic errors, missing error handling, and performance concerns.
+3. Draft the review with a recommended outcome:
+   - approve — no blocking issues
    - request-changes — high-severity issues that must be fixed
    - comment — observations worth noting but not blocking
-4. Show the draft to the user clearly marked as a draft.
-5. Ask the user: "Submit this review, or tell me what to change?"
-6. If the user requests changes to the draft, revise and repeat from step 4.
-7. When the user confirms, run `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`, write the review body to
-   `${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`, appending
-   `<!-- gh-claude:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->` (with the actual
-   PR number and head commit SHA) as the last line. Then run the
-   matching command:
+4. Show the draft framed with horizontal rules.
+5. Ask: `Submit this review, or tell me what to change?`
+6. If the user requests changes, revise and return to step 4.
+7. When the user confirms, save and submit:
+   - `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`
+   - Write to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
+   - Append marker: `<!-- gh-claude:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->`
    - Approve: `gh pr review ${GH_PR_NUMBER} --approve --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
    - Request changes: `gh pr review ${GH_PR_NUMBER} --request-changes --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
    - Comment: `gh pr review ${GH_PR_NUMBER} --comment --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
@@ -81,19 +69,19 @@ is determined during the review and confirmed before submission.
 ## Rules
 
 - Prioritize bugs, security/data-loss issues, logic errors, and missing error handling.
-- Skip purely stylistic comments, issues detectable by linters, and unrelated legacy issues.
-- Use severity levels: High (blocks approval), Medium (logic/edge cases), Low (minor improvements).
-- If the PR is a draft, note that it may not be ready for formal review.
-- If the diff is too large to analyze fully, focus on the most critical files and state which files were skipped.
-- If the `gh pr review` command fails (e.g. reviewing your own PR), show the full error; for own-PR failures suggest posting as a comment instead, for auth/network failures suggest running `gh auth status`.
-- GitHub has no "reject" action — map user requests to "reject" to request-changes.
-- Findings are reported in the top-level review body only. Inline diff comments are not supported — `Location: file:line` references are informational pointers, not attached annotations.
-- If the diff is empty (no changes to review), tell the user and stop — do not generate a review for an empty patch.
-- If the PR context shows "Unable to fetch...", stop and ask the user to verify the PR number and run `gh auth status`.
+- Skip purely stylistic comments, linter-detectable issues, and unrelated legacy issues.
+- Severity levels: High (blocks approval), Medium (logic/edge cases), Low (minor improvements).
+- If the PR is a draft, note it may not be ready for formal review.
+- If the diff is too large, focus on the most critical files and state which were skipped.
+- GitHub has no "reject" — map "reject" requests to request-changes.
+- Findings go in the review body only. `Location: file:line` references are informational, not inline annotations.
+- Always keep the tracking marker at the end of the review body.
+- If the diff is empty, tell the user and stop — do not review an empty patch.
+- If PR fetch fails, stop and ask the user to verify the number and run `gh auth status`.
+- If `gh pr review` fails on own PR, suggest posting as a comment instead.
+- If `gh pr review` fails for auth/network, show the error and suggest `gh auth status`.
 
 ## Draft format
-
-ALWAYS present the draft clearly so the user can read it before confirming:
 
 ---
 
@@ -117,6 +105,6 @@ Required Changes:
 Advisory:
 - {optional improvement}
 
----
+_Submit this review, or tell me what to change?_
 
-_Submit this review, or tell me what to change._
+---
