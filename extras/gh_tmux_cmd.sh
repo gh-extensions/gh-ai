@@ -16,36 +16,40 @@ _has_gum() {
   [[ "$_gum_available" -eq 1 ]]
 }
 
+# Gum wrapper — dispatches to gum when available, falls back to plain
+# stderr output otherwise.
+# Usage: _gum log --level info "message"
+#        _gum spin --title "title" -- cmd [args...]
 _gum() {
-  local subcmd="$1"
-  shift
-  case "$subcmd" in
-  log)
-    if _has_gum; then
-      gum log "$@"
-    else
-      local msg="${*: -1}"
-      printf '%s\n' "$msg" >&2
-    fi
-    ;;
-  spin)
-    if _has_gum; then
-      gum spin "$@"
-    else
-      local title=""
-      while [[ $# -gt 0 && "$1" != "--" ]]; do
-        if [[ "$1" == "--title" ]]; then shift; title="$1"; fi
-        shift
-      done
-      [[ "$1" == "--" ]] && shift
-      [[ -n "$title" ]] && printf '%s\n' "$title" >&2
-      "$@"
-    fi
-    ;;
-  *)
-    return 1
-    ;;
-  esac
+    local subcmd="$1"
+    shift
+    case "$subcmd" in
+    log)
+        if _has_gum; then
+            gum log "$@"
+        else
+            local msg="${*: -1}"
+            printf '%s\n' "$msg" >&2
+        fi
+        ;;
+    spin)
+        if _has_gum; then
+            gum spin "$@"
+        else
+            local title=""
+            while [[ $# -gt 0 && "$1" != "--" ]]; do
+                if [[ "$1" == "--title" ]]; then shift; title="$1"; fi
+                shift
+            done
+            [[ "$1" == "--" ]] && shift
+            [[ -n "$title" ]] && printf '%s\n' "$title" >&2
+            "$@"
+        fi
+        ;;
+    *)
+        return 1
+        ;;
+    esac
 }
 
 # Print usage to stdout
