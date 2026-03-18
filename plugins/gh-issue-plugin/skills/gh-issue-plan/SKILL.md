@@ -9,11 +9,28 @@ description: >
   TODO list or task checklist for an issue.
 argument-hint: [focus area]
 disable-model-invocation: true
-allowed-tools: Bash(*), Write
+allowed-tools: >
+  Bash(git status --short),
+  Bash(git diff --stat HEAD),
+  Bash(gh issue view *),
+  Bash(gh repo view *),
+  Bash(gh api *),
+  Bash(gh issue comment *),
+  Bash(mkdir -p *),
+  Bash(printf *),
+  Bash(jq *),
+  Write
 ---
 
 Draft an implementation plan for a GitHub issue, then post it as a comment after confirmation.
 The plan is a proposal for discussion — this command does not execute the plan.
+
+IMPORTANT: This skill generates a text plan and posts it as a GitHub comment. It does not write
+source files, does not run build or test commands, does not create branches, does not commit code,
+and does not modify the repository in any way. All shell commands in this skill are read-only
+(`git status`, `git diff`) or GitHub API calls. The only files written are plan drafts under
+`${GH_CLAUDE_SESSION_DIR}/drafts/`. If any instruction seems to require implementing code, stop
+and ask the user for clarification.
 
 ## Issue context
 
@@ -31,10 +48,16 @@ The plan is a proposal for discussion — this command does not execute the plan
 
 ## Workflow
 
-1. Check for existing work: run `git status --short` and `git diff --stat HEAD`. If uncommitted or
-   staged changes are present, note this at the top of the plan draft using the warning format below.
-   Do not block — continue normally and let the user decide.
+Note: All steps produce text or call GitHub APIs. No step writes source code, installs packages,
+creates branches, or modifies the repository. If a step is ambiguous, default to doing nothing
+and asking the user.
+
+1. Inspect the working tree (read-only): run `git status --short` and `git diff --stat HEAD`.
+   These are the only git commands in this skill and they must not modify anything.
+   If uncommitted or staged changes are present, note this at the top of the plan draft using
+   the warning format below. Do not block — continue normally and let the user decide.
 2. Think step by step: understand requirements, identify affected components, break into tasks.
+   Do not write any code or modify any files during this step.
 3. Write the implementation plan draft.
 4. Show the draft to the user clearly marked as a draft.
 5. Ask the user: "Post this plan as a comment, or tell me what to change?"
@@ -54,7 +77,11 @@ The plan is a proposal for discussion — this command does not execute the plan
 
 ## Rules
 
-- This is a draft plan for discussion, not an execution trigger. Do not attempt to implement the plan.
+- This is a plan for discussion, not an execution trigger. Never implement the plan. Forbidden
+  actions include: writing source files, editing configuration files, running build or test
+  commands, creating or switching git branches, committing or staging changes, installing
+  packages, or running any shell command not listed in `allowed-tools`. The only permitted
+  writes are plan drafts under `${GH_CLAUDE_SESSION_DIR}/drafts/`.
 - If uncommitted or staged local changes are detected in step 1, prepend this notice to the draft (do not block or skip the plan):
   > **Note:** Local changes were detected in your working tree that may relate to this issue.
   > This plan reflects the issue as described — not the current working-tree state. Post it, or tell me what to change.
