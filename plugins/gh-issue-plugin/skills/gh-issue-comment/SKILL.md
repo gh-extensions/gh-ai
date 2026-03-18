@@ -15,7 +15,7 @@ Draft a GitHub issue comment, then post it after the user confirms.
 
 ## Issue context
 
-!`gh issue view $GH_CLAUDE_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view $GH_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 
 ## Additional context
 
@@ -36,7 +36,7 @@ Draft a GitHub issue comment, then post it after the user confirms.
 5. When the user confirms:
    - Ensure the drafts directory exists: `mkdir -p $GH_CLAUDE_SESSION_DIR/drafts`
    - Write the final comment to `$GH_CLAUDE_SESSION_DIR/drafts/issue_comment_draft.md`
-   - Run: `gh issue comment $GH_CLAUDE_ISSUE_NUMBER --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_comment_draft.md`
+   - Run: `gh issue comment $GH_ISSUE_NUMBER --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_comment_draft.md`
 6. Confirm the action was successful with the URL of the posted comment.
 
 ## Rules

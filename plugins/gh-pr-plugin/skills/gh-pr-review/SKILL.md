@@ -19,19 +19,19 @@ is determined during the review and confirmed before submission.
 
 ## PR context
 
-!`gh pr view $GH_CLAUDE_PR_NUMBER --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
+!`gh pr view $GH_PR_NUMBER --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 
 ## Review history
 
-!`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/$GH_CLAUDE_PR_NUMBER/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
+!`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/$GH_PR_NUMBER/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
 
 ## Current head commit
 
-!`gh pr view $GH_CLAUDE_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
+!`gh pr view $GH_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
 
 ## Prior AI review for current commit
 
-!`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view $GH_CLAUDE_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null) && [ -n "$REPO" ] && [ -n "$HEAD" ] && MARKER="<!-- gh-claude:pr-review pr=${GH_CLAUDE_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_CLAUDE_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -rs '.[].[] | .body' | grep -qF "$MARKER" && echo "exists" || true`
+!`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view $GH_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null) && [ -n "$REPO" ] && [ -n "$HEAD" ] && MARKER="<!-- gh-claude:pr-review pr=${GH_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -rs '.[].[] | .body' | grep -qF "$MARKER" && echo "exists" || true`
 
 ## Additional context
 
@@ -55,7 +55,7 @@ is determined during the review and confirmed before submission.
    > "An AI-generated review already exists on this PR for the current commit. Submit a new review anyway, or cancel?"
    Wait for their response. If they cancel, stop here.
 1. Fetch the PR diff and save it locally for analysis:
-   `gh pr diff $GH_CLAUDE_PR_NUMBER --patch > $GH_CLAUDE_SESSION_DIR/state/pr_diff.patch 2>/dev/null`
+   `gh pr diff $GH_PR_NUMBER --patch > $GH_CLAUDE_SESSION_DIR/state/pr_diff.patch 2>/dev/null`
    Then generate a diffstat:
    `git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < $GH_CLAUDE_SESSION_DIR/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
 2. Read the full diff and analyze the relevant changed files for bugs, security
@@ -73,9 +73,9 @@ is determined during the review and confirmed before submission.
    `<!-- gh-claude:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->` (with the actual
    PR number and head commit SHA) as the last line. Then run the
    matching command:
-   - Approve: `gh pr review $GH_CLAUDE_PR_NUMBER --approve --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
-   - Request changes: `gh pr review $GH_CLAUDE_PR_NUMBER --request-changes --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
-   - Comment: `gh pr review $GH_CLAUDE_PR_NUMBER --comment --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
+   - Approve: `gh pr review $GH_PR_NUMBER --approve --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
+   - Request changes: `gh pr review $GH_PR_NUMBER --request-changes --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
+   - Comment: `gh pr review $GH_PR_NUMBER --comment --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_review_draft.md`
 8. Confirm success with the PR URL.
 
 ## Rules

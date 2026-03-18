@@ -445,7 +445,7 @@ _gh_pr_edit() {
 	gh_pr_content=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_CLAUDE_PR_NUMBER="$gh_pr_number" \
+				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
 					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
@@ -562,7 +562,7 @@ _gh_pr_review() {
 	gh_pr_review=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_CLAUDE_PR_NUMBER="$gh_pr_number" \
+				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
@@ -698,7 +698,7 @@ _gh_pr_explain() {
 	gh_pr_explain=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_CLAUDE_PR_NUMBER="$gh_pr_number" \
+				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
@@ -846,7 +846,7 @@ _gh_pr_chat() {
 	if [[ -n "$gh_pr_is_new_chat" ]]; then
 		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 		gh_pr_prompt=$(
-			GH_CLAUDE_PR_NUMBER="$gh_pr_number" \
+			GH_PR_NUMBER="$gh_pr_number" \
 				GH_PR_TITLE="$gh_pr_title" \
 				GH_PR_URL="$gh_pr_url" \
 				GH_PR_FOCUS="$gh_pr_focus" \
@@ -856,7 +856,7 @@ _gh_pr_chat() {
 		)
 	fi
 
-	export GH_CLAUDE_PR_NUMBER="$gh_pr_number"
+	export GH_PR_NUMBER="$gh_pr_number"
 	export GH_CLAUDE_SESSION_DIR="$gh_pr_dir"
 	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
@@ -982,7 +982,7 @@ _gh_pr_comment() {
 	gh_pr_comment=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_CLAUDE_PR_NUMBER="$gh_pr_number" \
+				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
 					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \

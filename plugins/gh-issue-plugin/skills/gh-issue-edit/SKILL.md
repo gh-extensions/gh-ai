@@ -15,7 +15,7 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 
 ## Issue context
 
-!`gh issue view $GH_CLAUDE_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view $GH_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 
 ## Additional context
 
@@ -38,7 +38,7 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
    - Write the extracted title (without the `# ` prefix) to `$GH_CLAUDE_SESSION_DIR/drafts/issue_title_draft.txt`
    - Write ONLY the body (everything after the title line) to `$GH_CLAUDE_SESSION_DIR/drafts/issue_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh issue edit $GH_CLAUDE_ISSUE_NUMBER --title "$(cat $GH_CLAUDE_SESSION_DIR/drafts/issue_title_draft.txt | tr -d '\n')" --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_body_draft.md`
+   - Run: `gh issue edit $GH_ISSUE_NUMBER --title "$(cat $GH_CLAUDE_SESSION_DIR/drafts/issue_title_draft.txt | tr -d '\n')" --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_body_draft.md`
 6. Confirm success with the issue URL.
 
 ## Rules

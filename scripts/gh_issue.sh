@@ -404,7 +404,7 @@ _gh_issue_edit() {
 	gh_issue_content=$(
 		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
+				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -530,7 +530,7 @@ _gh_issue_comment() {
 	gh_issue_comment=$(
 		gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
+				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -639,7 +639,7 @@ _gh_issue_plan() {
 	gh_issue_plan=$(
 		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
+				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
 					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
@@ -776,7 +776,7 @@ _gh_issue_chat() {
 	local gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
 		gh_issue_prompt=$(
-			GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number" \
+			GH_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
 				GH_ISSUE_URL="$gh_issue_url" \
 				GH_ISSUE_LABELS="$gh_issue_labels" \
@@ -786,7 +786,7 @@ _gh_issue_chat() {
 		)
 	fi
 
-	export GH_CLAUDE_ISSUE_NUMBER="$gh_issue_number"
+	export GH_ISSUE_NUMBER="$gh_issue_number"
 	export GH_CLAUDE_SESSION_DIR="$gh_issue_dir"
 	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
