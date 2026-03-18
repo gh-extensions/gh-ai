@@ -33,14 +33,24 @@ if [[ -n "${TMUX:-}" ]]; then
 	_gh_fzf_tmux_use=1
 fi
 
+# Resolve display commands at source time — gum used when available,
+# plain fallbacks otherwise.
+if command -v gum &>/dev/null; then
+  _gh_fzf_fmt="gum format"
+  _gh_fzf_pgr="gum pager"
+else
+  _gh_fzf_fmt="cat"
+  _gh_fzf_pgr="${PAGER:-less}"
+fi
+
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_issue_opts=(
-		"--bind=alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
+		"--bind=alt-P:execute(gh ai issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
 		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})+abort"
 	)
 else
 	_gh_fzf_issue_opts=(
-		"--bind=alt-P:execute(gh ai issue plan {1} | gum format | gum pager)"
+		"--bind=alt-P:execute(gh ai issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
 		"--bind=alt-C:execute(gh ai issue chat {1})+abort"
 	)
 fi
@@ -51,13 +61,13 @@ unset _gh_fzf_issue_opts
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_pr_opts=(
-		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
+		"--bind=alt-E:execute(gh ai pr explain {1} | ${_gh_fzf_pgr})"
 		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
 		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})+abort"
 	)
 else
 	_gh_fzf_pr_opts=(
-		"--bind=alt-E:execute(gh ai pr explain {1} | gum pager)"
+		"--bind=alt-E:execute(gh ai pr explain {1} | ${_gh_fzf_pgr})"
 		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
 		"--bind=alt-C:execute(gh ai pr chat {1})+abort"
 	)
@@ -69,16 +79,16 @@ unset _gh_fzf_pr_opts
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_run_opts=(
-		"--bind=alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
+		"--bind=alt-E:execute(gh ai run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
 		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})+abort"
 	)
 else
 	_gh_fzf_run_opts=(
-		"--bind=alt-E:execute(gh ai run explain {-1} | gum format | gum pager)"
+		"--bind=alt-E:execute(gh ai run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
 		"--bind=alt-C:execute(gh ai run chat {-1})+abort"
 	)
 fi
 GH_FZF_RUN_OPTS+="${GH_FZF_RUN_OPTS:+ }$(printf '%q ' "${_gh_fzf_run_opts[@]}")"
 GH_FZF_RUN_OPTS="${GH_FZF_RUN_OPTS% }"
 export GH_FZF_RUN_OPTS
-unset _gh_fzf_run_opts _gh_fzf_tmux_use _gh_fzf_tmux_cmd _gh_fzf_dir _gh_fzf_agent
+unset _gh_fzf_run_opts _gh_fzf_tmux_use _gh_fzf_tmux_cmd _gh_fzf_dir _gh_fzf_agent _gh_fzf_fmt _gh_fzf_pgr

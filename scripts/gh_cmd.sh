@@ -8,6 +8,55 @@ _gh_cmd_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Core utility functions for gh-ai
 
+# Check if gum is available (memoized).
+_has_gum() {
+  if [[ -z "${_gum_available+x}" ]]; then
+    if command -v gum &>/dev/null; then
+      _gum_available=1
+    else
+      _gum_available=0
+    fi
+  fi
+  [[ "$_gum_available" -eq 1 ]]
+}
+
+# Gum wrapper — dispatches to gum when available, falls back to plain
+# stderr output otherwise.
+# Usage: _gum log --level info "message"
+#        _gum spin "title" cmd [args...]
+_gum() {
+  local subcmd="$1"
+  shift
+  case "$subcmd" in
+  log)
+    if _has_gum; then
+      gum log "$@"
+    else
+      local msg="${*: -1}"
+      printf '%s\n' "$msg" >&2
+    fi
+    ;;
+  spin)
+    if _has_gum; then
+      gum spin "$@"
+    else
+      # Extract title from --title flag; run command after --
+      local title=""
+      while [[ $# -gt 0 && "$1" != "--" ]]; do
+        if [[ "$1" == "--title" ]]; then shift; title="$1"; fi
+        shift
+      done
+      [[ "$1" == "--" ]] && shift
+      [[ -n "$title" ]] && printf '%s\n' "$title" >&2
+      "$@"
+    fi
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
 # Render a template file by substituting ${VAR} placeholders with env var values
 #
 # Reads the given template file and uses awk to replace ${VAR} tokens with the
@@ -27,7 +76,7 @@ _cmd_render() {
 	local template_file="$1"
 
 	if [[ ! -f "$template_file" ]]; then
-		gum log --level error "Template not found: $template_file"
+		_gum log --level error "Template not found: $template_file"
 		return 1
 	fi
 
@@ -86,7 +135,7 @@ _cmd_ask() {
 			- || true
 		;;
 	*)
-		gum log --level error "Unsupported agent '$agent' for ask (supported: claude)"
+		_gum log --level error "Unsupported agent '$agent' for ask (supported: claude)"
 		return 1
 		;;
 	esac
@@ -131,8 +180,8 @@ _cmd_chat() {
 	local agent
 	agent=$(_gh_config_ai_agent)
 	if ! command -v "$agent" &>/dev/null; then
-		gum log --level error "Agent '$agent' not found"
-		gum log --level info "Install it or set: gh config set ai.agent <binary>"
+		_gum log --level error "Agent '$agent' not found"
+		_gum log --level info "Install it or set: gh config set ai.agent <binary>"
 		return 1
 	fi
 
@@ -223,7 +272,7 @@ _gh_repo_name() {
 	local -n _gh_repo_ref="$1"
 	_gh_repo_ref=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || true)
 	if [[ -z "$_gh_repo_ref" ]]; then
-		gum log --level error "Not inside a GitHub repository (gh repo view failed)"
+		_gum log --level error "Not inside a GitHub repository (gh repo view failed)"
 		return 1
 	fi
 }
@@ -250,7 +299,7 @@ _git_repo_path() {
 	local -n _git_dir_ref="$1"
 	_git_dir_ref=$(git rev-parse --show-toplevel 2>/dev/null || true)
 	if [[ -z "$_git_dir_ref" ]]; then
-		gum log --level error "Not inside a git repository"
+		_gum log --level error "Not inside a git repository"
 		return 1
 	fi
 }
@@ -269,7 +318,7 @@ _git_main_worktree_path() {
 	local _gmwp_common_dir
 	_gmwp_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
 	if [[ -z "$_gmwp_common_dir" ]]; then
-		gum log --level error "Not inside a git repository"
+		_gum log --level error "Not inside a git repository"
 		return 1
 	fi
 	_gmwp_ref=$(cd "$_gmwp_common_dir/.." && pwd -P)
@@ -293,7 +342,7 @@ _git_branch_diff() {
 
 	_diff_ref=$(git diff "$effective_base"..."$head" 2>/dev/null || true)
 	if [[ -z "$_diff_ref" ]]; then
-		gum log --level error "Failed to get diff between $base and $head"
+		_gum log --level error "Failed to get diff between $base and $head"
 		return 1
 	fi
 
@@ -383,7 +432,7 @@ _parse_chat_args() {
 		case "${_pca_raw[$_pca_i]}" in
 		--description | -d)
 			if ((_pca_i + 1 >= ${#_pca_raw[@]})); then
-				gum log --level error -- "${_pca_raw[$_pca_i]} requires a value"
+				_gum log --level error -- "${_pca_raw[$_pca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -399,7 +448,7 @@ _parse_chat_args() {
 			_pca_new_session=1
 			;;
 		-*)
-			gum log --level error "unknown flag '${_pca_raw[$_pca_i]}'"
+			_gum log --level error "unknown flag '${_pca_raw[$_pca_i]}'"
 			return 1
 			;;
 		*)
@@ -407,7 +456,7 @@ _parse_chat_args() {
 			if [[ -z "$_pca_id" && "$_pca_arg" =~ ^[0-9]+$ ]]; then
 				_pca_id="$_pca_arg"
 			else
-				gum log --level error "unexpected argument '${_pca_raw[$_pca_i]}'"
+				_gum log --level error "unexpected argument '${_pca_raw[$_pca_i]}'"
 				return 1
 			fi
 			;;
@@ -427,7 +476,7 @@ _validate_chat_passthrough() {
 	for _vcp_flag in "${_vcp_args[@]}"; do
 		case "$_vcp_flag" in
 		--session-id | --resume)
-			gum log --level error -- "$_vcp_flag is managed by gh-ai and cannot be passed through"
+			_gum log --level error -- "$_vcp_flag is managed by gh-ai and cannot be passed through"
 			return 1
 			;;
 		esac
@@ -466,7 +515,7 @@ _resolve_chat_session() {
 	else
 		_rcs_uuid=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
 		if [[ -z "$_rcs_uuid" ]]; then
-			gum log --level error "Failed to generate session UUID"
+			_gum log --level error "Failed to generate session UUID"
 			return 1
 		fi
 		printf '%s' "$_rcs_uuid" >"$_rcs_session_file"
@@ -493,7 +542,7 @@ main() {
 		_cmd_chat "$@"
 		;;
 	*)
-		gum log --level error "Usage: gh_cmd.sh <render|ask|chat> [args]"
+		_gum log --level error "Usage: gh_cmd.sh <render|ask|chat> [args]"
 		exit 1
 		;;
 	esac

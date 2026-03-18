@@ -31,10 +31,10 @@ _prepare_run_context() {
 	local -n _ctx_head_sha="$9"
 
 	local _ctx_meta
-	_ctx_meta=$(gum spin --title "Fetching GitHub workflow run #$_ctx_id metadata..." -- \
+	_ctx_meta=$(_gum spin --title "Fetching GitHub workflow run #$_ctx_id metadata..." -- \
 		gh run view "$_ctx_id" --json displayTitle,conclusion,url,event,headBranch,headSha,jobs || true)
 	if [[ -z "$_ctx_meta" ]]; then
-		gum log --level error "Failed to fetch run #$_ctx_id"
+		_gum log --level error "Failed to fetch run #$_ctx_id"
 		return 1
 	fi
 
@@ -45,16 +45,16 @@ _prepare_run_context() {
 
 	local _ctx_log
 	if [[ "$_ctx_conclusion" == "failure" ]]; then
-		_ctx_log=$(gum spin --title "Fetching GitHub workflow run #$_ctx_id failed logs..." -- \
+		_ctx_log=$(_gum spin --title "Fetching GitHub workflow run #$_ctx_id failed logs..." -- \
 			gh run view "$_ctx_id" --log-failed || true)
 	else
-		_ctx_log=$(gum spin --title "Fetching GitHub workflow run #$_ctx_id logs..." -- \
+		_ctx_log=$(_gum spin --title "Fetching GitHub workflow run #$_ctx_id logs..." -- \
 			gh run view "$_ctx_id" --log || true)
 	fi
 
 	if [[ -z "$_ctx_log" ]]; then
-		gum log --level error "No logs available for run #$_ctx_id"
-		gum log --level info "Logs may still be streaming, have expired, or the run may not have started yet"
+		_gum log --level error "No logs available for run #$_ctx_id"
+		_gum log --level info "Logs may still be streaming, have expired, or the run may not have started yet"
 		return 1
 	fi
 
@@ -80,7 +80,7 @@ _parse_run_args() {
 	while [[ $_pra_i -lt ${#_pra_raw[@]} ]]; do
 		case "${_pra_raw[$_pra_i]}" in
 		-*)
-			gum log --level error "unknown flag '${_pra_raw[$_pra_i]}'"
+			_gum log --level error "unknown flag '${_pra_raw[$_pra_i]}'"
 			return 1
 			;;
 		*)
@@ -88,7 +88,7 @@ _parse_run_args() {
 			if [[ -z "$_pra_id" && "$_pra_arg" =~ ^[0-9]+$ ]]; then
 				_pra_id="$_pra_arg"
 			else
-				gum log --level error "unexpected argument '${_pra_raw[$_pra_i]}'"
+				_gum log --level error "unexpected argument '${_pra_raw[$_pra_i]}'"
 				return 1
 			fi
 			;;
@@ -147,8 +147,8 @@ _gh_run_explain() {
 	_parse_run_explain_args gh_run_id "$@"
 
 	if [[ -z "$gh_run_id" ]]; then
-		gum log --level error "No run ID provided"
-		gum log --level info "Usage: gh ai run explain <RUN_ID>"
+		_gum log --level error "No run ID provided"
+		_gum log --level info "Usage: gh ai run explain <RUN_ID>"
 		return 1
 	fi
 
@@ -162,7 +162,7 @@ _gh_run_explain() {
 	# Generate explanation using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_run_explain=$(
-		gum spin --title "Analyzing GitHub workflow run #$gh_run_id..." -- \
+		_gum spin --title "Analyzing GitHub workflow run #$gh_run_id..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_run_agent_model" < <(
 				GH_RUN_TITLE="$gh_run_title" \
 					GH_RUN_CONCLUSION="$gh_run_conclusion" \
@@ -181,8 +181,8 @@ _gh_run_explain() {
 
 	# Validate we got explanation content
 	if [[ -z "$gh_run_explain" ]]; then
-		gum log --level error "Failed to generate run explanation"
-		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		_gum log --level error "Failed to generate run explanation"
+		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -260,8 +260,8 @@ _gh_run_chat() {
 	_parse_run_chat_args gh_run_id gh_run_description gh_run_new_session "${args[@]}"
 
 	if [[ -z "$gh_run_id" ]]; then
-		gum log --level error "No run ID provided"
-		gum log --level info "Usage: gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n]"
+		_gum log --level error "No run ID provided"
+		_gum log --level info "Usage: gh ai run chat <RUN_ID> [-d <DESCRIPTION>] [-n]"
 		return 1
 	fi
 
@@ -343,9 +343,9 @@ _gh_run() {
 		_show_run_help
 		;;
 	*)
-		gum log --level error "unknown run command '$subcommand'"
-		gum log --level info "Available commands: explain, chat"
-		gum log --level info "Run 'gh ai run --help' for usage information"
+		_gum log --level error "unknown run command '$subcommand'"
+		_gum log --level info "Available commands: explain, chat"
+		_gum log --level info "Run 'gh ai run --help' for usage information"
 		return 1
 		;;
 	esac

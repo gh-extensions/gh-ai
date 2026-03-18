@@ -4,6 +4,50 @@
 
 set -euo pipefail
 
+# Duplicated from scripts/gh_cmd.sh — keep in sync.
+_has_gum() {
+  if [[ -z "${_gum_available+x}" ]]; then
+    if command -v gum &>/dev/null; then
+      _gum_available=1
+    else
+      _gum_available=0
+    fi
+  fi
+  [[ "$_gum_available" -eq 1 ]]
+}
+
+_gum() {
+  local subcmd="$1"
+  shift
+  case "$subcmd" in
+  log)
+    if _has_gum; then
+      gum log "$@"
+    else
+      local msg="${*: -1}"
+      printf '%s\n' "$msg" >&2
+    fi
+    ;;
+  spin)
+    if _has_gum; then
+      gum spin "$@"
+    else
+      local title=""
+      while [[ $# -gt 0 && "$1" != "--" ]]; do
+        if [[ "$1" == "--title" ]]; then shift; title="$1"; fi
+        shift
+      done
+      [[ "$1" == "--" ]] && shift
+      [[ -n "$title" ]] && printf '%s\n' "$title" >&2
+      "$@"
+    fi
+    ;;
+  *)
+    return 1
+    ;;
+  esac
+}
+
 # Print usage to stdout
 _show_help() {
 	cat <<'EOF'
@@ -88,7 +132,7 @@ main() {
 	new-session)
 		shift
 		[[ $# -ge 1 ]] || {
-			gum log --level error 'new-session: name required'
+			_gum log --level error 'new-session: name required'
 			exit 1
 		}
 		_tmux_new_session "$@"
@@ -96,14 +140,14 @@ main() {
 	new-window)
 		shift
 		[[ $# -ge 1 ]] || {
-			gum log --level error 'new-window: name required'
+			_gum log --level error 'new-window: name required'
 			exit 1
 		}
 		_tmux_new_window "$@"
 		;;
 	*)
-		gum log --level error "unknown subcommand: ${1:-(none)}"
-		gum log --level warn 'Run gh_tmux_cmd.sh --help for usage.'
+		_gum log --level error "unknown subcommand: ${1:-(none)}"
+		_gum log --level warn 'Run gh_tmux_cmd.sh --help for usage.'
 		exit 1
 		;;
 	esac

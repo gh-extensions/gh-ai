@@ -12,7 +12,7 @@ focus on shipping.
 
 - [GitHub CLI](https://cli.github.com/) (`gh`) — macOS: `brew install gh`
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`) — macOS: `brew install bash`
-- [Gum](https://github.com/charmbracelet/gum) (`gum`) — macOS: `brew install gum`
+- [Gum](https://github.com/charmbracelet/gum) (`gum`) — macOS: `brew install gum` _(optional — provides enhanced UI; falls back to plain output when absent)_
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
 
 ## Installation
