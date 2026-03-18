@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.1](https://github.com/gh-extensions/gh-ai/compare/v0.19.0...v0.19.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* **tests:** export _gum and _has_gum in BATS setup functions ([61abf03](https://github.com/gh-extensions/gh-ai/commit/61abf03d132c4400858dcf6cbf52e8fb457619c1))
+
 ## [0.19.0](https://github.com/gh-extensions/gh-ai/compare/v0.18.1...v0.19.0) (2026-03-18)
 
 
