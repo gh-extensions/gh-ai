@@ -41,7 +41,7 @@ The plan is a proposal for discussion — this command does not execute the plan
 7. Resolve the repository name: `gh repo view --json nameWithOwner --jq .nameWithOwner`
 8. Check if a plan comment already exists on the issue (use `--paginate` to search all comments).
    The marker to search for is `<!-- gh-ai:issue-plan issue=N -->` with the actual issue number.
-   `gh api repos/{owner}/{repo}/issues/{N}/comments --paginate | jq -s --arg n "$GH_AI_ISSUE_NUMBER" '[.[][] | select(.body | contains("<!-- gh-ai:issue-plan issue=\($n) -->"))] | last | .id // empty'`
+   `gh api repos/{owner}/{repo}/issues/$GH_AI_ISSUE_NUMBER/comments --paginate | jq -s --arg n "$GH_AI_ISSUE_NUMBER" '[.[][] | select(.body | contains("<!-- gh-ai:issue-plan issue=\($n) -->"))] | last | .id // empty'`
    - If a comment ID is returned: update it and confirm success with the returned URL:
      `jq -Rs '{body: .}' $GH_AI_SESSION_DIR/drafts/issue_plan_draft.md | gh api repos/{owner}/{repo}/issues/comments/{ID} -X PATCH --input - --jq .html_url`
    - If no comment is found: create a new one:
