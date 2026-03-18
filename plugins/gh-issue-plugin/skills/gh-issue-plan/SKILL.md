@@ -36,8 +36,9 @@ The plan is a proposal for discussion — this command does not execute the plan
 3. Show the draft to the user clearly marked as a draft.
 4. Ask the user: "Post this plan as a comment, or tell me what to change?"
 5. If the user requests changes, revise and repeat from step 3.
-6. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, append `<!-- gh-ai:issue-plan issue=$GH_AI_ISSUE_NUMBER -->`
-   as the last line of the plan body and write it to `$GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`.
+6. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, write the plan body to
+   `$GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`, then append the tracking marker with the actual issue number:
+   `printf '\n<!-- gh-ai:issue-plan issue=%s -->' "$GH_AI_ISSUE_NUMBER" >> $GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`
 7. Resolve the repository name: `gh repo view --json nameWithOwner --jq .nameWithOwner`
 8. Check if a plan comment already exists on the issue (use `--paginate` to search all comments).
    The marker to search for is `<!-- gh-ai:issue-plan issue=N -->` with the actual issue number.
