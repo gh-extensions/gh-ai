@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.1](https://github.com/gh-extensions/gh-ai/compare/v0.18.0...v0.18.1) (2026-03-18)
+
+
+### Bug Fixes
+
+* add -- sentinel to gum log error calls in arg parsers ([c9b043f](https://github.com/gh-extensions/gh-ai/commit/c9b043fdb912d00b0d55b9a56ed5a2c6d6e5593a))
+
 ## [0.18.0](https://github.com/gh-extensions/gh-ai/compare/v0.17.0...v0.18.0) (2026-03-17)
 
 
