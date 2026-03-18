@@ -31,7 +31,7 @@ is determined during the review and confirmed before submission.
 
 ## Prior AI review for current commit
 
-!`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view $GH_AI_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null) && MARKER="<!-- gh-ai:pr-review pr=${GH_AI_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_AI_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -r '.[].body' | grep -qF "$MARKER" && echo "exists" || true`
+!`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view $GH_AI_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null) && MARKER="<!-- gh-ai:pr-review pr=${GH_AI_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_AI_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -rs '.[].[] | .body' | grep -qF "$MARKER" && echo "exists" || true`
 
 ## Additional context
 
