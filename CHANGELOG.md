@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.21.0](https://github.com/gh-extensions/gh-ai/compare/v0.20.0...v0.21.0) (2026-03-18)
+
+
+### Features
+
+* **gh-pr-review:** warn on duplicate review for same commit ([72e4e5c](https://github.com/gh-extensions/gh-ai/commit/72e4e5ca19a39aafa7f0dc1293ff25edacf67149))
+
+
+### Bug Fixes
+
+* **gh-issue-plan:** fix marker lookup and PATCH body encoding ([3d3b83e](https://github.com/gh-extensions/gh-ai/commit/3d3b83e739e3b45c39d29922d04f116b6adfa57a))
+* **gh-issue-plan:** use $GH_AI_ISSUE_NUMBER in API URL path ([7204873](https://github.com/gh-extensions/gh-ai/commit/72048739f90f5843e5e33ae3cda2b19d216b7455))
+* **gh-pr-review:** fix awk parsing, add paginated review history, clarify inline comments ([5404905](https://github.com/gh-extensions/gh-ai/commit/5404905aedab192e41b3dcd996333272bb0d8b76))
+* **gh-pr-review:** save pr_diff.patch to state/ dir ([ef7eede](https://github.com/gh-extensions/gh-ai/commit/ef7eede5de3c6eadb5d8ae8c28e865885d09bcff))
+* **skills:** address all skill reviewer findings ([0e8ca5b](https://github.com/gh-extensions/gh-ai/commit/0e8ca5ba53c064651fb309e4a963eb85731e30f5))
+* **skills:** fix marker placeholder and paginated review parsing ([c22d7e2](https://github.com/gh-extensions/gh-ai/commit/c22d7e245caac46c8b2fa4bfa4d998bcbd35622d))
+* **skills:** guarantee marker expansion and guard against empty env vars ([a4df4cb](https://github.com/gh-extensions/gh-ai/commit/a4df4cb7f5f2ebdc199e6eb359e1c0d312d77a75))
+* **skills:** strip trailing newline from title draft files ([8002f3d](https://github.com/gh-extensions/gh-ai/commit/8002f3d1c1783cb152338c4f62788d1b7a778b53))
+
 ## [0.20.0](https://github.com/gh-extensions/gh-ai/compare/v0.19.1...v0.20.0) (2026-03-18)
 
 
