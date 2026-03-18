@@ -16,11 +16,11 @@ Draft a GitHub pull request comment, then post it after the user confirms.
 
 ## PR context
 
-!`gh pr view $GH_PR_NUMBER --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
+!`gh pr view ${GH_PR_NUMBER} --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 
 ## Additional context
 
-!`cat "$GH_CLAUDE_SESSION_DIR/state/pr_context.md" 2>/dev/null || true`
+!`cat "${GH_CLAUDE_SESSION_DIR}/state/pr_context.md" 2>/dev/null || true`
 
 ## Request
 
@@ -34,9 +34,9 @@ Draft a GitHub pull request comment, then post it after the user confirms.
 2. Show the draft to the user clearly marked as a draft.
 3. Ask the user: "Post this comment, or tell me what to change?"
 4. If the user requests changes, revise and repeat from step 2.
-5. When the user confirms, ensure the drafts directory exists (`mkdir -p $GH_CLAUDE_SESSION_DIR/drafts`),
-   write the final comment to `$GH_CLAUDE_SESSION_DIR/drafts/pr_comment_draft.md`, and run:
-   `gh pr comment $GH_PR_NUMBER --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_comment_draft.md`
+5. When the user confirms, ensure the drafts directory exists (`mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`),
+   write the final comment to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md`, and run:
+   `gh pr comment ${GH_PR_NUMBER} --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md`
 6. Confirm the action was successful with the URL of the posted comment.
 
 ## Rules

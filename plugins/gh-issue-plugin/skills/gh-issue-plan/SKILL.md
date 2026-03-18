@@ -17,11 +17,11 @@ The plan is a proposal for discussion — this command does not execute the plan
 
 ## Issue context
 
-!`gh issue view $GH_ISSUE_NUMBER --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 
 ## Additional context
 
-!`cat "$GH_CLAUDE_SESSION_DIR/state/issue_context.md" 2>/dev/null || true`
+!`cat "${GH_CLAUDE_SESSION_DIR}/state/issue_context.md" 2>/dev/null || true`
 
 ## Focus
 
@@ -36,17 +36,17 @@ The plan is a proposal for discussion — this command does not execute the plan
 3. Show the draft to the user clearly marked as a draft.
 4. Ask the user: "Post this plan as a comment, or tell me what to change?"
 5. If the user requests changes, revise and repeat from step 3.
-6. When the user confirms, run `mkdir -p $GH_CLAUDE_SESSION_DIR/drafts`, write the plan body to
-   `$GH_CLAUDE_SESSION_DIR/drafts/issue_plan_draft.md`, then append the tracking marker with the actual issue number:
-   `printf '\n<!-- gh-claude:issue-plan issue=%s -->' "$GH_ISSUE_NUMBER" >> $GH_CLAUDE_SESSION_DIR/drafts/issue_plan_draft.md`
+6. When the user confirms, run `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`, write the plan body to
+   `${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`, then append the tracking marker with the actual issue number:
+   `printf '\n<!-- gh-claude:issue-plan issue=%s -->' "${GH_ISSUE_NUMBER}" >> ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
 7. Resolve the repository name: `gh repo view --json nameWithOwner --jq .nameWithOwner`
 8. Check if a plan comment already exists on the issue (use `--paginate` to search all comments).
    The marker to search for is `<!-- gh-claude:issue-plan issue=N -->` with the actual issue number.
-   `gh api repos/{owner}/{repo}/issues/$GH_ISSUE_NUMBER/comments --paginate | jq -s --arg n "$GH_ISSUE_NUMBER" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty'`
+   `gh api repos/{owner}/{repo}/issues/${GH_ISSUE_NUMBER}/comments --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty'`
    - If a comment ID is returned: update it and confirm success with the returned URL:
-     `jq -Rs '{body: .}' $GH_CLAUDE_SESSION_DIR/drafts/issue_plan_draft.md | gh api repos/{owner}/{repo}/issues/comments/{ID} -X PATCH --input - --jq .html_url`
+     `jq -Rs '{body: .}' ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md | gh api repos/{owner}/{repo}/issues/comments/{ID} -X PATCH --input - --jq .html_url`
    - If no comment is found: create a new one:
-     `gh issue comment $GH_ISSUE_NUMBER --body-file $GH_CLAUDE_SESSION_DIR/drafts/issue_plan_draft.md`
+     `gh issue comment ${GH_ISSUE_NUMBER} --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md`
 9. Confirm success with the URL of the posted or updated comment.
 
 ## Rules

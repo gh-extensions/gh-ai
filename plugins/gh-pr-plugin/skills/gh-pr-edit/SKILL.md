@@ -16,11 +16,11 @@ Edit a GitHub pull request according to the requested changes, then apply it aft
 
 ## PR context
 
-!`gh pr view $GH_PR_NUMBER --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f $CLAUDE_PLUGIN_ROOT/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
+!`gh pr view ${GH_PR_NUMBER} --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 
 ## Additional context
 
-!`cat "$GH_CLAUDE_SESSION_DIR/state/pr_context.md" 2>/dev/null || true`
+!`cat "${GH_CLAUDE_SESSION_DIR}/state/pr_context.md" 2>/dev/null || true`
 
 ## Requested changes
 
@@ -35,11 +35,11 @@ Edit a GitHub pull request according to the requested changes, then apply it aft
 3. Ask the user: "Apply this edit, or tell me what to change?"
 4. If the user requests changes, revise and repeat from step 2.
 5. When the user confirms:
-   - Ensure the drafts directory exists: `mkdir -p $GH_CLAUDE_SESSION_DIR/drafts`
+   - Ensure the drafts directory exists: `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
-   - Write the extracted title (without the `# ` prefix) to `$GH_CLAUDE_SESSION_DIR/drafts/pr_title_draft.txt`
-   - Write ONLY the body (everything after the title line) to `$GH_CLAUDE_SESSION_DIR/drafts/pr_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh pr edit $GH_PR_NUMBER --title "$(cat $GH_CLAUDE_SESSION_DIR/drafts/pr_title_draft.txt | tr -d '\n')" --body-file $GH_CLAUDE_SESSION_DIR/drafts/pr_body_draft.md`
+   - Write the extracted title (without the `# ` prefix) to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt`
+   - Write ONLY the body (everything after the title line) to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md` — do NOT include the `# Title` line in the file
+   - Run: `gh pr edit ${GH_PR_NUMBER} --title "$(cat ${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt | tr -d '\n')" --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md`
 6. Confirm success with the PR URL.
 
 ## Rules
