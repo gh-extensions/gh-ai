@@ -17,6 +17,7 @@ allowed-tools: >
   Bash(gh api *),
   Bash(printf *),
   Bash(mkdir *),
+  Bash(cat *),
   Bash(jq *),
   Write
 ---
