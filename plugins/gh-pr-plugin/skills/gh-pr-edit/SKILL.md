@@ -37,8 +37,9 @@ Edit a GitHub pull request according to the requested changes, then apply it aft
 5. When the user confirms:
    - Ensure the drafts directory exists: `mkdir -p $GH_AI_SESSION_DIR/drafts`
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
+   - Write the extracted title (without the `# ` prefix) to `$GH_AI_SESSION_DIR/drafts/pr_title_draft.txt`
    - Write ONLY the body (everything after the title line) to `$GH_AI_SESSION_DIR/drafts/pr_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh pr edit $GH_AI_PR_NUMBER --title "<extracted title>" --body-file $GH_AI_SESSION_DIR/drafts/pr_body_draft.md`
+   - Run: `gh pr edit $GH_AI_PR_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/pr_title_draft.txt)" --body-file $GH_AI_SESSION_DIR/drafts/pr_body_draft.md`
 6. Confirm success with the PR URL.
 
 ## Rules
@@ -46,6 +47,9 @@ Edit a GitHub pull request according to the requested changes, then apply it aft
 - Apply only the requested changes.
 - Preserve existing wording and structure unless the request explicitly requires modification.
 - If the requested change is ambiguous, identify what clarification is needed.
+- Keep the title under 72 characters.
+- If the PR context shows "Unable to fetch...", stop and ask the user to verify the PR number and run `gh auth status`.
+- If the `gh pr edit` command fails, show the full error and suggest running `gh auth status`.
 
 ## Draft format
 

@@ -6,7 +6,7 @@ description: >
   a comment-only review. Use when the user wants to review a PR, give feedback
   on code changes, approve or reject a pull request, or request changes —
   "review PR #N", "approve PR #42", "request changes on this PR",
-  "give feedback on PR #N", "reject this PR", "do a code review of #N",
+  "give feedback on PR #N", "do a code review of #N",
   "LGTM on PR #42", or "review this pull request focusing on security".
 argument-hint: "[approve|request-changes|comment] [focus area]"
 disable-model-invocation: true
@@ -29,6 +29,10 @@ is determined during the review and confirmed before submission.
 
 !`gh pr view $GH_AI_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
 
+## Prior AI review for current commit
+
+!`REPO=$(gh repo view --json nameWithOwner --jq .nameWithOwner 2>/dev/null) && HEAD=$(gh pr view $GH_AI_PR_NUMBER --json headRefOid --jq .headRefOid 2>/dev/null) && MARKER="<!-- gh-ai:pr-review pr=${GH_AI_PR_NUMBER} commit=${HEAD} -->" && gh api "repos/${REPO}/pulls/${GH_AI_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -r '.[].body' | grep -qF "$MARKER" && echo "exists" || true`
+
 ## Additional context
 
 !`cat "$GH_AI_SESSION_DIR/state/pr_context.md" 2>/dev/null || true`
@@ -41,23 +45,19 @@ is determined during the review and confirmed before submission.
 
 ## Focus area
 
-!`echo "$ARGUMENTS" | tr ' ' '\n' | grep -vxE 'approve|request-changes|comment' | tr '\n' ' '`
+!`echo "$ARGUMENTS" | tr ' ' '\n' | grep -vxE 'approve|request-changes|comment' | tr '\n' ' ' | xargs || true`
 
 (If empty, review all changes comprehensively.)
 
 ## Workflow
 
-0. Check the review history above for any entry whose body contains
-   `<!-- gh-ai:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->` (using the
-   actual PR number and current head commit from the sections above).
-   If a match is found, tell the user:
-   > "An AI-generated review already exists on this PR for the current commit
-   > (`<HEAD_SHA>`). Submit a new review anyway, or cancel?"
+0. If "Prior AI review for current commit" above shows "exists", tell the user:
+   > "An AI-generated review already exists on this PR for the current commit. Submit a new review anyway, or cancel?"
    Wait for their response. If they cancel, stop here.
 1. Fetch the PR diff and save it locally for analysis:
    `gh pr diff $GH_AI_PR_NUMBER --patch > $GH_AI_SESSION_DIR/state/pr_diff.patch 2>/dev/null`
    Then generate a diffstat:
-   `git apply --stat < $GH_AI_SESSION_DIR/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
+   `git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < $GH_AI_SESSION_DIR/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"`
 2. Read the full diff and analyze the relevant changed files for bugs, security
    issues, logic errors, missing error handling, and performance concerns.
 3. Write the review draft with a recommended outcome. If a review type was
@@ -85,9 +85,11 @@ is determined during the review and confirmed before submission.
 - Use severity levels: High (blocks approval), Medium (logic/edge cases), Low (minor improvements).
 - If the PR is a draft, note that it may not be ready for formal review.
 - If the diff is too large to analyze fully, focus on the most critical files and state which files were skipped.
-- If the `gh pr review` command fails (e.g. reviewing your own PR), show the error and suggest posting as a comment instead.
+- If the `gh pr review` command fails (e.g. reviewing your own PR), show the full error; for own-PR failures suggest posting as a comment instead, for auth/network failures suggest running `gh auth status`.
 - GitHub has no "reject" action — map user requests to "reject" to request-changes.
 - Findings are reported in the top-level review body only. Inline diff comments are not supported — `Location: file:line` references are informational pointers, not attached annotations.
+- If the diff is empty (no changes to review), tell the user and stop — do not generate a review for an empty patch.
+- If the PR context shows "Unable to fetch...", stop and ask the user to verify the PR number and run `gh auth status`.
 
 ## Draft format
 
@@ -117,4 +119,4 @@ Advisory:
 
 ---
 
-_Submit this review, or tell me what to change?_
+_Submit this review, or tell me what to change._

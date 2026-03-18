@@ -33,8 +33,10 @@ Draft a GitHub issue comment, then post it after the user confirms.
 2. Show the draft to the user clearly marked as a draft.
 3. Ask the user: "Post this comment, or tell me what to change?"
 4. If the user requests changes, revise and repeat from step 2.
-5. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, write the final comment to `$GH_AI_SESSION_DIR/drafts/issue_comment_draft.md` and run:
-   `gh issue comment $GH_AI_ISSUE_NUMBER --body-file $GH_AI_SESSION_DIR/drafts/issue_comment_draft.md`
+5. When the user confirms:
+   - Ensure the drafts directory exists: `mkdir -p $GH_AI_SESSION_DIR/drafts`
+   - Write the final comment to `$GH_AI_SESSION_DIR/drafts/issue_comment_draft.md`
+   - Run: `gh issue comment $GH_AI_ISSUE_NUMBER --body-file $GH_AI_SESSION_DIR/drafts/issue_comment_draft.md`
 6. Confirm the action was successful with the URL of the posted comment.
 
 ## Rules
@@ -42,6 +44,8 @@ Draft a GitHub issue comment, then post it after the user confirms.
 - Keep the tone concise, natural, and appropriate for a GitHub discussion.
 - Prefer concrete references to issue details when possible.
 - If information required to fulfill the request is missing, say so rather than guessing.
+- If the issue context shows "Unable to fetch...", stop and ask the user to verify the issue number and run `gh auth status`.
+- If the `gh issue comment` command fails, show the full error and suggest running `gh auth status`.
 
 ## Draft format
 

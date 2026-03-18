@@ -36,14 +36,14 @@ The plan is a proposal for discussion — this command does not execute the plan
 3. Show the draft to the user clearly marked as a draft.
 4. Ask the user: "Post this plan as a comment, or tell me what to change?"
 5. If the user requests changes, revise and repeat from step 3.
-6. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, append `<!-- gh-ai:issue-plan issue=N -->` (with the actual issue number)
+6. When the user confirms, run `mkdir -p $GH_AI_SESSION_DIR/drafts`, append `<!-- gh-ai:issue-plan issue={N} -->` (with the actual issue number)
    as the last line of the plan body and write it to `$GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`.
 7. Resolve the repository name: `gh repo view --json nameWithOwner --jq .nameWithOwner`
 8. Check if a plan comment already exists on the issue (use `--paginate` to search all comments).
    The marker to search for is `<!-- gh-ai:issue-plan issue=N -->` with the actual issue number.
-   `gh api repos/<owner>/<repo>/issues/<N>/comments --paginate | jq -s '[.[][] | select(.body | contains("<!-- gh-ai:issue-plan issue=<N> -->"))] | last | .id'`
-   - If a comment ID is returned: update it:
-     `gh api repos/<owner>/<repo>/issues/comments/<ID> -X PATCH -F body=@$GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`
+   `gh api repos/{owner}/{repo}/issues/{N}/comments --paginate | jq -s '[.[][] | select(.body | contains("<!-- gh-ai:issue-plan issue={N} -->"))] | last | .id // empty'`
+   - If a comment ID is returned: update it and confirm success with the returned URL:
+     `gh api repos/{owner}/{repo}/issues/comments/{ID} -X PATCH -F body=@$GH_AI_SESSION_DIR/drafts/issue_plan_draft.md --jq .html_url`
    - If no comment is found: create a new one:
      `gh issue comment $GH_AI_ISSUE_NUMBER --body-file $GH_AI_SESSION_DIR/drafts/issue_plan_draft.md`
 9. Confirm success with the URL of the posted or updated comment.
@@ -55,6 +55,8 @@ The plan is a proposal for discussion — this command does not execute the plan
 - Use sequential step IDs (T001, T002...) for implementation steps.
 - If the issue lacks sufficient detail, highlight the missing information.
 - If a focus area is provided, scope the plan to that area only.
+- If the issue context shows "Unable to fetch...", stop and ask the user to verify the issue number and run `gh auth status`.
+- If the final `gh` command fails, show the full error and suggest running `gh auth status`.
 
 ## Draft format
 
@@ -73,8 +75,6 @@ ALWAYS present the draft clearly so the user can read it before confirming:
 
 ## Open Questions
 - {anything that needs clarification before implementation; omit this section if there are none}
-
-<!-- gh-ai:issue-plan issue={N} -->
 
 ---
 

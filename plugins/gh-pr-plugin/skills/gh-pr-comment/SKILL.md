@@ -44,6 +44,8 @@ Draft a GitHub pull request comment, then post it after the user confirms.
 - Keep the tone concise, natural, and appropriate for a GitHub discussion.
 - Prefer concrete references to PR details when possible.
 - If information required to fulfill the request is missing, say so rather than guessing.
+- If the PR context shows "Unable to fetch...", stop and ask the user to verify the PR number and run `gh auth status`.
+- If the `gh pr comment` command fails, show the full error and suggest running `gh auth status`.
 
 ## Draft format
 

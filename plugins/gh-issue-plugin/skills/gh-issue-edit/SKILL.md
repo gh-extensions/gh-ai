@@ -34,10 +34,11 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 3. Ask the user: "Apply this edit, or tell me what to change?"
 4. If the user requests changes, revise and repeat from step 2.
 5. When the user confirms:
-   - Run `mkdir -p $GH_AI_SESSION_DIR/drafts`
+   - Ensure the drafts directory exists: `mkdir -p $GH_AI_SESSION_DIR/drafts`
    - Extract the title from the draft (the first `# ...` line, without the `# ` prefix)
+   - Write the extracted title (without the `# ` prefix) to `$GH_AI_SESSION_DIR/drafts/issue_title_draft.txt`
    - Write ONLY the body (everything after the title line) to `$GH_AI_SESSION_DIR/drafts/issue_body_draft.md` — do NOT include the `# Title` line in the file
-   - Run: `gh issue edit $GH_AI_ISSUE_NUMBER --title "<extracted title>" --body-file $GH_AI_SESSION_DIR/drafts/issue_body_draft.md`
+   - Run: `gh issue edit $GH_AI_ISSUE_NUMBER --title "$(cat $GH_AI_SESSION_DIR/drafts/issue_title_draft.txt)" --body-file $GH_AI_SESSION_DIR/drafts/issue_body_draft.md`
 6. Confirm success with the issue URL.
 
 ## Rules
@@ -45,6 +46,9 @@ Edit a GitHub issue according to the requested changes, then apply it after conf
 - Apply only the requested changes.
 - Preserve existing wording and structure unless the request explicitly requires modification.
 - If the requested change is ambiguous, identify what clarification is needed.
+- Keep the title under 72 characters.
+- If the issue context shows "Unable to fetch...", stop and ask the user to verify the issue number and run `gh auth status`.
+- If the `gh issue edit` command fails, show the full error and suggest running `gh auth status`.
 
 ## Draft format
 
