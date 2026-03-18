@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/gh-extensions/gh-ai/compare/v0.18.1...v0.19.0) (2026-03-18)
+
+
+### Features
+
+* make gum an optional dependency ([a82111d](https://github.com/gh-extensions/gh-ai/commit/a82111d573fb9cc231a7e159d917d767422f43fa))
+
 ## [0.18.1](https://github.com/gh-extensions/gh-ai/compare/v0.18.0...v0.18.1) (2026-03-18)
 
 
