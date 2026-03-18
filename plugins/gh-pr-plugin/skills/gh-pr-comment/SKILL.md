@@ -1,11 +1,11 @@
 ---
 name: gh:pr:comment
 description: >
-  Drafts a GitHub pull request comment intelligently based on PR context, then 
-  posts it after user confirmation. Recognizes natural invocations like 
-  "write a comment on PR #123", "reply to this", "add a comment saying...", 
-  or direct command use while working on a PR.
+  Drafts a GitHub pull request comment based on PR context, then posts it after
+  user confirmation. Provide optional argument text describing the comment
+  intent, e.g., "respond to the review feedback" or "post a status update."
 argument-hint: "[comment intent or text]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -73,21 +73,21 @@ _Post this comment, or tell me what to change?_
 
 ### 4. **Handle User Feedback**
 
-- **If user confirms** (`"post"`, `"yes"`, `"👍"`): Proceed to step 5
+- **If user confirms** (`"post"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 5
 - **If user requests changes**: Revise and return to step 3
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't post
-- **If no response after 2 clarifications**: Ask "Should I post this or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I post this or discard it?"
 
 ### 5. **Save & Post**
 
 ```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-cat > ${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md << 'EOF'
+mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
+cat > "${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md" << 'EOF'
 {comment body}
 EOF
 
-gh pr comment ${GH_PR_NUMBER} \
-  --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md
+gh pr comment "${GH_PR_NUMBER}" \
+  --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_comment_draft.md"
 ```
 
 ### 6. **Confirm Success**
@@ -108,14 +108,14 @@ gh pr comment ${GH_PR_NUMBER} \
 - **Avoid:**
   - Excessive emoji (one or two if naturally appropriate)
   - Auto-merging or auto-closing PRs without explicit user intent
-  - "LGTM" or "+1" without substantive feedback
+  - Bare "LGTM" or "+1" without substantive feedback (unless the user explicitly requests it)
   - Passive-aggressive tone
 
 ### PR Context Awareness
 
 - **PR state matters:** Handle draft PRs differently (don't rush approval)
 - **Review decision:** Consider existing review state (changes requested vs. approved)
-- **Multiple reviews:** If several reviews pending, clarify scope: "Is this a reply to a specific review or a general comment?"
+- **Multiple reviews:** If the PR has multiple pending reviews and the user's intent is ambiguous, list the reviewers and ask which review to address
 - **Merged/closed PRs:** Still allow comments, but the PR state should inform tone (e.g., "nice work on shipping" vs. "please fix")
 
 ### Safety & Permissions
@@ -134,6 +134,7 @@ gh pr comment ${GH_PR_NUMBER} \
 - **Very long PRs:** Summarize focus area and ask if comment is relevant
 - **Comment would be redundant:** Warn and ask user to confirm or revise
 - **Sensitive topics:** Flag before posting if comment touches security, licensing, or major architecture changes
+- **Review threads:** This skill posts general PR comments only; it cannot reply to specific inline review threads
 
 ---
 
@@ -192,23 +193,3 @@ User: "Yes, note the successful deployment"
 → AI drafts comment appropriate for merged state
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq`
-- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
-- **Repo state:** User is in a git repo with a remote, or `GH_PR_NUMBER` is explicitly set
-- **Review data:** Query includes reviews, comments, and state for context
-
----
-
-## Future Enhancements
-
-- [ ] Inline code suggestions (propose changes within the comment)
-- [ ] Auto-detect if comment is approval vs. request-for-changes vs. comment-only
-- [ ] Lint draft for common anti-patterns (e.g., "looks good" without specifics)
-- [ ] Auto-suggest @mentions based on PR history and reviewers
-- [ ] Template mode for common comment types (approved-with-nits, needs-work, etc.)
-- [ ] Markdown preview with syntax highlighting before posting

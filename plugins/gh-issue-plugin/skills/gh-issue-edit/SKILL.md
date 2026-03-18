@@ -1,11 +1,11 @@
 ---
 name: gh:issue:edit
 description: >
-  Edits a GitHub issue title and/or body according to requested changes, then 
-  applies the edit after user confirmation. Recognizes natural invocations like 
-  "edit issue #123 to add acceptance criteria", "update the issue body", 
-  "rewrite the description", "fix the title", or "improve this issue".
+  Edits a GitHub issue title and/or body according to requested changes, then
+  applies the edit after user confirmation. Provide optional argument text
+  describing what to change, e.g., "add acceptance criteria" or "fix the title."
 argument-hint: "[what to change or edit request]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -24,7 +24,7 @@ allowed-tools: Bash(*), Write
 **Current Issue (always fresh):**
 
 ```
-!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,state,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 ```
 
 **Session Notes (optional, non-authoritative):**
@@ -86,27 +86,21 @@ _Apply this edit, or tell me what to change?_
 - **If user confirms** (`"apply"`, `"yes"`, `"👍"`, `"looks good"`): Proceed to step 6
 - **If user requests changes**: Revise and return to step 4
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't apply
-- **If no response after 2 clarifications**: Ask "Should I apply this edit or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I apply this edit or discard it?"
 
 ### 6. **Extract & Save**
 
-```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-
-# Extract title (first line, without "# " prefix)
-TITLE_LINE=$(echo '{draft}' | head -1 | sed 's/^# //')
-echo "$TITLE_LINE" > ${GH_CLAUDE_SESSION_DIR}/drafts/issue_title_draft.txt
-
-# Extract body (everything after the title line)
-echo '{draft}' | tail -n +2 > ${GH_CLAUDE_SESSION_DIR}/drafts/issue_body_draft.md
-```
+- Create the drafts directory: `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`
+- The draft's **first line** is always the title (starting with `# `). Everything after is the body.
+- Write the title (without `# ` prefix) to `${GH_CLAUDE_SESSION_DIR}/drafts/issue_title_draft.txt`
+- Write the body to `${GH_CLAUDE_SESSION_DIR}/drafts/issue_body_draft.md`
 
 ### 7. **Apply the Edit**
 
 ```bash
-gh issue edit ${GH_ISSUE_NUMBER} \
-  --title "$(cat ${GH_CLAUDE_SESSION_DIR}/drafts/issue_title_draft.txt | tr -d '\n')" \
-  --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_body_draft.md
+gh issue edit "${GH_ISSUE_NUMBER}" \
+  --title "$(tr -d '\n' < "${GH_CLAUDE_SESSION_DIR}/drafts/issue_title_draft.txt")" \
+  --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/issue_body_draft.md"
 ```
 
 ### 8. **Confirm Success**
@@ -143,6 +137,7 @@ gh issue edit ${GH_ISSUE_NUMBER} \
 - **Removing content:** Confirm explicitly ("You requested I remove the 'Acceptance Criteria' section—confirm?")
 - **Markdown corruption:** If body becomes malformed, warn and ask for revision
 - **Multiple edits in one session:** Treat each as a new workflow (fetch fresh each time)
+- **Closed issues:** Note state and confirm before applying edits
 
 ---
 
@@ -198,43 +193,3 @@ User: "Update the title but keep everything else"
 → AI changes ONLY title, preserves entire body exactly as-is
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq`
-- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
-- **Repo state:** User is in a git repo with a remote, or `GH_ISSUE_NUMBER` is explicitly set
-- **Title handling:** Must respect 72-char limit (GitHub convention)
-
----
-
-## Implementation Notes
-
-### Title/Body Split
-
-- Title is extracted from the first `# Heading` line in the draft
-- Body is everything after the title line
-- Ensure no double newlines between title and body in the draft
-
-### Extraction Commands
-
-```bash
-# Title (without "# " prefix)
-sed 's/^# //' | head -1
-
-# Body (everything after first line)
-tail -n +2
-```
-
----
-
-## Future Enhancements
-
-- [ ] Diff preview mode (show side-by-side before/after)
-- [ ] Linting for common issues (check title length before posting)
-- [ ] Template mode (apply standard sections like "Acceptance Criteria", "DoD", etc.)
-- [ ] Batch editing (update multiple issues with similar pattern)
-- [ ] Rollback (keep version history, offer to revert recent edits)
-- [ ] Smart merging (detect if title/body changed on GitHub while editing)

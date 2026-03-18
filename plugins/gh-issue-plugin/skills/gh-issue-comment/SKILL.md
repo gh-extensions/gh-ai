@@ -1,11 +1,11 @@
 ---
 name: gh:issue:comment
 description: >
-  Drafts a GitHub issue comment intelligently based on issue context, then 
-  posts it after user confirmation. Recognizes natural invocations like 
-  "write a comment on issue #123", "draft a response to this", or direct 
-  command use while working on an issue.
+  Drafts a GitHub issue comment based on issue context, then posts it after
+  user confirmation. Provide optional argument text describing the comment
+  intent, e.g., "ask for reproduction steps" or "thank the reporter."
 argument-hint: "[comment intent or text]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -24,7 +24,7 @@ allowed-tools: Bash(*), Write
 **Current Issue (always fresh):**
 
 ```
-!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,state,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 ```
 
 **Session Notes (optional, non-authoritative):**
@@ -71,21 +71,21 @@ _Post this comment, or tell me what to change?_
 
 ### 4. **Handle User Feedback**
 
-- **If user confirms** (`"post"`, `"yes"`, `"👍"`): Proceed to step 5
+- **If user confirms** (`"post"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 5
 - **If user requests changes**: Revise and return to step 3
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't post
-- **If no response after 2 clarifications**: Ask "Should I post this or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I post this or discard it?"
 
 ### 5. **Save & Post**
 
 ```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-cat > ${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md << 'EOF'
+mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
+cat > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md" << 'EOF'
 {comment body}
 EOF
 
-gh issue comment ${GH_ISSUE_NUMBER} \
-  --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md
+gh issue comment "${GH_ISSUE_NUMBER}" \
+  --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/issue_comment_draft.md"
 ```
 
 ### 6. **Confirm Success**
@@ -106,7 +106,7 @@ gh issue comment ${GH_ISSUE_NUMBER} \
   - Excessive emoji (one or two if naturally appropriate)
   - Closing or locking issues without explicit user intent
   - Multiple separate comments (consolidate into one where possible)
-  - Speculation ("I think the bug might be...")—ask for clarification instead
+  - Speculation—do not speculate about causes; ask targeted clarification questions instead
 
 ### Issue Context Awareness
 
@@ -130,7 +130,7 @@ gh issue comment ${GH_ISSUE_NUMBER} \
 - **Duplicate comment detection:** Warn if your comment echoes recent discussion
 - **Very old issues:** Acknowledge age; ask if context still relevant before posting
 - **Sensitive topics:** Flag before posting if comment touches code of conduct, security, or major architecture decisions
-- **First responder:** If you're the first to reply, set helpful tone for the discussion
+- **First responder:** If this is the first reply on the issue, set a helpful tone for the discussion
 
 ---
 
@@ -189,23 +189,3 @@ User: "Yes, for future reference"
 → AI drafts comment appropriate for closed state (acknowledges closure, provides info)
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq`
-- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
-- **Repo state:** User is in a git repo with a remote, or `GH_ISSUE_NUMBER` is explicitly set
-- **Labels:** Query should include labels for context awareness
-
----
-
-## Future Enhancements
-
-- [ ] Label detection (auto-flag security, code-of-conduct labels)
-- [ ] Lint draft for common issues (speculation, vague language, duplicate points)
-- [ ] Auto-suggest @mentions based on issue history and participants
-- [ ] Template mode for common comment types (needs-info, works-for-me, proposed-solution, etc.)
-- [ ] Markdown preview with syntax highlighting before posting
-- [ ] Stale issue detection (warn if issue unchanged for 6+ months)

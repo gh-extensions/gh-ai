@@ -1,12 +1,12 @@
 ---
 name: gh:pr:review
 description: >
-  Drafts a GitHub pull request review with structured code feedback and submits 
-  it after user confirmation. Supports approve, request-changes, or comment. 
-  Recognizes invocations like "review PR #123", "approve PR #42", "request 
-  changes on this PR", "give feedback focusing on security", or "do a code review 
-  of #N".
+  Drafts a GitHub pull request review with structured code feedback and submits
+  it after user confirmation. Supports approve, request-changes, or comment
+  outcomes. Provide optional argument with outcome and/or focus area, e.g.,
+  "approve", "request-changes", or "focus on security."
 argument-hint: "[approve|request-changes|comment] [focus area]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -15,7 +15,7 @@ allowed-tools: Bash(*), Write
 
 ## Mode: REVIEW-ONLY
 
-Your role: **read the diff → analyze for issues → draft a structured review → revise → submit the review to GitHub.**
+Your role: **read the diff → analyze for issues → draft a structured review → present for review → incorporate feedback → submit the review to GitHub.**
 
 **Submitting the review** means posting it to GitHub. It does NOT mean: merging, editing the PR, or creating separate comments.
 
@@ -53,13 +53,15 @@ Your role: **read the diff → analyze for issues → draft a structured review 
 !`cat "${GH_CLAUDE_SESSION_DIR}/state/session_notes.md" 2>/dev/null || true`
 ```
 
-**User Request:**
+**User Request (outcome):**
 
 ```
-!`echo "$ARGUMENTS" | tr ' ' '\n' | head -1 | grep -xE 'approve|request-changes|comment' || true`
+!`echo "$ARGUMENTS" | tr ' ' '\n' | grep -xE 'approve|request-changes|comment' | head -1 || true`
 ```
 
-(If empty, determine outcome based on findings.)
+(If empty, determine outcome based on findings. Outcome keyword must appear as the first word of arguments.)
+
+**User Request (focus area):**
 
 ```
 !`echo "$ARGUMENTS" | tr ' ' '\n' | grep -vxE 'approve|request-changes|comment' | tr '\n' ' ' | xargs || true`
@@ -67,32 +69,45 @@ Your role: **read the diff → analyze for issues → draft a structured review 
 
 (If empty, review all changes comprehensively.)
 
+## Forbidden Actions
+
+**Do NOT:**
+
+- Merge, close, or reopen the PR
+- Edit the PR title or body
+- Create branches, commit, push, or modify source files
+- Run build, test, formatter, linter, or package-manager commands
+- Write local files other than `${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md` and `${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch`
+
+(Creating the `${GH_CLAUDE_SESSION_DIR}/drafts/` and `${GH_CLAUDE_SESSION_DIR}/state/` directories is allowed.)
+
 ## Workflow
 
-### 0. **Check for Prior Reviews**
+### 1. **Check for Prior Reviews**
 
 - Detect if an AI-generated review already exists for this commit (uses tracking marker)
 - If found, ask: **"An AI-generated review already exists for this commit. Submit a new one anyway, or cancel?"**
 - If user cancels, stop. Otherwise, proceed.
 
-### 1. **Validate & Fetch**
+### 2. **Validate & Fetch**
 
 - Verify `$GH_PR_NUMBER` is set; if not, ask the user
 - Fetch PR details, review history, and commit SHA; if any fetch fails, stop and show error
 - Check user has write permissions to the repo (auth required)
 - Note PR state: is it a draft, open, in review, approved, or merged?
 
-### 2. **Fetch & Analyze Diff**
+### 3. **Fetch & Analyze Diff**
 
 ```bash
-gh pr diff ${GH_PR_NUMBER} --patch > ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null
-git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < ${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch 2>/dev/null || echo "(diffstat unavailable)"
+mkdir -p "${GH_CLAUDE_SESSION_DIR}/state"
+gh pr diff "${GH_PR_NUMBER}" --patch > "${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch" 2>/dev/null
+git apply --stat < "${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch" 2>/dev/null || echo "(diffstat unavailable)"
 ```
 
 - If diff is empty, **stop and inform the user** — do not proceed with review
-- If diff is extremely large (1000+ lines), focus on critical files and note which were skipped
+- If diff is extremely large (1000+ lines), focus on critical files (entry points, security-related files, database migrations, API contracts, configuration) and note which were skipped; deprioritize test fixtures, generated files, vendored dependencies, and lock files
 
-### 3. **Determine Review Scope**
+### 4. **Determine Review Scope**
 
 - **If focus area provided:** Review with that lens (e.g., "security", "performance")
 - **If empty:** Review comprehensively (logic, bugs, error handling, architecture)
@@ -101,7 +116,7 @@ git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < $
   - **Medium severity:** Edge cases, optimization opportunities, architectural concerns
   - **Low severity:** Minor improvements, clarity enhancements (non-blocking)
 
-### 4. **Determine Outcome**
+### 5. **Determine Outcome**
 
 - **If outcome specified in arguments:** Use it (approve/request-changes/comment)
 - **If empty:** Determine based on findings:
@@ -110,7 +125,7 @@ git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < $
   - **Comment:** Observations worth noting but not blocking
 - Never auto-approve without thorough review
 
-### 5. **Draft the Review**
+### 6. **Draft the Review**
 
 - Structure review with sections: Summary, Findings (by severity), Action Items
 - Include file and line references for context (`file.ext:line`)
@@ -118,7 +133,7 @@ git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" apply --stat < $
 - Keep tone professional, constructive, and respectful
 - Append tracking marker: `<!-- gh-claude:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->`
 
-### 6. **Present for Review**
+### 7. **Present for Review**
 
 ```
 ---
@@ -146,31 +161,31 @@ _Submit this review, or tell me what to change?_
 ---
 ```
 
-### 7. **Handle User Feedback**
+### 8. **Handle User Feedback**
 
-- **If user confirms** (`"submit"`, `"yes"`, `"👍"`): Proceed to step 8
-- **If user requests changes**: Revise and return to step 6
+- **If user confirms** (`"submit"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 9
+- **If user requests changes**: Revise and return to step 7
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't submit
 - **If outcome changes** (e.g., "change to comment"): Update and re-show
-- **If no response after 2 clarifications**: Ask "Should I submit this review or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I submit this review or discard it?"
 
-### 8. **Save & Submit**
+### 9. **Save & Submit**
 
 ```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-cat > ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md << 'EOF'
+mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
+cat > "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md" << 'EOF'
 {review body with tracking marker}
 EOF
 
 # Based on outcome:
-gh pr review ${GH_PR_NUMBER} --approve --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md
+gh pr review "${GH_PR_NUMBER}" --approve --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
 # OR
-gh pr review ${GH_PR_NUMBER} --request-changes --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md
+gh pr review "${GH_PR_NUMBER}" --request-changes --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
 # OR
-gh pr review ${GH_PR_NUMBER} --comment --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md
+gh pr review "${GH_PR_NUMBER}" --comment --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
 ```
 
-### 9. **Confirm Success**
+### 10. **Confirm Success**
 
 - On success: Show the submitted review URL and brief confirmation
 - On failure: Display the full error and suggest next steps
@@ -234,7 +249,7 @@ gh pr review ${GH_PR_NUMBER} --comment --body-file ${GH_CLAUDE_SESSION_DIR}/draf
 | `gh pr view` fails                  | Show error, suggest `gh auth status`                                |
 | Diff is empty                       | Stop immediately; inform user and do not proceed                    |
 | Diff is massive (1000+ lines)       | Ask: "Focus on critical files only?" and list scope                 |
-| `gh pr review` fails (own PR)       | Suggest: "You can't review your own PR. Post as a comment instead?" |
+| `gh pr review` fails (own PR)       | Suggest: "You can't approve or request changes on your own PR. Submit as a comment-type review instead." |
 | `gh pr review` fails (auth/network) | Show error, suggest `gh auth status`                                |
 | Prior AI review exists              | Ask: "Resubmit or cancel?"                                          |
 | User interrupts reviewing           | Offer: save draft, discard, or resume                               |
@@ -287,54 +302,3 @@ User: "Perfect, submit it"
 → Submits request-changes review
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq`, `git`
-- **Query files:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts and diff storage
-- **Repo state:** User is in a git repo with access to commits; `gh pr diff` works
-- **Review metadata:** Query includes reviews, comments, state for context
-- **Tracking marker:** Embedded in review body to prevent duplicate AI reviews
-
----
-
-## Implementation Notes
-
-### Diff Fetching
-
-- Use `gh pr diff ${GH_PR_NUMBER} --patch` to fetch raw patch
-- Use `git apply --stat` to show file-by-file stats (helps with scope)
-- Store in `${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch` for reference
-
-### Tracking Marker Format
-
-```markdown
-<!-- gh-claude:pr-review pr=<GH_PR_NUMBER> commit=<HEAD_SHA> -->
-```
-
-- Always append to review body (end of review)
-- Used to detect duplicate AI reviews on same commit
-- Inert for GitHub display (HTML comment)
-
-### Outcome Mapping
-
-- `approve` → PR is good to merge (no blocking issues)
-- `request-changes` → Issues exist that must be fixed before merge
-- `comment` → Observations noted but not blocking
-
----
-
-## Future Enhancements
-
-- [ ] Inline code suggestions (GitHub's suggestion feature integration)
-- [ ] Commit-by-commit review mode (review each commit separately)
-- [ ] Comparison with prior reviews (highlight if contradicting feedback)
-- [ ] Auto-detection of high-risk files (security, migrations, config)
-- [ ] Performance analysis (detect N+1 queries, inefficient loops)
-- [ ] Test coverage check (flag untested new code)
-- [ ] Custom linting rules (organization-specific patterns)
-- [ ] Reviewee mentions (optional: tag reviewee in summary)
-- [ ] Multi-file context (understand cross-file dependencies)
-- [ ] Rollback capability (ability to retract and resubmit review)

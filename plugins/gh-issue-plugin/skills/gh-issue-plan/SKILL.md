@@ -1,12 +1,12 @@
 ---
 name: gh:issue:plan
 description: >
-  Drafts an implementation plan for the current GitHub issue and posts it as a 
-  comment after explicit user confirmation. Use when the user wants a concrete 
-  implementation approach, task breakdown, TODO list, or phased plan. Recognizes 
-  invocations like "plan this issue", "create an implementation plan", "break 
-  down this issue into tasks", "draft a plan for #N", or "what steps do I need?"
+  Drafts an implementation plan for the current GitHub issue and posts it as a
+  comment after explicit user confirmation. Use when a concrete implementation
+  approach, task breakdown, or phased plan is needed. Provide optional argument
+  to focus on a specific area.
 argument-hint: "[focus area or aspect to plan]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -15,7 +15,7 @@ allowed-tools: Bash(*), Write
 
 ## Mode: PLAN-ONLY
 
-Your role: **read the issue → understand the requirements → draft a concrete implementation plan → revise → post the plan as a comment to GitHub.**
+Your role: **read the issue → understand the requirements → draft a concrete implementation plan → present for review → incorporate feedback → post the plan as a comment to GitHub.**
 
 **Posting the plan** means creating or updating a plan comment. It does NOT mean: implementing anything, writing code, running tests, or making changes to the repo.
 
@@ -32,7 +32,7 @@ Your role: **read the issue → understand the requirements → draft a concrete
 **Current Issue (always fresh):**
 
 ```
-!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
+!`gh issue view ${GH_ISSUE_NUMBER} --json number,title,url,body,state,labels,comments 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq || echo "Unable to fetch issue. Check the issue number and gh auth status."`
 ```
 
 **Session Notes (optional, non-authoritative):**
@@ -86,7 +86,7 @@ Your role: **read the issue → understand the requirements → draft a concrete
 
 - **If focus area provided:** Scope plan to that area only
 - **If empty:** Plan full implementation
-- If issue seems too broad or spans independent areas, **ask user** if they want to split it or plan the full scope
+- If the issue describes three or more independent workstreams with no shared dependencies, recommend splitting; ask how to proceed
 
 ### 4. **Draft the Plan**
 
@@ -124,17 +124,17 @@ _Post this plan as a comment, or tell me what to change?_
 
 ### 6. **Handle User Feedback**
 
-- **If user confirms** (`"post"`, `"yes"`, `"👍"`): Proceed to step 7
+- **If user confirms** (`"post"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 7
 - **If user requests changes**: Revise and return to step 5
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't post
 - **If scope changes**: Restart from step 3 or re-draft from step 4
-- **If no response after 2 clarifications**: Ask "Should I post this plan or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I post this plan or discard it?"
 
 ### 7. **Save Draft**
 
 ```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-cat > ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md << 'EOF'
+mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"
+cat > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" << 'EOF'
 {plan body}
 <!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->
 EOF
@@ -148,15 +148,17 @@ EOF
   ```
 - Find existing plan comment (using tracking marker):
   ```bash
+  # --paginate returns one array per page; -s wraps them in an outer array
+  # so .[][] flattens [[page1...],[page2...]] into a single stream
   COMMENT_ID="$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | contains("<!-- gh-claude:issue-plan issue=\($n) -->"))] | last | .id // empty')"
   ```
 - If existing comment found, **update** it:
   ```bash
-  jq -Rs '{body: .}' ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md | gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH --input - --jq .html_url
+  jq -Rs '{body: .}' "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" | gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" -X PATCH --input - --jq .html_url
   ```
 - Otherwise, **create** new comment:
   ```bash
-  gh issue comment ${GH_ISSUE_NUMBER} --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md
+  gh issue comment "${GH_ISSUE_NUMBER}" --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md"
   ```
 
 ### 9. **Confirm Success**
@@ -284,54 +286,3 @@ User: "Good, post it"
 → Updates the existing comment instead of creating duplicate
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq` (for comment lookup)
-- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_issue_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
-- **Repo state:** User is in a git repo with a remote, or `GH_ISSUE_NUMBER` is explicitly set
-- **Git (optional):** Available for working-tree context; not required
-- **Tracking marker:** Used to detect and update existing plan comments (prevents duplicates)
-
----
-
-## Implementation Notes
-
-### Tracking Marker Format
-
-```markdown
-<!-- gh-claude:issue-plan issue=<GH_ISSUE_NUMBER> -->
-```
-
-- Always append to plan draft (end of comment body)
-- Used to detect existing plan comments (for updates)
-- Inert for GitHub display (HTML comment)
-
-### Task ID Naming
-
-- Format: `T001`, `T002`, `T003`, ... (zero-padded, 3 digits)
-- Sequential within the plan
-- Helps implementer reference tasks when discussing
-
-### Working-Tree Note
-
-- Show if `git status` or `git diff` detects changes
-- Clarifies that plan is based on issue context, not current state
-- Helps prevent confusion if implementer has uncommitted work
-
----
-
-## Future Enhancements
-
-- [ ] Effort estimation (add "effort: small|medium|large" to each task)
-- [ ] Dependency graph (detect task dependencies, show ordering constraints)
-- [ ] Risk assessment (flag risky tasks early)
-- [ ] Rollback capability (revert plan to prior version)
-- [ ] Template mode (standard plan structures for common issue types)
-- [ ] Team context (gather input from multiple team members before posting)
-- [ ] Success criteria (add definition of done for each task)
-- [ ] File impact preview (show which files likely affected)
-- [ ] Test strategy (suggest testing approach for each task)
-- [ ] Review cycle (post draft for review before final posting)

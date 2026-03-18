@@ -1,11 +1,11 @@
 ---
 name: gh:pr:edit
 description: >
-  Edits a GitHub pull request title and/or body according to requested changes, 
-  then applies the edit after user confirmation. Recognizes natural invocations 
-  like "edit PR #123 to add a testing section", "update the PR body", 
-  "rewrite the description", "fix the title", or "improve this PR".
+  Edits a GitHub pull request title and/or body according to requested changes,
+  then applies the edit after user confirmation. Provide optional argument text
+  describing what to change, e.g., "add a testing section" or "fix the title."
 argument-hint: "[what to change or edit request]"
+version: 1.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -87,27 +87,21 @@ _Apply this edit, or tell me what to change?_
 - **If user confirms** (`"apply"`, `"yes"`, `"👍"`, `"looks good"`): Proceed to step 6
 - **If user requests changes**: Revise and return to step 4
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't apply
-- **If no response after 2 clarifications**: Ask "Should I apply this edit or discard it?"
+- **If no response to confirmation**: Ask once more: "Should I apply this edit or discard it?"
 
 ### 6. **Extract & Save**
 
-```bash
-mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts
-
-# Extract title (first line, without "# " prefix)
-TITLE_LINE=$(echo '{draft}' | head -1 | sed 's/^# //')
-echo "$TITLE_LINE" > ${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt
-
-# Extract body (everything after the title line)
-echo '{draft}' | tail -n +2 > ${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md
-```
+- Create the drafts directory: `mkdir -p ${GH_CLAUDE_SESSION_DIR}/drafts`
+- The draft's **first line** is always the title (starting with `# `). Everything after is the body.
+- Write the title (without `# ` prefix) to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt`
+- Write the body to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md`
 
 ### 7. **Apply the Edit**
 
 ```bash
-gh pr edit ${GH_PR_NUMBER} \
-  --title "$(cat ${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt | tr -d '\n')" \
-  --body-file ${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md
+gh pr edit "${GH_PR_NUMBER}" \
+  --title "$(tr -d '\n' < "${GH_CLAUDE_SESSION_DIR}/drafts/pr_title_draft.txt")" \
+  --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_body_draft.md"
 ```
 
 ### 8. **Confirm Success**
@@ -132,7 +126,6 @@ gh pr edit ${GH_PR_NUMBER} \
 - **Draft state:** Warn if editing a draft PR's title (may indicate work-in-progress state)
 - **Review state:** Note if edits might be affected by existing reviews (e.g., "Changes requested" status)
 - **Merge readiness:** Warn if editing after approval (body changes may invalidate reviewers' confidence)
-- **CI/checks:** Mention if PR has pending or failed status checks (edits won't re-run checks automatically)
 - **Stale description:** If body references deprecated info, acknowledge and ask if content is still relevant
 
 ### Safety & Permissions
@@ -218,45 +211,3 @@ User: "Update the title but keep everything else"
 → AI changes ONLY title, preserves entire body exactly as-is
 ```
 
----
-
-## Dependencies & Assumptions
-
-- **External tools:** `gh` CLI (v2.0+), `jq`
-- **Query file:** `${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq` (must exist)
-- **Environment:** `$GH_CLAUDE_SESSION_DIR` for drafts
-- **Repo state:** User is in a git repo with a remote, or `GH_PR_NUMBER` is explicitly set
-- **Title handling:** Must respect 72-char limit (GitHub convention)
-- **Review metadata:** Query includes review state for context awareness
-
----
-
-## Implementation Notes
-
-### Title/Body Split
-
-- Title is extracted from the first `# Heading` line in the draft
-- Body is everything after the title line
-- Ensure no double newlines between title and body in the draft
-
-### Extraction Commands
-
-```bash
-# Title (without "# " prefix)
-sed 's/^# //' | head -1
-
-# Body (everything after first line)
-tail -n +2
-```
-
----
-
-## Future Enhancements
-
-- [ ] Diff preview mode (show side-by-side before/after)
-- [ ] Linting for common issues (check title length before posting)
-- [ ] Review impact detection (warn if changes may invalidate existing reviews)
-- [ ] Batch editing (update multiple PRs with similar pattern)
-- [ ] Rollback (keep version history, offer to revert recent edits)
-- [ ] Smart merging (detect if title/body changed on GitHub while editing)
-- [ ] Merge conflict detection (warn if PR branch has conflicts)
