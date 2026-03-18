@@ -33,8 +33,7 @@ setup() {
 		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _validate_chat_passthrough _show_pr_chat_help _gh_pr_chat _detect_pr_number \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_pr_chat_context _prepare_pr_diff_context _resolve_context_dir _create_context_dir _save_context_file \
-			_gh_session_base_dir \
-			_gum _has_gum
+			_gh_session_base_dir
 	)"
 }
 

@@ -22,8 +22,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
-		declare -f _parse_issue_create_args _show_issue_create_help _gh_issue_create _split_on_separator \
-			_gum _has_gum
+		declare -f _parse_issue_create_args _show_issue_create_help _gh_issue_create _split_on_separator
 	)"
 }
 

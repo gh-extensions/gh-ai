@@ -66,7 +66,7 @@ _parse_issue_args() {
 		case "${_pia_raw[$_pia_i]}" in
 		--description | -d)
 			if ((_pia_i + 1 >= ${#_pia_raw[@]})); then
-				_gum log --level error -- "${_pia_raw[$_pia_i]} requires a value"
+				gum log --level error -- "${_pia_raw[$_pia_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -79,9 +79,9 @@ _parse_issue_args() {
 			;;
 		-*)
 			if [[ -n "$_pia_subcmd" ]]; then
-				_gum log --level error "unknown flag '${_pia_raw[$_pia_i]}' (use -- to pass flags to gh issue $_pia_subcmd)"
+				gum log --level error "unknown flag '${_pia_raw[$_pia_i]}' (use -- to pass flags to gh issue $_pia_subcmd)"
 			else
-				_gum log --level error "unknown flag '${_pia_raw[$_pia_i]}'"
+				gum log --level error "unknown flag '${_pia_raw[$_pia_i]}'"
 			fi
 			return 1
 			;;
@@ -91,11 +91,11 @@ _parse_issue_args() {
 				if _pia_extracted=$(_extract_issue_number "${_pia_raw[$_pia_i]}"); then
 					_pia_num="$_pia_extracted"
 				else
-					_gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
+					gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
 					return 1
 				fi
 			else
-				_gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
+				gum log --level error "unexpected argument '${_pia_raw[$_pia_i]}'"
 				return 1
 			fi
 			;;
@@ -124,10 +124,10 @@ _prepare_issue_context() {
 	local -n _ctx_url="$6"
 
 	local _ctx_meta
-	_ctx_meta=$(_gum spin --title "Fetching GitHub issue #$_ctx_num metadata..." -- \
+	_ctx_meta=$(gum spin --title "Fetching GitHub issue #$_ctx_num metadata..." -- \
 		gh issue view "$_ctx_num" --json title,body,labels,comments,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
-		_gum log --level error "Failed to fetch issue #$_ctx_num"
+		gum log --level error "Failed to fetch issue #$_ctx_num"
 		return 1
 	fi
 
@@ -172,7 +172,7 @@ _parse_issue_create_args() {
 		case "${_pica_raw[$_pica_i]}" in
 		--description | -d)
 			if ((_pica_i + 1 >= ${#_pica_raw[@]})); then
-				_gum log --level error -- "${_pica_raw[$_pica_i]} requires a value"
+				gum log --level error -- "${_pica_raw[$_pica_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -184,11 +184,11 @@ _parse_issue_create_args() {
 			_pica_desc="${_pica_raw[$_pica_i]#--description=}"
 			;;
 		-*)
-			_gum log --level error "unknown flag '${_pica_raw[$_pica_i]}' (use -- to pass flags to gh issue create)"
+			gum log --level error "unknown flag '${_pica_raw[$_pica_i]}' (use -- to pass flags to gh issue create)"
 			return 1
 			;;
 		*)
-			_gum log --level error "unexpected argument '${_pica_raw[$_pica_i]}'"
+			gum log --level error "unexpected argument '${_pica_raw[$_pica_i]}'"
 			return 1
 			;;
 		esac
@@ -267,8 +267,8 @@ _gh_issue_create() {
 	_parse_issue_create_args gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_description" ]]; then
-		_gum log --level error "No description provided"
-		_gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue create -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -282,7 +282,7 @@ _gh_issue_create() {
 	# Generate issue content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_content=$(
-		_gum spin --title "Generating GitHub issue..." -- \
+		gum spin --title "Generating GitHub issue..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
@@ -296,15 +296,15 @@ _gh_issue_create() {
 
 	# Validate we got issue content
 	if [[ -z "$gh_issue_content" ]]; then
-		_gum log --level error "Failed to generate issue content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate issue content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	local gh_issue_title
 	# Parse title from output
 	if ! gh_issue_title=$(_parse_title "$gh_issue_content"); then
-		_gum log --level error "Failed to extract title from AI content"
+		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
@@ -381,14 +381,14 @@ _gh_issue_edit() {
 	_parse_issue_edit_args gh_issue_number gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
-		_gum log --level error "No issue number provided"
-		_gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
-		_gum log --level error "No description provided"
-		_gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -402,7 +402,7 @@ _gh_issue_edit() {
 	# Generate updated issue content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_content=$(
-		_gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
+		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
@@ -421,14 +421,14 @@ _gh_issue_edit() {
 
 	# Validate we got issue content
 	if [[ -z "$gh_issue_content" ]]; then
-		_gum log --level error "Failed to generate updated issue content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate updated issue content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Parse title from output
 	if ! gh_issue_title=$(_parse_title "$gh_issue_content"); then
-		_gum log --level error "Failed to extract title from AI content"
+		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
@@ -507,14 +507,14 @@ _gh_issue_comment() {
 	_parse_issue_comment_args gh_issue_number gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
-		_gum log --level error "No issue number provided"
-		_gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
-		_gum log --level error "No description provided"
-		_gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -528,7 +528,7 @@ _gh_issue_comment() {
 	# Generate comment using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_comment=$(
-		_gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
+		gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
@@ -547,8 +547,8 @@ _gh_issue_comment() {
 
 	# Validate we got comment content
 	if [[ -z "$gh_issue_comment" ]]; then
-		_gum log --level error "Failed to generate comment content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate comment content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -617,8 +617,8 @@ _gh_issue_plan() {
 	_parse_issue_plan_args gh_issue_number gh_issue_description "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
-		_gum log --level error "No issue number provided"
-		_gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
 		return 1
 	fi
 
@@ -637,7 +637,7 @@ _gh_issue_plan() {
 	# Generate implementation plan using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_issue_plan=$(
-		_gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
+		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
@@ -656,8 +656,8 @@ _gh_issue_plan() {
 
 	# Validate we got content
 	if [[ -z "$gh_issue_plan" ]]; then
-		_gum log --level error "Failed to generate implementation plan"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate implementation plan"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -757,8 +757,8 @@ _gh_issue_chat() {
 	_parse_issue_chat_args gh_issue_number gh_issue_description gh_issue_new_session "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
-		_gum log --level error "No issue number provided"
-		_gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]"
+		gum log --level error "No issue number provided"
+		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]"
 		return 1
 	fi
 
@@ -857,9 +857,9 @@ _gh_issue() {
 		_show_issue_help
 		;;
 	*)
-		_gum log --level error "unknown issue command '$subcommand'"
-		_gum log --level info "Available commands: create, edit, comment, plan, chat"
-		_gum log --level info "Run 'gh ai issue --help' for usage information"
+		gum log --level error "unknown issue command '$subcommand'"
+		gum log --level info "Available commands: create, edit, comment, plan, chat"
+		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1
 		;;
 	esac

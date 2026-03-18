@@ -14,7 +14,7 @@ focus on shipping.
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`)
 - [jq](https://jqlang.github.io/jq/) (`jq`)
 - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
-- [Gum](https://github.com/charmbracelet/gum) (`gum`) _(optional)_
+- [Gum](https://github.com/charmbracelet/gum) (`gum`)
 
 **macOS (Homebrew):**
 

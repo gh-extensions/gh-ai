@@ -23,8 +23,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _parse_run_args _parse_run_explain_args _show_run_explain_help _gh_run_explain \
 			_prepare_run_context _prepare_run_explain_context _resolve_context_dir _create_context_dir _save_context_file \
-			_cmd_render _cmd_ask _get_agent \
-			_gum _has_gum
+			_cmd_render _cmd_ask _get_agent
 	)"
 }
 

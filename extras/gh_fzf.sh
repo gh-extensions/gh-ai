@@ -33,15 +33,8 @@ if [[ -n "${TMUX:-}" ]]; then
 	_gh_fzf_tmux_use=1
 fi
 
-# Resolve display commands at source time — gum used when available,
-# plain fallbacks otherwise.
-if command -v gum &>/dev/null; then
-  _gh_fzf_fmt="gum format"
-  _gh_fzf_pgr="gum pager"
-else
-  _gh_fzf_fmt="cat"
-  _gh_fzf_pgr="${PAGER:-less}"
-fi
+_gh_fzf_fmt="gum format"
+_gh_fzf_pgr="gum pager"
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_issue_opts=(

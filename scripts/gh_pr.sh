@@ -76,7 +76,7 @@ _parse_pr_args() {
 		case "${_ppa_raw[$_ppa_i]}" in
 		--description | -d)
 			if ((_ppa_i + 1 >= ${#_ppa_raw[@]})); then
-				_gum log --level error -- "${_ppa_raw[$_ppa_i]} requires a value"
+				gum log --level error -- "${_ppa_raw[$_ppa_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -88,7 +88,7 @@ _parse_pr_args() {
 			_ppa_desc="${_ppa_raw[$_ppa_i]#--description=}"
 			;;
 		-*)
-			_gum log --level error "unknown flag '${_ppa_raw[$_ppa_i]}' (use -- to pass flags to gh pr $_ppa_subcmd)"
+			gum log --level error "unknown flag '${_ppa_raw[$_ppa_i]}' (use -- to pass flags to gh pr $_ppa_subcmd)"
 			return 1
 			;;
 		*)
@@ -97,11 +97,11 @@ _parse_pr_args() {
 				if _ppa_extracted=$(_extract_pr_number "${_ppa_raw[$_ppa_i]}"); then
 					_ppa_num="$_ppa_extracted"
 				else
-					_gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
+					gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
 					return 1
 				fi
 			else
-				_gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
+				gum log --level error "unexpected argument '${_ppa_raw[$_ppa_i]}'"
 				return 1
 			fi
 			;;
@@ -134,10 +134,10 @@ _prepare_pr_diff_context() {
 	local -n _ctx_url="$6"
 
 	local _ctx_meta
-	_ctx_meta=$(_gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
+	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
 		gh pr view "$_ctx_num" --json title,body,headRefName,commits,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
-		_gum log --level error "Failed to fetch pull request #$_ctx_num metadata"
+		gum log --level error "Failed to fetch pull request #$_ctx_num metadata"
 		return 1
 	fi
 
@@ -147,10 +147,10 @@ _prepare_pr_diff_context() {
 	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_pr_meta.jq")"
 
 	local _ctx_diff
-	_ctx_diff=$(_gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
+	_ctx_diff=$(gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
 		gh pr diff "$_ctx_num" --patch || true)
 	if [[ -z "$_ctx_diff" ]]; then
-		_gum log --level error "Failed to get diff for pull request #$_ctx_num"
+		gum log --level error "Failed to get diff for pull request #$_ctx_num"
 		return 1
 	fi
 
@@ -190,7 +190,7 @@ _parse_pr_create_args() {
 		case "${_prca_raw[$_prca_i]}" in
 		--description | -d)
 			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
-				_gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
+				gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -203,7 +203,7 @@ _parse_pr_create_args() {
 			;;
 		--base | -B)
 			if ((_prca_i + 1 >= ${#_prca_raw[@]})); then
-				_gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
+				gum log --level error -- "${_prca_raw[$_prca_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
@@ -215,11 +215,11 @@ _parse_pr_create_args() {
 			_prca_base_ref="${_prca_raw[$_prca_i]#--base=}"
 			;;
 		-*)
-			_gum log --level error "unknown flag '${_prca_raw[$_prca_i]}' (use -- to pass flags to gh pr create)"
+			gum log --level error "unknown flag '${_prca_raw[$_prca_i]}' (use -- to pass flags to gh pr create)"
 			return 1
 			;;
 		*)
-			_gum log --level error "unexpected argument '${_prca_raw[$_prca_i]}'"
+			gum log --level error "unexpected argument '${_prca_raw[$_prca_i]}'"
 			return 1
 			;;
 		esac
@@ -324,7 +324,7 @@ _gh_pr_create() {
 	# Generate PR content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_content=$(
-		_gum spin --title "Generating GitHub pull request..." -- \
+		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
@@ -339,15 +339,15 @@ _gh_pr_create() {
 
 	# Validate we got PR content
 	if [[ -z "$gh_pr_content" ]]; then
-		_gum log --level error "Failed to generate pull request content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate pull request content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	local gh_pr_title
 	# Parse title from output
 	if ! gh_pr_title=$(_parse_title "$gh_pr_content"); then
-		_gum log --level error "Failed to extract title from AI content"
+		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
@@ -422,14 +422,14 @@ _gh_pr_edit() {
 	_parse_pr_edit_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		_gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		_gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
-		_gum log --level error "No description provided"
-		_gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -443,7 +443,7 @@ _gh_pr_edit() {
 	# Generate updated PR content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_content=$(
-		_gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
+		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
@@ -462,14 +462,14 @@ _gh_pr_edit() {
 
 	# Validate we got PR content
 	if [[ -z "$gh_pr_content" ]]; then
-		_gum log --level error "Failed to generate updated pull request content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate updated pull request content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
 	# Parse title from output
 	if ! gh_pr_title=$(_parse_title "$gh_pr_content"); then
-		_gum log --level error "Failed to extract title from AI content"
+		gum log --level error "Failed to extract title from AI content"
 		return 1
 	fi
 
@@ -545,8 +545,8 @@ _gh_pr_review() {
 	_parse_pr_review_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		_gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		_gum log --level info "Usage: gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]"
 		return 1
 	fi
 
@@ -560,7 +560,7 @@ _gh_pr_review() {
 	# Generate review content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_review=$(
-		_gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
+		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
@@ -580,8 +580,8 @@ _gh_pr_review() {
 
 	# Validate we got review content
 	if [[ -z "$gh_pr_review" ]]; then
-		_gum log --level error "Failed to generate review content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate review content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -605,7 +605,7 @@ _parse_pr_explain_args() {
 	while [[ $_ppea_i -lt ${#_ppea_raw[@]} ]]; do
 		case "${_ppea_raw[$_ppea_i]}" in
 		-*)
-			_gum log --level error "unknown flag '${_ppea_raw[$_ppea_i]}'"
+			gum log --level error "unknown flag '${_ppea_raw[$_ppea_i]}'"
 			return 1
 			;;
 		*)
@@ -614,11 +614,11 @@ _parse_pr_explain_args() {
 				if _ppea_extracted=$(_extract_pr_number "${_ppea_raw[$_ppea_i]}"); then
 					_ppea_num_ref="$_ppea_extracted"
 				else
-					_gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
+					gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
 					return 1
 				fi
 			else
-				_gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
+				gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
 				return 1
 			fi
 			;;
@@ -681,8 +681,8 @@ _gh_pr_explain() {
 	_parse_pr_explain_args gh_pr_number "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		_gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		_gum log --level info "Usage: gh ai pr explain [PR_NUMBER]"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr explain [PR_NUMBER]"
 		return 1
 	fi
 
@@ -696,7 +696,7 @@ _gh_pr_explain() {
 	# Generate explanation using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_explain=$(
-		_gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
+		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
@@ -715,8 +715,8 @@ _gh_pr_explain() {
 
 	# Validate we got explanation content
 	if [[ -z "$gh_pr_explain" ]]; then
-		_gum log --level error "Failed to generate explanation"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate explanation"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -821,8 +821,8 @@ _gh_pr_chat() {
 	fi
 
 	if [[ -z "$gh_pr_number" ]]; then
-		_gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		_gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]"
 		return 1
 	fi
 
@@ -830,7 +830,7 @@ _gh_pr_chat() {
 	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	if [[ -z "$gh_pr_head" ]]; then
-		_gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
+		gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
 		return 1
 	fi
 
@@ -875,10 +875,10 @@ _prepare_pr_comment_context() {
 	local -n _ctx_url="$4"
 
 	local _ctx_meta
-	_ctx_meta=$(_gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
+	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
 		gh pr view "$_ctx_num" --json title,body,comments,url || true)
 	if [[ -z "$_ctx_meta" ]]; then
-		_gum log --level error "Failed to fetch pull request #$_ctx_num"
+		gum log --level error "Failed to fetch pull request #$_ctx_num"
 		return 1
 	fi
 
@@ -957,14 +957,14 @@ _gh_pr_comment() {
 	_parse_pr_comment_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
-		_gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		_gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No pull request number provided and could not detect pull request for current branch"
+		gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
-		_gum log --level error "No description provided"
-		_gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level error "No description provided"
+		gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
 		return 1
 	fi
 
@@ -978,7 +978,7 @@ _gh_pr_comment() {
 	# Generate comment content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_comment=$(
-		_gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
+		gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
@@ -996,8 +996,8 @@ _gh_pr_comment() {
 
 	# Validate we got comment content
 	if [[ -z "$gh_pr_comment" ]]; then
-		_gum log --level error "Failed to generate comment content"
-		_gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		gum log --level error "Failed to generate comment content"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
 		return 1
 	fi
 
@@ -1077,9 +1077,9 @@ _gh_pr() {
 		_show_pr_help
 		;;
 	*)
-		_gum log --level error "unknown pr command '$subcommand'"
-		_gum log --level info "Available commands: create, edit, review, explain, chat, comment"
-		_gum log --level info "Run 'gh ai pr --help' for usage information"
+		gum log --level error "unknown pr command '$subcommand'"
+		gum log --level info "Available commands: create, edit, review, explain, chat, comment"
+		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
 		;;
 	esac
