@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/gh-extensions/gh-ai/compare/v0.19.1...v0.20.0) (2026-03-18)
+
+
+### Features
+
+* add slash command skills, reorganize plugin structure, and fix awk compat ([4c4abc3](https://github.com/gh-extensions/gh-ai/commit/4c4abc3d72a0d84240ab0cd5a00010bb208b897a))
+
 ## [0.19.1](https://github.com/gh-extensions/gh-ai/compare/v0.19.0...v0.19.1) (2026-03-18)
 
 
