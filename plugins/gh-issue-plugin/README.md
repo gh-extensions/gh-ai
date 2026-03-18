@@ -4,34 +4,20 @@ A Claude Code plugin that provides slash commands for working with GitHub issues
 
 ## Slash Commands
 
-Available inside a `gh claude issue chat` session. The issue number is already known from the session — no need to pass it.
-
-```
-/gh:issue:comment [what to say]
-/gh:issue:edit    [what to change]
-/gh:issue:plan    [focus area]
-```
-
-All three commands follow a **draft → iterate → confirm → execute** workflow: generate a draft, show it, accept revisions, and only run the `gh` CLI command once confirmed.
+Available inside a `gh claude issue chat` session. The issue number is already known from the session — no need to pass it. Each command follows a **draft → iterate → confirm → execute** workflow.
 
 > These are Claude Code skill equivalents to `gh claude issue comment`, `gh claude issue edit`, and `gh claude issue plan`.
 
-## Skills
-
-### gh:issue:comment
+### /gh:issue:comment
 
 Drafts a comment on the current issue and posts it after you confirm.
 
 **Triggers:** "write a comment on this issue", "draft a response", "add a comment saying...", "reply to this issue"
 
-**Usage:**
-
 ```
-/gh:issue:comment
 /gh:issue:comment thank the reporter and ask for a reproduction case
+/gh:issue:comment summarize the discussion so far
 ```
-
-**Workflow:** Draft → show preview → iterate on feedback → confirm → post via `gh issue comment`.
 
 **Notes:**
 
@@ -40,21 +26,17 @@ Drafts a comment on the current issue and posts it after you confirm.
 
 ---
 
-### gh:issue:edit
+### /gh:issue:edit
 
 Edits the title and/or body of the current issue and applies the change after you confirm.
 
 **Triggers:** "edit this issue", "update the issue body", "rewrite the description", "fix the issue title", "add acceptance criteria"
 
-**Usage:**
-
 ```
-/gh:issue:edit
 /gh:issue:edit add a definition of done section
 /gh:issue:edit shorten the title and add reproduction steps
+/gh:issue:edit rewrite the description as a bug report
 ```
-
-**Workflow:** Apply changes → show full updated issue as a draft → iterate → confirm → apply via `gh issue edit`.
 
 **Notes:**
 
@@ -63,20 +45,16 @@ Edits the title and/or body of the current issue and applies the change after yo
 
 ---
 
-### gh:issue:plan
+### /gh:issue:plan
 
 Generates an implementation plan for the current issue and posts it as a comment after you confirm. The plan is a proposal for discussion — it does not execute any code.
 
 **Triggers:** "plan this issue", "create an implementation plan", "break down this issue into tasks", "what steps do I need to implement #N?"
 
-**Usage:**
-
 ```
-/gh:issue:plan
 /gh:issue:plan focus on the database migration
+/gh:issue:plan focus on the auth module
 ```
-
-**Workflow:** Analyze requirements → draft plan with task IDs (T001, T002, ...) → show preview → iterate → confirm → post or update comment.
 
 **Notes:**
 
@@ -88,6 +66,6 @@ Generates an implementation plan for the current issue and posts it as a comment
 
 | Variable | Used by |
 |----------|---------|
-| `GH_ISSUE_NUMBER` | All skills — identifies the issue to operate on |
-| `GH_CLAUDE_SESSION_DIR` | All skills — root for `drafts/` and `state/` subdirectories |
-| `CLAUDE_PLUGIN_ROOT` | All skills — path to jq query files |
+| `GH_ISSUE_NUMBER` | All commands — identifies the issue to operate on |
+| `GH_CLAUDE_SESSION_DIR` | All commands — root for `drafts/` and `state/` subdirectories |
+| `CLAUDE_PLUGIN_ROOT` | All commands — path to jq query files |
