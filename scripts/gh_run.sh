@@ -41,7 +41,7 @@ _prepare_run_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_jobs=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_run_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_run_meta.jq")"
 
 	local _ctx_log
 	if [[ "$_ctx_conclusion" == "failure" ]]; then
@@ -60,8 +60,8 @@ _prepare_run_context() {
 
 	_resolve_context_dir "$_ctx_type" "run-$_ctx_id" _ctx_dir || return 1
 
-	_save_context_file "$_ctx_dir" "run_jobs.txt" "$_ctx_jobs"
-	_save_context_file "$_ctx_dir" "run_log.txt" "$_ctx_log"
+	_save_context_file "$_ctx_dir" "state/run_jobs.txt" "$_ctx_jobs"
+	_save_context_file "$_ctx_dir" "state/run_log.txt" "$_ctx_log"
 }
 
 # Shared argument parser for run commands that accept only a run ID.
@@ -170,8 +170,8 @@ _gh_run_explain() {
 					GH_RUN_EVENT="$gh_run_event" \
 					GH_RUN_BRANCH="$gh_run_branch" \
 					GH_RUN_SHA="$gh_run_sha" \
-					GH_RUN_JOBS_FILE="$gh_run_dir/run_jobs.txt" \
-					GH_RUN_LOG_FILE="$gh_run_dir/run_log.txt" \
+					GH_RUN_JOBS_FILE="$gh_run_dir/state/run_jobs.txt" \
+					GH_RUN_LOG_FILE="$gh_run_dir/state/run_log.txt" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)

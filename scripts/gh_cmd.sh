@@ -353,6 +353,7 @@ _resolve_context_dir() {
 # Usage: _save_context_file "/path/to/context/dir" "filename" "content"
 _save_context_file() {
 	local dir="$1" name="$2" content="$3"
+	mkdir -p "$(dirname "$dir/$name")"
 	printf '%s' "$content" >"$dir/$name"
 }
 
@@ -476,6 +477,7 @@ _resolve_chat_session() {
 		_rcs_args=(--session-id "$_rcs_uuid")
 	fi
 }
+
 
 main() {
 	local cmd

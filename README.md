@@ -143,6 +143,80 @@ gh ai issue chat 42 -d "focus on the auth module"
 gh ai issue chat 42 -n                # start a new session
 ```
 
+### Slash Commands
+
+Slash command equivalents for issue workflows, usable directly inside a Claude
+Code session. Each command fetches live issue data, generates a draft, and waits
+for confirmation before executing.
+
+```
+/gh:issue:comment <issue-number> [what to say]
+/gh:issue:edit    <issue-number> [what to change]
+/gh:issue:plan    <issue-number> [focus area]
+```
+
+All three commands follow a **draft → iterate → confirm → execute** workflow:
+generate a draft, show it to the user, accept revision requests, and only run
+the `gh` CLI command once the user confirms.
+
+**Post a comment on an issue:**
+
+```
+/gh:issue:comment 42 ask for clarification on the acceptance criteria
+/gh:issue:comment 42 summarize the discussion so far
+```
+
+**Edit an issue title and body:**
+
+```
+/gh:issue:edit 42 add a definition of done section
+/gh:issue:edit 42 rewrite the description as a bug report
+```
+
+**Generate an implementation plan and post it as a comment:**
+
+```
+/gh:issue:plan 42
+/gh:issue:plan 42 focus on the auth module
+```
+
+> These are Claude Code skill equivalents to `gh ai issue comment`,
+> `gh ai issue edit`, and `gh ai issue plan`.
+
+Slash command equivalents for pull request workflows:
+
+```
+/gh:pr:comment <pr-number> [what to say]
+/gh:pr:edit    <pr-number> [what to change]
+/gh:pr:review  <pr-number> [approve|request-changes|comment] [focus area]
+```
+
+**Post a comment on a pull request:**
+
+```
+/gh:pr:comment 67 ask about the failing CI check
+/gh:pr:comment 67 summarize the changes in this PR
+```
+
+**Edit a pull request title and body:**
+
+```
+/gh:pr:edit 67 add a testing section
+/gh:pr:edit 67 rewrite the description to include risk level
+```
+
+**Review a pull request:**
+
+```
+/gh:pr:review 67
+/gh:pr:review 67 approve
+/gh:pr:review 67 request-changes focus on error handling
+/gh:pr:review 67 comment check the auth module
+```
+
+> These are Claude Code skill equivalents to `gh ai pr comment`,
+> `gh ai pr edit`, and `gh ai pr review`.
+
 ### Run
 
 Analyzes a GitHub Actions workflow run and explains what happened.

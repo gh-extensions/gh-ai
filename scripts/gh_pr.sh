@@ -142,9 +142,9 @@ _prepare_pr_diff_context() {
 	fi
 
 	# Single jq pass: extract all fields via eval
-	local _ctx_body="" _ctx_commits="" _ctx_comments=""
+	local _ctx_body="" _ctx_commits=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_pr_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_pr_meta.jq")"
 
 	local _ctx_diff
 	_ctx_diff=$(gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
@@ -159,10 +159,10 @@ _prepare_pr_diff_context() {
 
 	_resolve_context_dir "$_ctx_type" "pull-$_ctx_num" _ctx_dir || return 1
 
-	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
-	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
-	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
+	_save_context_file "$_ctx_dir" "state/pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "state/pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "state/pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "state/pr_commits.txt" "$_ctx_commits"
 }
 
 # Parse PR create arguments (before -- separator)
@@ -248,9 +248,9 @@ _prepare_pr_create_context() {
 	_create_context_dir _ctx_dir_path
 	_ctx_dir="$_ctx_dir_path"
 
-	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
-	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
-	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
+	_save_context_file "$_ctx_dir" "state/pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "state/pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "state/pr_commits.txt" "$_ctx_commits"
 }
 
 # PR create help function
@@ -326,9 +326,9 @@ _gh_pr_create() {
 	gh_pr_content=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+				GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -445,13 +445,13 @@ _gh_pr_edit() {
 	gh_pr_content=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
+				GH_AI_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
-					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -562,13 +562,13 @@ _gh_pr_review() {
 	gh_pr_review=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
+				GH_AI_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
@@ -698,13 +698,13 @@ _gh_pr_explain() {
 	gh_pr_explain=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
+				GH_AI_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -841,12 +841,13 @@ _gh_pr_chat() {
 
 	local gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
+	gh_pr_session_args+=(--plugin-dir "$_gh_ai_source_dir/plugins/gh-pr-plugin")
 
 	local gh_pr_prompt=""
 	if [[ -n "$gh_pr_is_new_chat" ]]; then
 		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 		gh_pr_prompt=$(
-			GH_PR_NUMBER="$gh_pr_number" \
+			GH_AI_PR_NUMBER="$gh_pr_number" \
 				GH_PR_TITLE="$gh_pr_title" \
 				GH_PR_URL="$gh_pr_url" \
 				GH_PR_FOCUS="$gh_pr_focus" \
@@ -856,6 +857,8 @@ _gh_pr_chat() {
 		)
 	fi
 
+	export GH_AI_PR_NUMBER="$gh_pr_number"
+	export GH_AI_SESSION_DIR="$gh_pr_dir"
 	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 
@@ -885,7 +888,7 @@ _prepare_pr_comment_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_body="" _ctx_comments="" _ctx_head="" _ctx_commits=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_pr_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_pr_meta.jq")"
 
 	local _ctx_dir_path
 	_create_context_dir _ctx_dir_path
@@ -896,9 +899,9 @@ _prepare_pr_comment_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "pr_comments.md" "$_ctx_comments"
-	_save_context_file "$_ctx_dir" "pr_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "state/pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "state/pr_comments.md" "$_ctx_comments"
+	_save_context_file "$_ctx_dir" "state/pr_context.md" "$_ctx_context"
 }
 
 # PR comment help function
@@ -980,13 +983,13 @@ _gh_pr_comment() {
 	gh_pr_comment=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
+				GH_AI_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
-					GH_PR_COMMENTS_FILE="$gh_pr_dir/pr_comments.md" \
+					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
+					GH_PR_COMMENTS_FILE="$gh_pr_dir/state/pr_comments.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
-					GH_PR_CONTEXT_FILE="$gh_pr_dir/pr_context.md" \
+					GH_PR_CONTEXT_FILE="$gh_pr_dir/state/pr_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)

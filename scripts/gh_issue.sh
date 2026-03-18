@@ -134,7 +134,7 @@ _prepare_issue_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_body="" _ctx_comments=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/scripts/gh_issue_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_issue_meta.jq")"
 
 	_resolve_context_dir "$_ctx_type" "issue-$_ctx_num" _ctx_dir || return 1
 
@@ -143,9 +143,9 @@ _prepare_issue_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "issue_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "issue_comments.md" "$_ctx_comments"
-	_save_context_file "$_ctx_dir" "issue_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "state/issue_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "state/issue_comments.md" "$_ctx_comments"
+	_save_context_file "$_ctx_dir" "state/issue_context.md" "$_ctx_context"
 }
 
 # Parse issue create arguments (before -- separator)
@@ -211,7 +211,7 @@ _prepare_issue_create_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "issue_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "state/issue_context.md" "$_ctx_context"
 }
 
 # Issue create help function
@@ -286,7 +286,7 @@ _gh_issue_create() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -404,14 +404,14 @@ _gh_issue_edit() {
 	gh_issue_content=$(
 		gum spin --title "Generating updated GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" \
+				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
+					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
+					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -530,14 +530,14 @@ _gh_issue_comment() {
 	gh_issue_comment=$(
 		gum spin --title "Generating comment for GitHub issue #$gh_issue_number..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" \
+				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
+					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
+					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -639,14 +639,14 @@ _gh_issue_plan() {
 	gh_issue_plan=$(
 		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" \
+				GH_AI_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
+					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
+					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
 					GH_ISSUE_FOCUS="$gh_issue_focus" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -772,11 +772,12 @@ _gh_issue_chat() {
 
 	local gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "$gh_issue_dir" "$gh_issue_new_session" gh_issue_is_new_chat gh_issue_session_args || return 1
+	gh_issue_session_args+=(--plugin-dir "$_gh_ai_source_dir/plugins/gh-issue-plugin")
 
 	local gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
 		gh_issue_prompt=$(
-			GH_ISSUE_NUMBER="$gh_issue_number" \
+			GH_AI_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
 				GH_ISSUE_URL="$gh_issue_url" \
 				GH_ISSUE_LABELS="$gh_issue_labels" \
@@ -786,6 +787,8 @@ _gh_issue_chat() {
 		)
 	fi
 
+	export GH_AI_ISSUE_NUMBER="$gh_issue_number"
+	export GH_AI_SESSION_DIR="$gh_issue_dir"
 	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
 

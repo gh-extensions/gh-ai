@@ -4,7 +4,7 @@ As a GitHub assistant, create an implementation plan for the issue.
 
 <context>
 <issue>
-Number: ${GH_ISSUE_NUMBER}
+Number: ${GH_AI_ISSUE_NUMBER}
 Title: ${GH_ISSUE_TITLE}
 URL: ${GH_ISSUE_URL}
 Body: ${GH_ISSUE_BODY}
@@ -41,7 +41,7 @@ implementation.
 
 <output_format>
 First line: PR title — `# {title}`, under 72 chars
-Include `Closes #${GH_ISSUE_NUMBER}`
+Include `Closes #${GH_AI_ISSUE_NUMBER}`
 Implementation plan as TODO checklist
 Format: GitHub-flavored Markdown
 Output only the requested content.
@@ -51,7 +51,7 @@ Omit sections that are not relevant to the input.
 <example>
 # {title}
 
-Closes #${GH_ISSUE_NUMBER}
+Closes #${GH_AI_ISSUE_NUMBER}
 
 ## Summary
 {1–2 sentence description of the planned change}

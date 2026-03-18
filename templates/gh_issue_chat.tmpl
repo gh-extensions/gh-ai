@@ -11,7 +11,7 @@ progress efficiently.
 </role>
 
 <issue>
-Number: ${GH_ISSUE_NUMBER}
+Number: ${GH_AI_ISSUE_NUMBER}
 Title: ${GH_ISSUE_TITLE}
 URL: ${GH_ISSUE_URL}
 Labels: ${GH_ISSUE_LABELS}
@@ -19,8 +19,8 @@ Labels: ${GH_ISSUE_LABELS}
 
 <context_files>
 The following files contain detailed context for this issue:
-- ${GH_AI_SESSION_DIR}/issue_body.md — issue body
-- ${GH_AI_SESSION_DIR}/issue_comments.md — all comments
+- ${GH_AI_SESSION_DIR}/state/issue_body.md — issue body
+- ${GH_AI_SESSION_DIR}/state/issue_comments.md — all comments
 </context_files>
 
 <focus>
@@ -35,7 +35,7 @@ Only proceed with edits, modifications, or implementation when the user
 explicitly requests it.
 
 Read the context files listed above to get the full context for GitHub
-issue #${GH_ISSUE_NUMBER}, then summarize the issue in your reply. Do not
+issue #${GH_AI_ISSUE_NUMBER}, then summarize the issue in your reply. Do not
 use tools or read files other than those listed in <context_files>. Then
 ask whether the user wants to discuss the issue, plan an implementation,
 or begin implementation.
