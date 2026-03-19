@@ -292,6 +292,25 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-claude-ctx.XXXXXXXXXX")
 }
 
+# Generate a UUID v4 using /dev/urandom and od (no uuidgen required).
+#
+# Reads 16 random bytes, formats them as a lowercase UUID v4 string with
+# the version (4) and variant bits set correctly.
+#
+# Stdout: uuid string (e.g. f47ac10b-58cc-4372-a567-0e02b2c3d479)
+# Usage: uuid=$(_uuidgen)
+_uuidgen() {
+	local _ug_hex
+	_ug_hex=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
+	printf '%s-%s-4%s-%02x%s-%s\n' \
+		"${_ug_hex:0:8}" \
+		"${_ug_hex:8:4}" \
+		"${_ug_hex:13:3}" \
+		$(( (16#${_ug_hex:16:2} & 0x3f) | 0x80 )) \
+		"${_ug_hex:18:2}" \
+		"${_ug_hex:20:12}"
+}
+
 # Resolve the base directory for persistent chat sessions.
 # Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/claude/sessions.
 #
@@ -505,7 +524,7 @@ _resolve_chat_session() {
 		fi
 	else
 		local _rcs_uuid
-		_rcs_uuid=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
+		_rcs_uuid=$(_uuidgen)
 		if [[ -z "$_rcs_uuid" ]]; then
 			gum log --level error "Failed to generate session UUID"
 			return 1

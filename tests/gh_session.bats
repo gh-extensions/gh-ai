@@ -28,7 +28,8 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _git_repo_path _resolve_chat_session _gh_session_base_dir \
-			_extract_chat_passthrough _resolve_context_dir _create_context_dir
+			_extract_chat_passthrough _resolve_context_dir _create_context_dir \
+			_uuidgen
 	)"
 }
 
@@ -48,6 +49,25 @@ setup() {
 	XDG_STATE_HOME="$BATS_TEST_TMPDIR/xdg" result=$(_gh_session_base_dir)
 
 	[[ "$result" == "$BATS_TEST_TMPDIR/xdg/gh/claude/sessions" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _uuidgen
+# ---------------------------------------------------------------------------
+
+@test "_uuidgen: output matches UUID v4 format" {
+	local result
+	result=$(_uuidgen)
+
+	[[ "$result" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$ ]]
+}
+
+@test "_uuidgen: separate calls produce different values" {
+	local a b
+	a=$(_uuidgen)
+	b=$(_uuidgen)
+
+	[[ "$a" != "$b" ]]
 }
 
 # ---------------------------------------------------------------------------
