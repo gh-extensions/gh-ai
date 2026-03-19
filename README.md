@@ -94,14 +94,15 @@ gh claude pr explain 42 | gh pr comment 42 --body -   # post as PR comment
 gh claude pr explain 42 | gh pr edit 42 --body -      # replace PR description
 ```
 
-Opens an interactive agent session with PR context. Sessions are persistent —
-running the same command again resumes the previous session. Use `--new-session`
-(or `-n`) to start fresh.
+Opens an interactive agent session with PR context. Each invocation starts a
+new session. Use `-- --session-id <UUID>` for a reusable named session, or
+`-- --resume <UUID>` to resume a specific session by UUID.
 
 ```bash
 gh claude pr chat 42
 gh claude pr chat -d "focus on the security changes"
-gh claude pr chat 42 -n # start a new session
+gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on next call)
+gh claude pr chat 42 -- --resume <UUID>           # resume by UUID
 ```
 
 #### Slash Commands
@@ -137,14 +138,15 @@ gh claude issue plan 42 -d "focus on the auth module"
 gh claude issue plan 42 | pbcopy
 ```
 
-Opens an interactive agent session with issue context. Sessions are persistent —
-running the same command again resumes the previous session. Use `--new-session`
-(or `-n`) to start fresh.
+Opens an interactive agent session with issue context. Each invocation starts a
+new session. Use `-- --session-id <UUID>` for a reusable named session, or
+`-- --resume <UUID>` to resume a specific session by UUID.
 
 ```bash
 gh claude issue chat 42
 gh claude issue chat 42 -d "focus on the auth module"
-gh claude issue chat 42 -n                # start a new session
+gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
+gh claude issue chat 42 -- --resume <UUID>            # resume by UUID
 ```
 
 #### Slash Commands
@@ -159,14 +161,15 @@ Analyzes a GitHub Actions workflow run and explains what happened.
 gh claude run explain 123456 # uses --log-failed for failed runs, --log otherwise
 ```
 
-Opens an interactive agent session with workflow run context. Sessions are
-persistent — running the same command again resumes the previous session.
-Use `--new-session` (or `-n`) to start fresh.
+Opens an interactive agent session with workflow run context. Each invocation
+starts a new session. Use `-- --session-id <UUID>` for a reusable named
+session, or `-- --resume <UUID>` to resume a specific session by UUID.
 
 ```bash
 gh claude run chat 123456
 gh claude run chat 123456 -d "focus on test failures"
-gh claude run chat 123456 -n                # start a new session
+gh claude run chat 123456 -- --session-id <UUID>    # named session (reuses on next call)
+gh claude run chat 123456 -- --resume <UUID>        # resume by UUID
 ```
 
 ## Recipes
@@ -232,19 +235,31 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
 
 ## Session Management
 
-Chat commands automatically persist sessions per resource. The first
-invocation creates a new session; subsequent runs resume it. Session state
-is stored in the current worktree at:
+Session state is stored under the XDG state directory:
 
 ```text
-<worktree-root>/.github/sessions/<name>/   (e.g. pull-42/, issue-42/, run-123/)
-  session.id   — Claude session UUID used to resume the conversation
+${XDG_STATE_HOME:-~/.local/state}/gh/claude/sessions/<session-id>/
+  chat.id   — resource identifier (e.g. pull-42, issue-7, run-123456)
 ```
 
-When working inside a linked worktree (e.g. created by `gh worktree`),
-sessions are scoped to that worktree — not the main repository root.
+**Three modes** — controlled by flags after `--`:
 
-Use `--new-session` (or `-n`) to discard the existing session and start fresh.
+| Invocation | Behaviour |
+|---|---|
+| `gh claude pr chat 42` | Auto-generate UUID, new session, context rendered |
+| `gh claude pr chat 42 -- --session-id <UUID>` | Named session — creates on first call, resumes (no context re-render) on subsequent calls |
+| `gh claude pr chat 42 -- --resume <UUID>` | Resume a specific session by UUID; errors if not found or resource mismatch |
+
+```bash
+# Named session: context rendered first time, skipped on reuse
+gh claude pr chat 42 -- --session-id <UUID>
+gh claude pr chat 42 -- --session-id <UUID>   # resumes, no re-fetch
+
+# Resume by UUID
+gh claude pr chat 42 -- --resume abc123-...
+```
+
+Override the sessions root by setting `XDG_STATE_HOME`.
 
 ## Configuration
 

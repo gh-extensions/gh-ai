@@ -120,8 +120,8 @@ _parse_pr_args() {
 # Fetches PR metadata and diff, saves context files to the context directory,
 # and populates the output variables via namerefs.
 #
-# When type is "chat" the context is written to the persistent session directory
-# .github/sessions/pull-<num> so Claude can resume across invocations.
+# When type is "chat" the context is written to the pre-resolved session
+# directory (set by _resolve_chat_session before this is called).
 # For all other types a temporary directory is created.
 #
 # Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref url_ref
@@ -728,12 +728,11 @@ _gh_pr_explain() {
 # Pre-processes the argument list to convert any GitHub PR URL to a bare
 # numeric PR number before delegating to the shared _parse_chat_args.
 #
-# Usage: _parse_pr_chat_args num_ref desc_ref new_session_ref [args...]
+# Usage: _parse_pr_chat_args num_ref desc_ref [args...]
 _parse_pr_chat_args() {
 	local _ppca_num_ref="$1"
 	local _ppca_desc_ref="$2"
-	local _ppca_ns_ref="$3"
-	shift 3
+	shift 2
 
 	local _ppca_processed=()
 	local _ppca_arg
@@ -746,13 +745,10 @@ _parse_pr_chat_args() {
 		fi
 	done
 
-	_parse_chat_args "$_ppca_num_ref" "$_ppca_desc_ref" "$_ppca_ns_ref" "${_ppca_processed[@]}"
+	_parse_chat_args "$_ppca_num_ref" "$_ppca_desc_ref" "${_ppca_processed[@]}"
 }
 
-# Fetches PR metadata and diff into .github/sessions/pull-<num> for use by _gh_pr_chat.
-# The session directory persists across invocations so Claude can resume context.
-# _resolve_chat_session tracks the Claude session UUID separately via a
-# "session.id" file written inside the session directory.
+# Fetches PR metadata and diff into the pre-resolved session directory for _gh_pr_chat.
 _prepare_pr_chat_context() { _prepare_pr_diff_context "chat" "$@"; }
 
 # PR chat help function
@@ -764,7 +760,7 @@ _show_pr_chat_help() {
 gh claude pr chat - Open an agent session with PR context
 
 USAGE:
-    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Fetches the GitHub PR metadata and diff, renders it as context, and
@@ -776,25 +772,24 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
-    -n, --new-session          Start a new session
 
 EXAMPLES:
     gh claude pr chat 42
     gh claude pr chat -d "focus on the security changes"
-    gh claude pr chat 42 --new-session
-    gh claude pr chat                    # auto-detect PR from current branch
-    gh claude pr chat 42 -- --model sonnet --verbose
+    gh claude pr chat                          # auto-detect PR from current branch
+    gh claude pr chat 42 -- --model sonnet
+    gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on next call)
+    gh claude pr chat 42 -- --resume <UUID>           # resume a specific session
 EOF
 }
 
 # PR Chat implementation
 #
 # Fetches a GitHub PR's metadata and diff, renders the context template,
-# and pipes it into the configured agent binary. Session continuity is
-# managed via _resolve_chat_session — subsequent invocations resume the
-# previous session automatically; --new-session forces a fresh session ID.
+# and pipes it into the configured agent binary. Pass --session-id or
+# --resume after -- to manage sessions explicitly.
 #
-# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 _gh_pr_chat() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -806,14 +801,13 @@ _gh_pr_chat() {
 	local args=()
 	local passthrough=()
 	_split_on_separator args passthrough "$@"
-	_validate_chat_passthrough passthrough || return 1
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_chat.tmpl"
 
-	local gh_pr_number="" gh_pr_description="" gh_pr_new_session=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description gh_pr_new_session "${args[@]}"
+	local gh_pr_number="" gh_pr_description=""
+	_parse_pr_chat_args gh_pr_number gh_pr_description "${args[@]}"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gh_pr_number=$(_detect_pr_number)
@@ -821,29 +815,31 @@ _gh_pr_chat() {
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]"
+		gum log --level info "Usage: gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>]"
 		return 1
 	fi
 
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
-	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
+	local gh_pr_user_session_id="" gh_pr_user_resume=""
+	_extract_chat_passthrough passthrough gh_pr_user_session_id gh_pr_user_resume
 
-	if [[ -z "$gh_pr_head" ]]; then
-		gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
-		return 1
-	fi
-
-	local gh_pr_focus=""
-	if [[ -n "$gh_pr_description" ]]; then
-		gh_pr_focus="<focus>${gh_pr_description}</focus>"
-	fi
-
-	local gh_pr_is_new_chat="" gh_pr_session_args=()
-	_resolve_chat_session "$gh_pr_dir" "$gh_pr_new_session" gh_pr_is_new_chat gh_pr_session_args || return 1
+	local gh_pr_dir="" gh_pr_is_new_chat="" gh_pr_session_args=()
+	_resolve_chat_session "pull-$gh_pr_number" "$gh_pr_user_session_id" "$gh_pr_user_resume" gh_pr_dir gh_pr_is_new_chat gh_pr_session_args || return 1
 	gh_pr_session_args+=(--plugin-dir "$_gh_claude_source_dir/plugins/gh-pr-plugin")
 
-	local gh_pr_prompt=""
+	local gh_pr_title="" gh_pr_head="" gh_pr_url="" gh_pr_prompt=""
 	if [[ -n "$gh_pr_is_new_chat" ]]; then
+		_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
+
+		if [[ -z "$gh_pr_head" ]]; then
+			gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
+			return 1
+		fi
+
+		local gh_pr_focus=""
+		if [[ -n "$gh_pr_description" ]]; then
+			gh_pr_focus="<focus>${gh_pr_description}</focus>"
+		fi
+
 		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 		gh_pr_prompt=$(
 			GH_PR_NUMBER="$gh_pr_number" \
@@ -1020,7 +1016,7 @@ USAGE:
     gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
     gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
     gh claude pr explain [PR_NUMBER]
-    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
     gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:

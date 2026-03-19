@@ -293,19 +293,20 @@ _create_context_dir() {
 }
 
 # Resolve the base directory for persistent chat sessions.
-# Always <worktree-root>/.github/sessions.
+# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/claude/sessions.
 #
 # Stdout: base directory path
-# Usage: base=$(_gh_session_base_dir <git_root>)
+# Usage: base=$(_gh_session_base_dir)
 _gh_session_base_dir() {
-	printf '%s/.github/sessions' "$1"
+	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/claude/sessions"
 }
 
 # Resolve context directory: persistent session dir for chat, temp dir otherwise
 #
-# Chat commands get a persistent directory under the sessions base dir (see
-# _gh_session_base_dir) at <base>/<name>; all other commands get a temporary
-# directory via _create_context_dir.
+# For chat commands, returns early if dir_ref is already set (pre-resolved by
+# _resolve_chat_session). Otherwise creates the session directory under the
+# XDG-based sessions base. All other command types get a temporary directory
+# via _create_context_dir.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
 _resolve_context_dir() {
@@ -314,9 +315,12 @@ _resolve_context_dir() {
 	local -n _rcd_dir="$3"
 
 	if [[ "$_rcd_type" == "chat" ]]; then
-		local _rcd_git_root
-		_git_repo_path _rcd_git_root || return 1
-		_rcd_dir="$(_gh_session_base_dir "$_rcd_git_root")/$_rcd_name"
+		if [[ -n "$_rcd_dir" ]]; then
+			return 0
+		fi
+		local _rcd_base
+		_rcd_base=$(_gh_session_base_dir)
+		_rcd_dir="${_rcd_base}/${_rcd_name}"
 		mkdir -p "$_rcd_dir"
 	else
 		_create_context_dir _rcd_dir
@@ -336,16 +340,15 @@ _save_context_file() {
 
 # Shared argument parser for chat commands.
 #
-# Extracts a numeric resource ID (first positional arg), -d/--description value,
-# and -n/--new-session flag. Unknown flags produce an error. All internal
-# variables use _pca_ prefix to avoid nameref collisions.
+# Extracts a numeric resource ID (first positional arg) and -d/--description
+# value. Unknown flags produce an error. All internal variables use _pca_
+# prefix to avoid nameref collisions.
 #
-# Usage: _parse_chat_args id_ref desc_ref new_session_ref [args...]
+# Usage: _parse_chat_args id_ref desc_ref [args...]
 _parse_chat_args() {
 	local -n _pca_id="$1"
 	local -n _pca_desc="$2"
-	local -n _pca_new_session="$3"
-	shift 3
+	shift 2
 
 	local _pca_raw=("$@")
 	local _pca_skip=false
@@ -372,10 +375,6 @@ _parse_chat_args() {
 			# shellcheck disable=SC2034 # nameref: set by caller
 			_pca_desc="${_pca_raw[$_pca_i]#--description=}"
 			;;
-		--new-session | -n)
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_pca_new_session=1
-			;;
 		-*)
 			gum log --level error "unknown flag '${_pca_raw[$_pca_i]}'"
 			return 1
@@ -394,60 +393,108 @@ _parse_chat_args() {
 	done
 }
 
-# Validate chat passthrough args, rejecting flags managed by gh-claude.
+# Extract --session-id and --resume values from chat passthrough args.
 #
-# Returns 1 if --session-id or --resume are found.
+# Scans the passthrough array and populates session_id_ref and resume_ref
+# with the corresponding values when found. Does not modify the array.
 #
-# Usage: _validate_chat_passthrough passthrough_ref
-_validate_chat_passthrough() {
-	local -n _vcp_args="$1"
-	local _vcp_flag
-	for _vcp_flag in "${_vcp_args[@]}"; do
-		case "$_vcp_flag" in
-		--session-id | --resume)
-			gum log --level error -- "$_vcp_flag is managed by gh-claude and cannot be passed through"
-			return 1
+# Usage: _extract_chat_passthrough passthrough_ref session_id_ref resume_ref
+_extract_chat_passthrough() {
+	local -n _ecp_args="$1"
+	local -n _ecp_session_id="$2"
+	local -n _ecp_resume="$3"
+	local _ecp_i=0
+	local _ecp_skip=false
+
+	while [[ $_ecp_i -lt ${#_ecp_args[@]} ]]; do
+		if [[ "$_ecp_skip" = true ]]; then
+			_ecp_skip=false
+			((++_ecp_i))
+			continue
+		fi
+
+		case "${_ecp_args[$_ecp_i]}" in
+		--session-id)
+			if ((_ecp_i + 1 < ${#_ecp_args[@]})); then
+				# shellcheck disable=SC2034 # nameref: set by caller
+				_ecp_session_id="${_ecp_args[$((_ecp_i + 1))]}"
+				_ecp_skip=true
+			fi
+			;;
+		--resume)
+			if ((_ecp_i + 1 < ${#_ecp_args[@]})); then
+				# shellcheck disable=SC2034 # nameref: set by caller
+				_ecp_resume="${_ecp_args[$((_ecp_i + 1))]}"
+				_ecp_skip=true
+			fi
 			;;
 		esac
+		((++_ecp_i))
 	done
 }
 
-# Resolve session arguments for _cmd_chat and report whether a new session
-# is being started.
+# Resolve session directory and arguments for chat commands.
 #
-# Reads the session UUID from $session_dir/session.id.
-#   - File present and new_session is empty: sets is_new_ref to "" and
-#     args_ref to (--resume <uuid>).
-#   - File absent or new_session is non-empty: generates a new UUID, writes it
-#     to the file, sets is_new_ref to 1 and args_ref to (--session-id <uuid>).
+# Three modes:
+#   - user_resume non-empty: dir must exist; chat.id must match resource name;
+#     is_new="", args=() (--resume is already in passthrough)
+#   - user_session_id non-empty: dir = <base>/<user_session_id>; if dir already
+#     exists, is_new="" (skip context); if absent, create dir, write chat.id,
+#     is_new=1; args=() in both cases (--session-id is already in passthrough)
+#   - Auto-generate: new UUID, create dir, write chat.id, is_new=1,
+#     args=(--session-id <UUID>)
 #
-# Usage: _resolve_chat_session session_dir new_session is_new_ref args_ref
+# Usage: _resolve_chat_session name user_session_id user_resume dir_ref is_new_ref args_ref
 _resolve_chat_session() {
-	local _rcs_dir="$1"
-	local _rcs_new_session="$2"
-	local -n _rcs_is_new="$3"
-	local -n _rcs_args="$4"
+	local _rcs_name="$1"
+	local _rcs_user_session_id="$2"
+	local _rcs_user_resume="$3"
+	local -n _rcs_dir="$4"
+	local -n _rcs_is_new="$5"
+	local -n _rcs_args="$6"
 
-	local _rcs_session_file="$_rcs_dir/session.id"
-	local _rcs_uuid
+	local _rcs_base
+	_rcs_base=$(_gh_session_base_dir)
 
-	if [[ -n "$_rcs_new_session" ]]; then
-		rm -fr "$_rcs_session_file"
-	fi
-
-	if [[ -f "$_rcs_session_file" ]]; then
-		_rcs_uuid=$(<"$_rcs_session_file")
+	if [[ -n "$_rcs_user_resume" ]]; then
+		_rcs_dir="${_rcs_base}/${_rcs_user_resume}"
+		if [[ ! -d "$_rcs_dir" ]]; then
+			gum log --level error "Session not found: ${_rcs_user_resume}"
+			return 1
+		fi
+		local _rcs_stored_name
+		_rcs_stored_name=$(cat "$_rcs_dir/chat.id" 2>/dev/null || true)
+		if [[ "$_rcs_stored_name" != "$_rcs_name" ]]; then
+			gum log --level error "Session ${_rcs_user_resume} belongs to '${_rcs_stored_name}', not '${_rcs_name}'"
+			return 1
+		fi
 		# shellcheck disable=SC2034 # nameref: set by caller
 		_rcs_is_new=""
 		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_args=(--resume "$_rcs_uuid")
+		_rcs_args=()
+	elif [[ -n "$_rcs_user_session_id" ]]; then
+		_rcs_dir="${_rcs_base}/${_rcs_user_session_id}"
+		if [[ -d "$_rcs_dir" ]]; then
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_is_new=""
+		else
+			mkdir -p "$_rcs_dir"
+			printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_is_new=1
+		fi
+		# shellcheck disable=SC2034 # nameref: set by caller
+		_rcs_args=()
 	else
+		local _rcs_uuid
 		_rcs_uuid=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)
 		if [[ -z "$_rcs_uuid" ]]; then
 			gum log --level error "Failed to generate session UUID"
 			return 1
 		fi
-		printf '%s' "$_rcs_uuid" >"$_rcs_session_file"
+		_rcs_dir="${_rcs_base}/${_rcs_uuid}"
+		mkdir -p "$_rcs_dir"
+		printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
 		# shellcheck disable=SC2034 # nameref: set by caller
 		_rcs_is_new=1
 		# shellcheck disable=SC2034 # nameref: set by caller

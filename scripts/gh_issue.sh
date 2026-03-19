@@ -110,8 +110,8 @@ _parse_issue_args() {
 # and populates the output variables via namerefs. Reads optional stdin
 # into issue_context.md.
 #
-# When type is "chat" the context is written to the persistent session directory
-# .github/sessions/issue-<num> so Claude can resume across invocations.
+# When type is "chat" the context is written to the pre-resolved session
+# directory (set by _resolve_chat_session before this is called).
 # For all other types a temporary directory is created.
 #
 # Usage: _prepare_issue_context type issue_number dir_ref title_ref labels_ref url_ref
@@ -669,12 +669,11 @@ _gh_issue_plan() {
 # Pre-processes the argument list to convert any GitHub issue URL to a bare
 # numeric issue number before delegating to the shared _parse_chat_args.
 #
-# Usage: _parse_issue_chat_args num_ref desc_ref new_session_ref [args...]
+# Usage: _parse_issue_chat_args num_ref desc_ref [args...]
 _parse_issue_chat_args() {
 	local _pica_num_ref="$1"
 	local _pica_desc_ref="$2"
-	local _pica_ns_ref="$3"
-	shift 3
+	shift 2
 
 	local _pica_processed=()
 	local _pica_arg
@@ -687,13 +686,10 @@ _parse_issue_chat_args() {
 		fi
 	done
 
-	_parse_chat_args "$_pica_num_ref" "$_pica_desc_ref" "$_pica_ns_ref" "${_pica_processed[@]}"
+	_parse_chat_args "$_pica_num_ref" "$_pica_desc_ref" "${_pica_processed[@]}"
 }
 
-# Fetches issue metadata into .github/sessions/issue-<num> for use by _gh_issue_chat.
-# The session directory persists across invocations so Claude can resume context.
-# _resolve_chat_session tracks the Claude session UUID separately via a
-# "session.id" file written inside the session directory.
+# Fetches issue metadata into the pre-resolved session directory for _gh_issue_chat.
 _prepare_issue_chat_context() { _prepare_issue_context "chat" "$@"; }
 
 # Issue chat help function
@@ -705,7 +701,7 @@ _show_issue_chat_help() {
 gh claude issue chat - Open an agent session with issue context
 
 USAGE:
-    gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Fetches the GitHub issue metadata, renders it as context, and pipes
@@ -716,25 +712,24 @@ DESCRIPTION:
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
-    -n, --new-session          Start a new session
 
 EXAMPLES:
     gh claude issue chat 42
     gh claude issue chat https://github.com/owner/repo/issues/42
     gh claude issue chat 42 -d "focus on the auth module"
-    gh claude issue chat 42 --new-session
-    gh claude issue chat 42 -- --model sonnet --verbose
+    gh claude issue chat 42 -- --model sonnet
+    gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
+    gh claude issue chat 42 -- --resume <UUID>            # resume a specific session
 EOF
 }
 
 # Issue Chat implementation
 #
 # Fetches a GitHub issue, renders the context template, and pipes it
-# into the configured agent binary. Session continuity is managed via
-# _resolve_chat_session — subsequent invocations resume the previous
-# session automatically; --new-session forces a fresh session ID.
+# into the configured agent binary. Pass --session-id or --resume after --
+# to manage sessions explicitly.
 #
-# Usage: _gh_issue_chat <NUMBER> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+# Usage: _gh_issue_chat <NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 _gh_issue_chat() {
 	case "${1:-}" in
 	--help | -h | help)
@@ -746,35 +741,36 @@ _gh_issue_chat() {
 	local args=()
 	local passthrough=()
 	_split_on_separator args passthrough "$@"
-	_validate_chat_passthrough passthrough || return 1
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_issue_chat.tmpl"
 
-	local gh_issue_number="" gh_issue_description="" gh_issue_new_session=""
-	_parse_issue_chat_args gh_issue_number gh_issue_description gh_issue_new_session "${args[@]}"
+	local gh_issue_number="" gh_issue_description=""
+	_parse_issue_chat_args gh_issue_number gh_issue_description "${args[@]}"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]"
+		gum log --level info "Usage: gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>]"
 		return 1
 	fi
 
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
-	_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
+	local gh_issue_user_session_id="" gh_issue_user_resume=""
+	_extract_chat_passthrough passthrough gh_issue_user_session_id gh_issue_user_resume
 
-	local gh_issue_focus=""
-	if [[ -n "$gh_issue_description" ]]; then
-		gh_issue_focus="<focus>${gh_issue_description}</focus>"
-	fi
-
-	local gh_issue_is_new_chat="" gh_issue_session_args=()
-	_resolve_chat_session "$gh_issue_dir" "$gh_issue_new_session" gh_issue_is_new_chat gh_issue_session_args || return 1
+	local gh_issue_dir="" gh_issue_is_new_chat="" gh_issue_session_args=()
+	_resolve_chat_session "issue-$gh_issue_number" "$gh_issue_user_session_id" "$gh_issue_user_resume" gh_issue_dir gh_issue_is_new_chat gh_issue_session_args || return 1
 	gh_issue_session_args+=(--plugin-dir "$_gh_claude_source_dir/plugins/gh-issue-plugin")
 
-	local gh_issue_prompt=""
+	local gh_issue_title="" gh_issue_labels="" gh_issue_url="" gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
+		_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
+
+		local gh_issue_focus=""
+		if [[ -n "$gh_issue_description" ]]; then
+			gh_issue_focus="<focus>${gh_issue_description}</focus>"
+		fi
+
 		gh_issue_prompt=$(
 			GH_ISSUE_NUMBER="$gh_issue_number" \
 				GH_ISSUE_TITLE="$gh_issue_title" \
@@ -804,7 +800,7 @@ USAGE:
     gh claude issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
     gh claude issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
     gh claude issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
-    gh claude issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-n] [-- AGENT_OPTIONS]
+    gh claude issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured

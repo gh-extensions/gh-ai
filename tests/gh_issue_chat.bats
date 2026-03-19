@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 setup() {
 	export _gh_claude_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
+	unset XDG_STATE_HOME
 
 	mkdir -p "$BATS_TEST_TMPDIR/.git"
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
@@ -30,7 +31,7 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_issue.sh"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _extract_issue_number _parse_chat_args _parse_issue_chat_args _validate_chat_passthrough _show_issue_chat_help _gh_issue_chat \
+		declare -f _extract_issue_number _parse_chat_args _parse_issue_chat_args _extract_chat_passthrough _show_issue_chat_help _gh_issue_chat \
 			_cmd_chat _cmd_render _split_on_separator _get_agent _git_repo_path _resolve_chat_session \
 			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file \
 			_gh_session_base_dir
@@ -42,104 +43,79 @@ setup() {
 # ---------------------------------------------------------------------------
 
 @test "_parse_issue_chat_args: captures issue number from positional arg" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42
+	local number="" description=""
+	_parse_issue_chat_args number description 42
 
 	[[ "$number" == "42" ]]
 	[[ -z "$description" ]]
-	[[ -z "$reset" ]]
 }
 
 @test "_parse_issue_chat_args: strips leading # from issue number" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset "#42"
+	local number="" description=""
+	_parse_issue_chat_args number description "#42"
 
 	[[ "$number" == "42" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from -d flag" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42 -d "focus on auth"
+	local number="" description=""
+	_parse_issue_chat_args number description 42 -d "focus on auth"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "focus on auth" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from --description flag" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42 --description "focus on auth"
+	local number="" description=""
+	_parse_issue_chat_args number description 42 --description "focus on auth"
 
 	[[ "$description" == "focus on auth" ]]
 }
 
 @test "_parse_issue_chat_args: sets description from --description=value" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset 42 --description="focus on auth"
+	local number="" description=""
+	_parse_issue_chat_args number description 42 --description="focus on auth"
 
 	[[ "$description" == "focus on auth" ]]
 }
 
-@test "_parse_issue_chat_args: captures --new-session flag" {
-	local number="" description="" new_session=""
-	_parse_issue_chat_args number description new_session 42 --new-session
-
-	[[ "$number" == "42" ]]
-	[[ "$new_session" == "1" ]]
-}
-
-@test "_parse_issue_chat_args: captures -n flag" {
-	local number="" description="" new_session=""
-	_parse_issue_chat_args number description new_session 42 -n
-
-	[[ "$number" == "42" ]]
-	[[ "$new_session" == "1" ]]
-}
-
-@test "_parse_issue_chat_args: --new-session defaults to empty" {
-	local number="" description="" new_session=""
-	_parse_issue_chat_args number description new_session 42
-
-	[[ -z "$new_session" ]]
-}
-
 @test "_parse_issue_chat_args: returns error when -d has no value" {
-	local number="" description="" reset=""
-	run _parse_issue_chat_args number description reset 42 -d
+	local number="" description=""
+	run _parse_issue_chat_args number description 42 -d
 
 	[[ "$status" -eq 1 ]]
 }
 
 @test "_parse_issue_chat_args: returns error for unknown flags" {
-	local number="" description="" reset=""
-	run _parse_issue_chat_args number description reset --draft
+	local number="" description=""
+	run _parse_issue_chat_args number description --draft
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unknown flag '--draft'"* ]]
 }
 
 @test "_parse_issue_chat_args: returns error for unexpected non-numeric args" {
-	local number="" description="" reset=""
-	run _parse_issue_chat_args number description reset foo
+	local number="" description=""
+	run _parse_issue_chat_args number description foo
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument 'foo'"* ]]
 }
 
 @test "_parse_issue_chat_args: returns error for second positional arg" {
-	local number="" description="" reset=""
-	run _parse_issue_chat_args number description reset 42 99
+	local number="" description=""
+	run _parse_issue_chat_args number description 42 99
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument '99'"* ]]
 }
 
 @test "_parse_issue_chat_args: accepts GitHub issue URL as issue number" {
-	local number="" description="" reset=""
-	_parse_issue_chat_args number description reset "https://github.com/owner/repo/issues/42"
+	local number="" description=""
+	_parse_issue_chat_args number description "https://github.com/owner/repo/issues/42"
 
 	[[ "$number" == "42" ]]
 	[[ -z "$description" ]]
-	[[ -z "$reset" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -235,9 +211,14 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_issue_chat: resumes previous session on second call" {
+@test "_gh_issue_chat: resumes session when -- --resume is passed" {
 	_setup_chat_mocks
 
+	# Create a valid session dir so --resume finds it
+	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
+	mkdir -p "$base/abc123"
+	printf 'issue-42' >"$base/abc123/chat.id"
+
 	_cmd_chat() {
 		printf 'URL:%s\n' "$1"
 		printf 'PROMPT:%s\n' "$2"
@@ -245,22 +226,11 @@ _setup_chat_mocks() {
 		printf 'ARGS:%s\n' "$*"
 	}
 
-	# First call creates session
-	run _gh_issue_chat 42
-	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"--session-id"* ]]
+	run _gh_issue_chat 42 -- --resume abc123
 
-	# Second call should resume with empty prompt
-	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
-		printf 'ARGS:%s\n' "$*"
-	}
-
-	run _gh_issue_chat 42
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"--resume"* ]]
+	# No prompt rendered on resume
 	[[ "$output" != *"Test Issue"* ]]
 }
 
@@ -291,9 +261,17 @@ _setup_chat_mocks() {
 	[[ "$output" == *"--model sonnet --verbose"* ]]
 }
 
-@test "_gh_issue_chat: rejects managed flags in passthrough" {
-	run _gh_issue_chat 42 -- --resume abc123
+@test "_gh_issue_chat: accepts --session-id in passthrough" {
+	_setup_chat_mocks
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"--resume is managed by gh-claude"* ]]
+	_cmd_chat() {
+		printf 'URL:%s\n' "$1"
+		shift 2
+		printf 'ARGS:%s\n' "$*"
+	}
+
+	run _gh_issue_chat 42 -- --session-id my-session
+
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == *"--session-id my-session"* ]]
 }
