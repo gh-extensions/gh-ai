@@ -324,11 +324,13 @@ When inside tmux, chat bindings (`alt-C`) automatically open in a new tmux
 window so fzf stays interactive. Set `GH_CLAUDE_FZF_TMUX=0` to disable this
 and always run inline.
 
-## See Also
+## The gh-extensions Ecosystem
 
-- [gh-worktree](https://github.com/gh-extensions/gh-worktree) — Isolated git worktrees for PRs, issues, and workflow runs
-- [gh-fzf](https://github.com/gh-extensions/gh-fzf) — Fuzzy finder for GitHub CLI
-- [git-ai](https://github.com/git-extensions/git-ai) — AI-powered commit messages for git (`git ai commit`)
+| Repo | What it provides |
+|------|-----------------|
+| **gh-claude** ← you are here | AI-powered copilot for the GitHub CLI |
+| [gh-fzf](https://github.com/gh-extensions/gh-fzf) | Fuzzy finder for GitHub CLI |
+| [gh-worktree](https://github.com/gh-extensions/gh-worktree) | Isolated git worktrees for PRs, issues, and workflow runs |
 
 ## License
 
