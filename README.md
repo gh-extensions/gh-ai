@@ -105,10 +105,6 @@ gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on nex
 gh claude pr chat 42 -- --resume <UUID>           # resume by UUID
 ```
 
-#### Slash Commands
-
-See [gh-pr-plugin](plugins/gh-pr-plugin/README.md) for the full slash command reference.
-
 ### Issue
 
 Creates a structured GitHub issue from a brief description.
@@ -148,10 +144,6 @@ gh claude issue chat 42 -d "focus on the auth module"
 gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
 gh claude issue chat 42 -- --resume <UUID>            # resume by UUID
 ```
-
-#### Slash Commands
-
-See [gh-issue-plugin](plugins/gh-issue-plugin/README.md) for the full slash command reference.
 
 ### Run
 
