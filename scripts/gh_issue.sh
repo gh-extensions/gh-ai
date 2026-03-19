@@ -23,7 +23,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
 #
 # Usage: num=$(_extract_issue_number "$raw_arg") || return 1
 _extract_issue_number() {
-	local _ein_input="${1#\#}"   # strip leading '#'
+	local _ein_input="${1#\#}" # strip leading '#'
 
 	# Fast path: purely numeric
 	if [[ "$_ein_input" =~ ^[0-9]+$ ]]; then
@@ -761,7 +761,6 @@ _gh_issue_chat() {
 	local gh_issue_dir="" gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "issue-$gh_issue_number" "$gh_issue_user_session_id" "$gh_issue_user_resume" gh_issue_dir gh_issue_is_new_chat gh_issue_session_args || return 1
 
-
 	local gh_issue_title="" gh_issue_labels="" gh_issue_url="" gh_issue_prompt=""
 	if [[ -n "$gh_issue_is_new_chat" ]]; then
 		_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
@@ -782,8 +781,6 @@ _gh_issue_chat() {
 		)
 	fi
 
-	export GH_ISSUE_NUMBER="$gh_issue_number"
-	export GH_CLAUDE_SESSION_DIR="$gh_issue_dir"
 	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
 }
 

@@ -33,7 +33,7 @@ _detect_pr_number() {
 #
 # Usage: num=$(_extract_pr_number "$raw_arg") || return 1
 _extract_pr_number() {
-	local _epn_input="${1#\#}"   # strip leading '#'
+	local _epn_input="${1#\#}" # strip leading '#'
 
 	# Fast path: purely numeric
 	if [[ "$_epn_input" =~ ^[0-9]+$ ]]; then
@@ -825,7 +825,6 @@ _gh_pr_chat() {
 	local gh_pr_dir="" gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "pull-$gh_pr_number" "$gh_pr_user_session_id" "$gh_pr_user_resume" gh_pr_dir gh_pr_is_new_chat gh_pr_session_args || return 1
 
-
 	local gh_pr_title="" gh_pr_head="" gh_pr_url="" gh_pr_prompt=""
 	if [[ -n "$gh_pr_is_new_chat" ]]; then
 		_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
@@ -852,8 +851,6 @@ _gh_pr_chat() {
 		)
 	fi
 
-	export GH_PR_NUMBER="$gh_pr_number"
-	export GH_CLAUDE_SESSION_DIR="$gh_pr_dir"
 	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}" "${passthrough[@]}"
 }
 
