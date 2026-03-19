@@ -435,12 +435,15 @@ _extract_chat_passthrough() {
 
 # Resolve session directory and arguments for chat commands.
 #
-# Three modes:
+# Four modes:
 #   - user_resume non-empty: dir must exist; chat.id must match resource name;
 #     is_new="", args=() (--resume is already in passthrough)
 #   - user_session_id non-empty: dir = <base>/<user_session_id>; if dir already
 #     exists, is_new="" (skip context); if absent, create dir, write chat.id,
 #     is_new=1; args=() in both cases (--session-id is already in passthrough)
+#   - GH_CLAUDE_DEFAULT_SESSION_ID set: dir = <base>/<GH_CLAUDE_DEFAULT_SESSION_ID>;
+#     if dir exists, is_new="", args=(--resume UUID) — auto-resume;
+#     if absent, create dir, write chat.id, is_new=1, args=(--session-id UUID)
 #   - Auto-generate: new UUID, create dir, write chat.id, is_new=1,
 #     args=(--session-id <UUID>)
 #
@@ -485,6 +488,21 @@ _resolve_chat_session() {
 		fi
 		# shellcheck disable=SC2034 # nameref: set by caller
 		_rcs_args=()
+	elif [[ -n "${GH_CLAUDE_DEFAULT_SESSION_ID:-}" ]]; then
+		_rcs_dir="${_rcs_base}/${GH_CLAUDE_DEFAULT_SESSION_ID}"
+		if [[ -d "$_rcs_dir" ]]; then
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_is_new=""
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_args=(--resume "$GH_CLAUDE_DEFAULT_SESSION_ID")
+		else
+			mkdir -p "$_rcs_dir"
+			printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_is_new=1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_rcs_args=(--session-id "$GH_CLAUDE_DEFAULT_SESSION_ID")
+		fi
 	else
 		local _rcs_uuid
 		_rcs_uuid=$(uuidgen 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)

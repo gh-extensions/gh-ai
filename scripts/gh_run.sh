@@ -223,6 +223,11 @@ EXAMPLES:
     gh claude run chat 123456 -- --model sonnet
     gh claude run chat 123456 -- --session-id <UUID>    # named session (reuses on next call)
     gh claude run chat 123456 -- --resume <UUID>        # resume a specific session
+
+ENVIRONMENT:
+    GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
+        Auto-resume default session: resumes if it exists, creates if not.
+        Explicit --session-id or --resume flags take precedence.
 EOF
 }
 

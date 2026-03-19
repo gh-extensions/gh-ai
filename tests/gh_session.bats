@@ -209,6 +209,69 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
+# _resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID
+# ---------------------------------------------------------------------------
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID creates dir and is_new=1 when absent" {
+	local dir="" is_new="" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "" "" dir is_new args
+
+	[[ "$is_new" == "1" ]]
+	[[ "$dir" == *"/my-default" ]]
+	[[ -d "$dir" ]]
+}
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID writes chat.id when dir absent" {
+	local dir="" is_new="" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "" "" dir is_new args
+
+	local stored
+	stored=$(<"$dir/chat.id")
+	[[ "$stored" == "pull-42" ]]
+}
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID returns --session-id when dir absent" {
+	local dir="" is_new="" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "" "" dir is_new args
+
+	[[ "${args[0]}" == "--session-id" ]]
+	[[ "${args[1]}" == "my-default" ]]
+}
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID auto-resumes when dir exists" {
+	local base
+	base=$(_gh_session_base_dir)
+	mkdir -p "$base/my-default"
+	printf 'pull-42' >"$base/my-default/chat.id"
+
+	local dir="" is_new="initial" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "" "" dir is_new args
+
+	[[ -z "$is_new" ]]
+	[[ "${args[0]}" == "--resume" ]]
+	[[ "${args[1]}" == "my-default" ]]
+}
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID ignored when --session-id in passthrough" {
+	local dir="" is_new="" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "explicit-session" "" dir is_new args
+
+	[[ "$dir" == *"/explicit-session" ]]
+}
+
+@test "_resolve_chat_session: GH_CLAUDE_DEFAULT_SESSION_ID ignored when --resume in passthrough" {
+	local base
+	base=$(_gh_session_base_dir)
+	mkdir -p "$base/explicit-resume"
+	printf 'pull-42' >"$base/explicit-resume/chat.id"
+
+	local dir="" is_new="" args=()
+	GH_CLAUDE_DEFAULT_SESSION_ID="my-default" _resolve_chat_session "pull-42" "" "explicit-resume" dir is_new args
+
+	[[ "$dir" == *"/explicit-resume" ]]
+}
+
+# ---------------------------------------------------------------------------
 # _resolve_context_dir
 # ---------------------------------------------------------------------------
 

@@ -96,13 +96,16 @@ gh claude pr explain 42 | gh pr edit 42 --body -      # replace PR description
 
 Opens an interactive agent session with PR context. Each invocation starts a
 new session. Use `-- --session-id <UUID>` for a reusable named session, or
-`-- --resume <UUID>` to resume a specific session by UUID.
+`-- --resume <UUID>` to resume a specific session by UUID. Set
+`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
+auto-resume.
 
 ```bash
 gh claude pr chat 42
 gh claude pr chat -d "focus on the security changes"
 gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on next call)
 gh claude pr chat 42 -- --resume <UUID>           # resume by UUID
+GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42   # auto-resume default session
 ```
 
 ### Issue
@@ -136,13 +139,16 @@ gh claude issue plan 42 | pbcopy
 
 Opens an interactive agent session with issue context. Each invocation starts a
 new session. Use `-- --session-id <UUID>` for a reusable named session, or
-`-- --resume <UUID>` to resume a specific session by UUID.
+`-- --resume <UUID>` to resume a specific session by UUID. Set
+`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
+auto-resume.
 
 ```bash
 gh claude issue chat 42
 gh claude issue chat 42 -d "focus on the auth module"
 gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
 gh claude issue chat 42 -- --resume <UUID>            # resume by UUID
+GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude issue chat 42  # auto-resume default session
 ```
 
 ### Run
@@ -155,13 +161,16 @@ gh claude run explain 123456 # uses --log-failed for failed runs, --log otherwis
 
 Opens an interactive agent session with workflow run context. Each invocation
 starts a new session. Use `-- --session-id <UUID>` for a reusable named
-session, or `-- --resume <UUID>` to resume a specific session by UUID.
+session, or `-- --resume <UUID>` to resume a specific session by UUID. Set
+`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
+auto-resume.
 
 ```bash
 gh claude run chat 123456
 gh claude run chat 123456 -d "focus on test failures"
 gh claude run chat 123456 -- --session-id <UUID>    # named session (reuses on next call)
 gh claude run chat 123456 -- --resume <UUID>        # resume by UUID
+GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude run chat 123456  # auto-resume default session
 ```
 
 ## Recipes
@@ -234,13 +243,14 @@ ${XDG_STATE_HOME:-~/.local/state}/gh/claude/sessions/<session-id>/
   chat.id   — resource identifier (e.g. pull-42, issue-7, run-123456)
 ```
 
-**Three modes** — controlled by flags after `--`:
+**Four modes:**
 
 | Invocation | Behaviour |
 |---|---|
 | `gh claude pr chat 42` | Auto-generate UUID, new session, context rendered |
 | `gh claude pr chat 42 -- --session-id <UUID>` | Named session — creates on first call, resumes (no context re-render) on subsequent calls |
 | `gh claude pr chat 42 -- --resume <UUID>` | Resume a specific session by UUID; errors if not found or resource mismatch |
+| `GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42` | Default session — auto-resumes if exists, creates if not |
 
 ```bash
 # Named session: context rendered first time, skipped on reuse
@@ -249,7 +259,16 @@ gh claude pr chat 42 -- --session-id <UUID>   # resumes, no re-fetch
 
 # Resume by UUID
 gh claude pr chat 42 -- --resume abc123-...
+
+# Default session via env var: always uses the same session, auto-resumes
+export GH_CLAUDE_DEFAULT_SESSION_ID=my-session
+gh claude pr chat 42    # first run: new session, context rendered
+gh claude pr chat 42    # subsequent runs: auto-resume, no re-fetch
 ```
+
+`GH_CLAUDE_DEFAULT_SESSION_ID` is only consulted when neither `--session-id`
+nor `--resume` appear in the passthrough args, so explicit flags always take
+precedence.
 
 Override the sessions root by setting `XDG_STATE_HOME`.
 
