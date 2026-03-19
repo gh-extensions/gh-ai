@@ -300,7 +300,7 @@ _Looks good to post, or what should I change?_
 - Find existing plan comment and post or update (run as a single block to preserve variables):
   ```bash
   REPO="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-  COMMENT_ID=$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg n "${GH_ISSUE_NUMBER}" '[.[][] | select(.body | test("<!-- gh-claude:issue-plan issue=" + $n + " -->"))] | last | .id // empty')
+  COMMENT_ID=$(gh api "repos/${REPO}/issues/${GH_ISSUE_NUMBER}/comments" --paginate | jq -s --arg marker "<!-- gh-claude:issue-plan issue=${GH_ISSUE_NUMBER} -->" '[.[][] | select(.body | contains($marker))] | last | .id // empty')
   if [ -n "${COMMENT_ID}" ]; then
     jq -Rs '{body: .}' "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft.md" > "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft_body.json"
     gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" --method PATCH --input "${GH_CLAUDE_SESSION_DIR}/drafts/issue_plan_draft_body.json" --jq .html_url
