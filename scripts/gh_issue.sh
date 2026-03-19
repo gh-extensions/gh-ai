@@ -701,12 +701,12 @@ _show_issue_chat_help() {
 gh claude issue chat - Open an agent session with issue context
 
 USAGE:
-    gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub issue metadata, renders it as context, and pipes
     it into the configured agent binary (default: claude).
-    Options after -- are passed directly to the agent binary.
+    Claude options (e.g. --model, --verbose) go before the subcommand.
 
     Configure the model: gh config set claude.issue.model <model>
 
@@ -717,9 +717,9 @@ EXAMPLES:
     gh claude issue chat 42
     gh claude issue chat https://github.com/owner/repo/issues/42
     gh claude issue chat 42 -d "focus on the auth module"
-    gh claude issue chat 42 -- --model sonnet
-    gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
-    gh claude issue chat 42 -- --resume <UUID>            # resume a specific session
+    gh claude --model sonnet issue chat 42
+    gh claude --session-id <UUID> issue chat 42            # named session
+    gh claude --resume <UUID> issue chat 42                # resume a session
 
 ENVIRONMENT:
     GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
@@ -743,16 +743,12 @@ _gh_issue_chat() {
 		;;
 	esac
 
-	local args=()
-	local passthrough=()
-	_split_on_separator args passthrough "$@"
-
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_issue_chat.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
-	_parse_issue_chat_args gh_issue_number gh_issue_description "${args[@]}"
+	_parse_issue_chat_args gh_issue_number gh_issue_description "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
@@ -761,7 +757,8 @@ _gh_issue_chat() {
 	fi
 
 	local gh_issue_user_session_id="" gh_issue_user_resume=""
-	_extract_chat_passthrough passthrough gh_issue_user_session_id gh_issue_user_resume
+	gh_issue_user_session_id=$(_extract_claude_arg --session-id)
+	gh_issue_user_resume=$(_extract_claude_arg --resume)
 
 	local gh_issue_dir="" gh_issue_is_new_chat="" gh_issue_session_args=()
 	_resolve_chat_session "issue-$gh_issue_number" "$gh_issue_user_session_id" "$gh_issue_user_resume" gh_issue_dir gh_issue_is_new_chat gh_issue_session_args || return 1
@@ -786,7 +783,7 @@ _gh_issue_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}"
 }
 
 # Issue help function
@@ -798,17 +795,18 @@ _show_issue_help() {
 gh claude issue - Issue commands with AI assistance
 
 USAGE:
-    gh claude issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-    gh claude issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-    gh claude issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
-    gh claude issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
-    gh claude issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
+    gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
     bodies. Posts AI-generated comments on existing issues. Generates
     implementation plans from issues and prints them to stdout.
     Opens agent sessions with issue context.
+    Claude options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create issues with AI-generated content

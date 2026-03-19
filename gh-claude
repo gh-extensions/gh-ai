@@ -54,7 +54,7 @@ _show_help() {
 gh claude - AI-powered GitHub CLI extension
 
 USAGE:
-    gh claude <command> [subcommand] [options]
+    gh claude [CLAUDE_OPTIONS] <command> [subcommand] [options]
 
 COMMANDS:
     pr          Pull request operations (create, edit, review, explain, chat)
@@ -63,6 +63,17 @@ COMMANDS:
 
 FLAGS:
     -V, --version   Print version
+
+CLAUDE OPTIONS:
+    Options placed before the subcommand are forwarded to the claude binary.
+    For example: --model, --verbose, --resume, --session-id, --allowedTools,
+    --disallowedTools, --effort, --permission-mode, --mcp-config, etc.
+
+EXAMPLES:
+    gh claude pr chat 42
+    gh claude --model sonnet pr chat 42
+    gh claude --verbose --effort high issue chat 7
+    gh claude --resume <UUID> pr chat 42
 
 SEE ALSO:
     gh claude pr --help        # PR command help
@@ -80,6 +91,28 @@ _show_version() {
 
 # Main entry point
 main() {
+	# Collect claude agent args before the first subcommand keyword
+	_GH_CLAUDE_ARGS=()
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		pr | issue | run)
+			break
+			;;
+		--version | -V)
+			_show_version
+			return 0
+			;;
+		--help | -h | help)
+			_show_help
+			return 0
+			;;
+		*)
+			_GH_CLAUDE_ARGS+=("$1")
+			shift
+			;;
+		esac
+	done
+
 	local cmd="${1:-}"
 	shift || true
 
@@ -93,10 +126,7 @@ main() {
 	run)
 		_gh_run "$@"
 		;;
-	--version | -V)
-		_show_version
-		;;
-	--help | -h | help | "")
+	"")
 		_show_help
 		;;
 	*)
