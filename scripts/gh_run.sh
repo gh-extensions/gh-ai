@@ -204,13 +204,13 @@ _show_run_chat_help() {
 gh claude run chat - Open an agent session with workflow run context
 
 USAGE:
-    gh claude run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub Actions workflow run metadata and logs, renders
     it as context, and pipes it into the configured agent binary
     (default: claude).
-    Options after -- are passed directly to the agent binary.
+    Claude options (e.g. --model, --verbose) go before the subcommand.
 
     Configure the model: gh config set claude.run.model <model>
 
@@ -220,9 +220,9 @@ FLAGS:
 EXAMPLES:
     gh claude run chat 123456
     gh claude run chat 123456 -d "focus on test failures"
-    gh claude run chat 123456 -- --model sonnet
-    gh claude run chat 123456 -- --session-id <UUID>    # named session (reuses on next call)
-    gh claude run chat 123456 -- --resume <UUID>        # resume a specific session
+    gh claude --model sonnet run chat 123456
+    gh claude --session-id <UUID> run chat 123456       # named session
+    gh claude --resume <UUID> run chat 123456           # resume a session
 
 ENVIRONMENT:
     GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
@@ -246,16 +246,12 @@ _gh_run_chat() {
 		;;
 	esac
 
-	local args=()
-	local passthrough=()
-	_split_on_separator args passthrough "$@"
-
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_run_chat.tmpl"
 
 	local gh_run_id="" gh_run_description=""
-	_parse_run_chat_args gh_run_id gh_run_description "${args[@]}"
+	_parse_run_chat_args gh_run_id gh_run_description "$@"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
@@ -269,7 +265,8 @@ _gh_run_chat() {
 	fi
 
 	local gh_run_user_session_id="" gh_run_user_resume=""
-	_extract_chat_passthrough passthrough gh_run_user_session_id gh_run_user_resume
+	gh_run_user_session_id=$(_extract_claude_arg --session-id)
+	gh_run_user_resume=$(_extract_claude_arg --resume)
 
 	local gh_run_dir="" gh_run_is_new_chat="" gh_run_session_args=()
 	_resolve_chat_session "run-$gh_run_id" "$gh_run_user_session_id" "$gh_run_user_resume" gh_run_dir gh_run_is_new_chat gh_run_session_args || return 1
@@ -292,7 +289,7 @@ _gh_run_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_run_url" "$gh_run_prompt" "${gh_run_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_run_url" "$gh_run_prompt" "${gh_run_session_args[@]}"
 }
 
 # Run help function
@@ -304,12 +301,13 @@ _show_run_help() {
 gh claude run - Workflow run commands with AI assistance
 
 USAGE:
-    gh claude run explain <RUN_ID>
-    gh claude run chat <RUN_ID> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] run explain <RUN_ID>
+    gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs and explains what happened.
     Opens agent sessions with run context.
+    Claude options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     explain     Analyze a workflow run and explain failures

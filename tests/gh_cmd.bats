@@ -10,6 +10,9 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 setup() {
 	export _gh_claude_source_dir="$REPO_ROOT"
 
+	# Initialize global claude args array (set per-test when needed)
+	_GH_CLAUDE_ARGS=()
+
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
 	git() { echo ""; }
@@ -23,7 +26,7 @@ setup() {
 		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _split_on_separator _cmd_render _parse_title _parse_body \
 			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace \
-			_gh_config_claude_model
+			_gh_config_claude_model _extract_claude_arg
 	)"
 }
 
@@ -529,4 +532,62 @@ Actual body.")
 	output=$(_gh_config_claude_model "pr")
 
 	[[ "$output" == "haiku" ]]
+}
+
+@test "_gh_config_claude_model: _GH_CLAUDE_ARGS --model overrides config" {
+	gh() { echo "sonnet"; }
+	export -f gh
+
+	_GH_CLAUDE_ARGS=(--model opus)
+	local output
+	output=$(_gh_config_claude_model "pr")
+
+	[[ "$output" == "opus" ]]
+}
+
+@test "_gh_config_claude_model: falls back to config when _GH_CLAUDE_ARGS has no --model" {
+	gh() { echo "sonnet"; }
+	export -f gh
+
+	_GH_CLAUDE_ARGS=(--verbose)
+	local output
+	output=$(_gh_config_claude_model)
+
+	[[ "$output" == "sonnet" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _extract_claude_arg
+# ---------------------------------------------------------------------------
+
+@test "_extract_claude_arg: returns value for present flag" {
+	_GH_CLAUDE_ARGS=(--model sonnet)
+	local output
+	output=$(_extract_claude_arg --model)
+
+	[[ "$output" == "sonnet" ]]
+}
+
+@test "_extract_claude_arg: returns empty for absent flag" {
+	_GH_CLAUDE_ARGS=(--verbose)
+	local output
+	output=$(_extract_claude_arg --model)
+
+	[[ -z "$output" ]]
+}
+
+@test "_extract_claude_arg: returns empty with empty array" {
+	_GH_CLAUDE_ARGS=()
+	local output
+	output=$(_extract_claude_arg --model)
+
+	[[ -z "$output" ]]
+}
+
+@test "_extract_claude_arg: handles flag at end without value" {
+	_GH_CLAUDE_ARGS=(--model)
+	local output
+	output=$(_extract_claude_arg --model)
+
+	[[ -z "$output" ]]
 }

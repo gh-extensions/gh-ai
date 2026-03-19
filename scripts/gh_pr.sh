@@ -760,13 +760,13 @@ _show_pr_chat_help() {
 gh claude pr chat - Open an agent session with PR context
 
 USAGE:
-    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub PR metadata and diff, renders it as context, and
     pipes it into the configured agent binary (default: claude).
     Auto-detects PR from the current branch if no number is provided.
-    Options after -- are passed directly to the agent binary.
+    Claude options (e.g. --model, --verbose) go before the subcommand.
 
     Configure the model: gh config set claude.pr.model <model>
 
@@ -776,10 +776,10 @@ FLAGS:
 EXAMPLES:
     gh claude pr chat 42
     gh claude pr chat -d "focus on the security changes"
-    gh claude pr chat                          # auto-detect PR from current branch
-    gh claude pr chat 42 -- --model sonnet
-    gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on next call)
-    gh claude pr chat 42 -- --resume <UUID>           # resume a specific session
+    gh claude pr chat                                     # auto-detect PR
+    gh claude --model sonnet pr chat 42
+    gh claude --session-id <UUID> pr chat 42              # named session
+    gh claude --resume <UUID> pr chat 42                  # resume a session
 
 ENVIRONMENT:
     GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
@@ -803,16 +803,12 @@ _gh_pr_chat() {
 		;;
 	esac
 
-	local args=()
-	local passthrough=()
-	_split_on_separator args passthrough "$@"
-
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_chat.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description "${args[@]}"
+	_parse_pr_chat_args gh_pr_number gh_pr_description "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gh_pr_number=$(_detect_pr_number)
@@ -825,7 +821,8 @@ _gh_pr_chat() {
 	fi
 
 	local gh_pr_user_session_id="" gh_pr_user_resume=""
-	_extract_chat_passthrough passthrough gh_pr_user_session_id gh_pr_user_resume
+	gh_pr_user_session_id=$(_extract_claude_arg --session-id)
+	gh_pr_user_resume=$(_extract_claude_arg --resume)
 
 	local gh_pr_dir="" gh_pr_is_new_chat="" gh_pr_session_args=()
 	_resolve_chat_session "pull-$gh_pr_number" "$gh_pr_user_session_id" "$gh_pr_user_resume" gh_pr_dir gh_pr_is_new_chat gh_pr_session_args || return 1
@@ -856,7 +853,7 @@ _gh_pr_chat() {
 		)
 	fi
 
-	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}" "${passthrough[@]}"
+	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}"
 }
 
 # Parse PR comment arguments (before -- separator).
@@ -1014,16 +1011,17 @@ _show_pr_help() {
 gh claude pr - Pull request commands with AI assistance
 
 USAGE:
-    gh claude pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
-    gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
-    gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
-    gh claude pr explain [PR_NUMBER]
-    gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
-    gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
+    gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
+    gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Creates, edits, reviews, explains, and comments on GitHub pull requests
     with AI-generated content. Opens agent sessions with PR context.
+    Claude options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions

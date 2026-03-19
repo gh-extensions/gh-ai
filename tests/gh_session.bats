@@ -12,6 +12,9 @@ setup() {
 	export HOME="$BATS_TEST_TMPDIR"
 	unset XDG_STATE_HOME
 
+	# Initialize global claude args array (set per-test when needed)
+	_GH_CLAUDE_ARGS=()
+
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	git() {
 		case "$1 $2" in
@@ -28,7 +31,7 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _git_repo_path _resolve_chat_session _gh_session_base_dir \
-			_extract_chat_passthrough _resolve_context_dir _create_context_dir \
+			_extract_claude_arg _resolve_context_dir _create_context_dir \
 			_uuidgen
 	)"
 }
@@ -200,32 +203,55 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _extract_chat_passthrough
+# _extract_claude_arg
 # ---------------------------------------------------------------------------
 
-@test "_extract_chat_passthrough: extracts --session-id value" {
-	local pt=(--session-id my-session --verbose)
-	local sid="" resume=""
-	_extract_chat_passthrough pt sid resume
+@test "_extract_claude_arg: extracts --session-id value" {
+	_GH_CLAUDE_ARGS=(--session-id my-session --verbose)
+	local result
+	result=$(_extract_claude_arg --session-id)
 
-	[[ "$sid" == "my-session" ]]
+	[[ "$result" == "my-session" ]]
 }
 
-@test "_extract_chat_passthrough: extracts --resume value" {
-	local pt=(--resume abc123 --verbose)
-	local sid="" resume=""
-	_extract_chat_passthrough pt sid resume
+@test "_extract_claude_arg: extracts --resume value" {
+	_GH_CLAUDE_ARGS=(--resume abc123 --verbose)
+	local result
+	result=$(_extract_claude_arg --resume)
 
-	[[ "$resume" == "abc123" ]]
+	[[ "$result" == "abc123" ]]
 }
 
-@test "_extract_chat_passthrough: leaves refs empty when flags absent" {
-	local pt=(--model sonnet --verbose)
-	local sid="" resume=""
-	_extract_chat_passthrough pt sid resume
+@test "_extract_claude_arg: returns empty when flag absent" {
+	_GH_CLAUDE_ARGS=(--model sonnet --verbose)
+	local result
+	result=$(_extract_claude_arg --resume)
 
-	[[ -z "$sid" ]]
-	[[ -z "$resume" ]]
+	[[ -z "$result" ]]
+}
+
+@test "_extract_claude_arg: extracts --model value" {
+	_GH_CLAUDE_ARGS=(--model sonnet)
+	local result
+	result=$(_extract_claude_arg --model)
+
+	[[ "$result" == "sonnet" ]]
+}
+
+@test "_extract_claude_arg: returns empty with empty _GH_CLAUDE_ARGS" {
+	_GH_CLAUDE_ARGS=()
+	local result
+	result=$(_extract_claude_arg --model)
+
+	[[ -z "$result" ]]
+}
+
+@test "_extract_claude_arg: extracts value when flag is not first" {
+	_GH_CLAUDE_ARGS=(--verbose --effort high --model opus)
+	local result
+	result=$(_extract_claude_arg --model)
+
+	[[ "$result" == "opus" ]]
 }
 
 # ---------------------------------------------------------------------------

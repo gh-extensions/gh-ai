@@ -35,18 +35,37 @@ _cmd_render() {
 }
 
 # Resolve the configured model for a given scope
-# Resolves: claude.<scope>.model → claude.model → haiku
+# Resolves: _GH_CLAUDE_ARGS --model → claude.<scope>.model → claude.model → haiku
 # Usage: _gh_config_claude_model [SCOPE]   (SCOPE: pr | issue | run | empty)
 _gh_config_claude_model() {
 	local scope="${1:-}"
 	local model=""
-	if [[ -n "$scope" ]]; then
+	model=$(_extract_claude_arg --model)
+	if [[ -z "$model" && -n "$scope" ]]; then
 		model=$(gh config get "claude.${scope}.model" 2>/dev/null || true)
 	fi
 	if [[ -z "$model" ]]; then
 		model=$(gh config get claude.model 2>/dev/null || true)
 	fi
 	printf '%s' "${model:-haiku}"
+}
+
+# Extract a flag's value from the _GH_CLAUDE_ARGS array.
+#
+# Scans _GH_CLAUDE_ARGS for a --flag followed by its value.
+# Prints the value to stdout if found; prints nothing otherwise.
+#
+# Usage: value=$(_extract_claude_arg --model)
+_extract_claude_arg() {
+	local _eca_flag="$1"
+	local _eca_i=0
+	while [[ $_eca_i -lt ${#_GH_CLAUDE_ARGS[@]} ]]; do
+		if [[ "${_GH_CLAUDE_ARGS[$_eca_i]}" == "$_eca_flag" ]] && ((_eca_i + 1 < ${#_GH_CLAUDE_ARGS[@]})); then
+			printf '%s' "${_GH_CLAUDE_ARGS[$((_eca_i + 1))]}"
+			return 0
+		fi
+		((++_eca_i))
+	done
 }
 
 # Send a prompt to Claude in non-interactive (prompt) mode
@@ -118,9 +137,9 @@ _cmd_chat() {
 	_trust_workspace "$(pwd -P)"
 
 	if [[ -n "$prompt" ]]; then
-		printf "%s" "$url" | claude --append-system-prompt "$prompt" "$@"
+		printf "%s" "$url" | claude --append-system-prompt "$prompt" "$@" "${_GH_CLAUDE_ARGS[@]}"
 	else
-		claude "$@"
+		claude "$@" "${_GH_CLAUDE_ARGS[@]}"
 	fi
 }
 
@@ -409,46 +428,6 @@ _parse_chat_args() {
 			;;
 		esac
 		((++_pca_i))
-	done
-}
-
-# Extract --session-id and --resume values from chat passthrough args.
-#
-# Scans the passthrough array and populates session_id_ref and resume_ref
-# with the corresponding values when found. Does not modify the array.
-#
-# Usage: _extract_chat_passthrough passthrough_ref session_id_ref resume_ref
-_extract_chat_passthrough() {
-	local -n _ecp_args="$1"
-	local -n _ecp_session_id="$2"
-	local -n _ecp_resume="$3"
-	local _ecp_i=0
-	local _ecp_skip=false
-
-	while [[ $_ecp_i -lt ${#_ecp_args[@]} ]]; do
-		if [[ "$_ecp_skip" = true ]]; then
-			_ecp_skip=false
-			((++_ecp_i))
-			continue
-		fi
-
-		case "${_ecp_args[$_ecp_i]}" in
-		--session-id)
-			if ((_ecp_i + 1 < ${#_ecp_args[@]})); then
-				# shellcheck disable=SC2034 # nameref: set by caller
-				_ecp_session_id="${_ecp_args[$((_ecp_i + 1))]}"
-				_ecp_skip=true
-			fi
-			;;
-		--resume)
-			if ((_ecp_i + 1 < ${#_ecp_args[@]})); then
-				# shellcheck disable=SC2034 # nameref: set by caller
-				_ecp_resume="${_ecp_args[$((_ecp_i + 1))]}"
-				_ecp_skip=true
-			fi
-			;;
-		esac
-		((++_ecp_i))
 	done
 }
 
