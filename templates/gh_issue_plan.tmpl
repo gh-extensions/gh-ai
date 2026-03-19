@@ -34,15 +34,17 @@ implementation.
 
 <rules>
 - Focus on concrete engineering tasks rather than vague descriptions.
-- Use sequential step IDs for implementation steps.
-- If the issue lacks sufficient detail, highlight missing information.
+- Use sequential step IDs (T001, T002, …) for tasks.
+- Keep tasks small and independently completable.
+- If the issue lacks sufficient detail, surface it in Open Questions.
 - If <additional_context> is empty, no extra context was provided.
+- For Likely Affected Areas, list only files you are reasonably confident
+  are relevant — omit the section if unknown.
 </rules>
 
 <output_format>
 First line: PR title — `# {title}`, under 72 chars
 Include `Closes #${GH_ISSUE_NUMBER}`
-Implementation plan as TODO checklist
 Format: GitHub-flavored Markdown
 Output only the requested content.
 Do not include preamble, commentary, or meta text.
@@ -53,16 +55,26 @@ Omit sections that are not relevant to the input.
 
 Closes #${GH_ISSUE_NUMBER}
 
-## Summary
-{1–2 sentence description of the planned change}
+## Goal
+{1 sentence describing the intended outcome}
 
-## Implementation Plan
-- [ ] T001 - {implementation step}
-- [ ] T002 - {implementation step}
-- [ ] T003 - {implementation step}
+## Proposed Approach
+{1-3 sentences on the approach, key constraints, and notable non-goals}
 
-## Acceptance Criteria
-- [ ] {criterion defining completion}
-- [ ] {criterion defining completion}
+## Likely Affected Areas
+- `{path/to/file.ext}` — {why it matters}
+- `{path/to/file.ext}` — {why it matters}
+
+## Tasks
+- [ ] **T001** — {small, concrete task}
+- [ ] **T002** — {small, concrete task}
+- [ ] **T003** — {small, concrete task}
+
+## Validation
+- [ ] {test or verification step}
+- [ ] {regression check}
+
+## Open Questions / Assumptions
+- {question or assumption}
 </example>
 </output_format>
