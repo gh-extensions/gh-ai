@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.24.0](https://github.com/gh-extensions/gh-claude/compare/v0.23.0...v0.24.0) (2026-03-19)
+
+
+### Features
+
+* add available commands section to GitHub chat templates ([451488c](https://github.com/gh-extensions/gh-claude/commit/451488c40e2d8bf983693b1a5adbb83178da52f9))
+* **gh-issue-plan:** allow cat command in skill ([05cb837](https://github.com/gh-extensions/gh-claude/commit/05cb837b97de1cf7e221cb5e7795f89129ade4f1))
+* **gh-issue-plan:** improve plan template with richer output sections ([13a46c6](https://github.com/gh-extensions/gh-claude/commit/13a46c619c071920c10cbbd5dee236b3e3f1dd02))
+* **plugins:** remove plugins in favor of independent skills ([9f43f46](https://github.com/gh-extensions/gh-claude/commit/9f43f4674bccc7f4f2eaca45da1a45463f7119c9)), closes [#85](https://github.com/gh-extensions/gh-claude/issues/85)
+* **sessions:** add GH_CLAUDE_DEFAULT_SESSION_ID for auto-resume ([ee9eb80](https://github.com/gh-extensions/gh-claude/commit/ee9eb800b73139a011cde5734a08600a8beeae2b))
+* **sessions:** rework session management with XDG-based UUID sessions ([4b0755e](https://github.com/gh-extensions/gh-claude/commit/4b0755ef74ffb9e2468703271f57f487d53dba99))
+
+
+### Bug Fixes
+
+* **gh-issue-plan:** prevent skill from implementing instead of planning ([824d9a1](https://github.com/gh-extensions/gh-claude/commit/824d9a16621fc7898742285fe19792c4c92bb5e9))
+* **gh-issue-plan:** remove unnecessary braces in variable expansion ([3ec8023](https://github.com/gh-extensions/gh-claude/commit/3ec802316ae1a033a6f1a955c20458f2f58cbb00))
+* **gh-issue-plan:** use contains instead of regex for comment marker matching ([1b7ca9d](https://github.com/gh-extensions/gh-claude/commit/1b7ca9ddd46c2619f71922c0ffe5e4a83f0f495b))
+* **tests:** add _uuidgen to declare -f lists in chat test setups ([638cbc8](https://github.com/gh-extensions/gh-claude/commit/638cbc8678134e7062237b30eb6b74431c69ac1d))
+
 ## [0.23.0](https://github.com/gh-extensions/gh-claude/compare/v0.22.0...v0.23.0) (2026-03-18)
 
 
