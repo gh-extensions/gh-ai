@@ -3,10 +3,10 @@ name: gh:pr:review
 description: >
   Drafts a GitHub pull request review with structured code feedback and submits
   it after user confirmation. Supports approve, request-changes, or comment
-  outcomes. Provide optional argument with outcome and/or focus area, e.g.,
+  outcomes. Accepts an optional outcome and/or focus area argument, e.g.,
   "approve", "request-changes", or "focus on security."
 argument-hint: "[approve|request-changes|comment] [focus area]"
-version: 1.0.0
+version: 3.0.0
 disable-model-invocation: true
 allowed-tools: Bash(*), Write
 ---
@@ -15,7 +15,7 @@ allowed-tools: Bash(*), Write
 
 ## Mode: REVIEW-ONLY
 
-Your role: **read the diff → analyze for issues → draft a structured review → present for review → incorporate feedback → submit the review to GitHub.**
+Your role: **read the diff → analyze for issues → draft a structured review → validate for quality → present for review → incorporate feedback → submit the review to GitHub.**
 
 **Submitting the review** means posting it to GitHub. It does NOT mean: merging, editing the PR, or creating separate comments.
 
@@ -32,19 +32,19 @@ Your role: **read the diff → analyze for issues → draft a structured review 
 **Current Pull Request (always fresh):**
 
 ```
-!`gh pr view ${GH_PR_NUMBER} --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f ${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq || echo "Unable to fetch PR. Check the PR number and gh auth status."`
+!`gh pr view "${GH_PR_NUMBER}" --json number,title,url,body,labels,comments,isDraft,state,reviewDecision,reviews,commits 2>/dev/null | jq -r -f "${CLAUDE_PLUGIN_ROOT}/queries/gh_pr_view.jq" || echo "Unable to fetch PR. Check the PR number and gh auth status."`
 ```
 
 **Review History (always fresh):**
 
 ```
-!`gh api repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/${GH_PR_NUMBER}/reviews --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
+!`gh api "repos/$(gh repo view --json nameWithOwner --jq .nameWithOwner)/pulls/${GH_PR_NUMBER}/reviews" --paginate 2>/dev/null | jq -s '[.[][] | {id: .id, state: .state, submitted_at: .submitted_at, body: (.body // "")}]' || echo "Unable to fetch review history."`
 ```
 
 **Current Commit SHA:**
 
 ```
-!`gh pr view ${GH_PR_NUMBER} --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
+!`gh pr view "${GH_PR_NUMBER}" --json headRefOid --jq .headRefOid 2>/dev/null || echo "unknown"`
 ```
 
 **Session Notes (optional, non-authoritative):**
@@ -56,18 +56,18 @@ Your role: **read the diff → analyze for issues → draft a structured review 
 **User Request (outcome):**
 
 ```
-!`echo "$ARGUMENTS" | tr ' ' '\n' | grep -xE 'approve|request-changes|comment' | head -1 || true`
+!`echo "$ARGUMENTS" | awk '{print $1}' | grep -xE 'approve|request-changes|comment' || true`
 ```
 
-(If empty, determine outcome based on findings. Outcome keyword must appear as the first word of arguments.)
+(If empty, determine outcome based on findings. Outcome keyword must be the first word of arguments.)
 
 **User Request (focus area):**
 
 ```
-!`echo "$ARGUMENTS" | tr ' ' '\n' | grep -vxE 'approve|request-changes|comment' | tr '\n' ' ' | xargs || true`
+!`echo "$ARGUMENTS" | sed -E 's/^(approve|request-changes|comment) ?//' | xargs || true`
 ```
 
-(If empty, review all changes comprehensively.)
+(Strips the leading outcome keyword if present; otherwise passes the full arguments as focus area.)
 
 ## Forbidden Actions
 
@@ -133,12 +133,33 @@ git apply --stat < "${GH_CLAUDE_SESSION_DIR}/state/pr_diff.patch" 2>/dev/null ||
 - Keep tone professional, constructive, and respectful
 - Append tracking marker: `<!-- gh-claude:pr-review pr=<PR_NUMBER> commit=<HEAD_SHA> -->`
 
-### 7. **Present for Review**
+### 7. **Validate Review for Quality**
+
+Before presenting to user, conduct a validation review:
+
+**Check:**
+
+| Check                    | Validation                                      | Action if Failed                                       |
+| ------------------------ | ----------------------------------------------- | ------------------------------------------------------ |
+| **Tone**                 | Professional, constructive, collaborative?      | Revise to remove dismissive/condescending language      |
+| **Specificity**          | References exact files, lines, code context?    | Add specific locations and code references              |
+| **Findings accuracy**    | Each finding cites actual code from the diff?   | Remove findings not supported by diff evidence          |
+| **Severity calibration** | Severity levels match actual impact?            | Adjust: don't inflate minor issues to High              |
+| **Suggestions**          | Concrete fixes offered, not just criticism?     | Add actionable suggestions for each finding             |
+| **Outcome alignment**    | Outcome matches the severity of findings?       | Approve should have no High findings; adjust if needed  |
+| **Redundancy**           | Doesn't repeat points from existing reviews?    | Check review history; add new perspective only          |
+| **Markdown validity**    | Renders correctly with proper code blocks?      | Fix formatting before presenting                        |
+| **Tracking marker**      | Marker appended with correct PR and commit SHA? | Verify marker format and values                         |
+
+**If any check fails:** Revise the draft before step 8. Do NOT proceed with problematic reviews.
+
+### 8. **Present for Review**
 
 ```
 ---
-**Draft review for PR #N:**
+**Draft review for PR #N: [Title]**
 
+**PR state:** [draft/open/merged/closed]
 **Outcome: {Approve | Request Changes | Comment}**
 
 ## Summary
@@ -161,16 +182,17 @@ _Submit this review, or tell me what to change?_
 ---
 ```
 
-### 8. **Handle User Feedback**
+### 9. **Handle User Feedback**
 
-- **If user confirms** (`"submit"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 9
-- **If user requests changes**: Revise and return to step 7
+- **If user confirms** (`"submit"`, `"yes"`, `"looks good"`, `"👍"`): Proceed to step 10
+- **If user requests changes**: Revise and return to step 7 → 8
 - **If user says cancel** (`"no"`, `"cancel"`, `"discard"`): Stop and don't submit
 - **If outcome changes** (e.g., "change to comment"): Update and re-show
 - **If no response to confirmation**: Ask once more: "Should I submit this review or discard it?"
 
-### 9. **Save & Submit**
+### 10. **Save & Submit**
 
+- Create the drafts directory: `mkdir -p "${GH_CLAUDE_SESSION_DIR}/drafts"`
 - Use the Write tool to save the review body (with tracking marker appended) to `${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md`
 - Submit based on outcome:
   ```bash
@@ -182,7 +204,7 @@ _Submit this review, or tell me what to change?_
   gh pr review "${GH_PR_NUMBER}" --comment --body-file "${GH_CLAUDE_SESSION_DIR}/drafts/pr_review_draft.md"
   ```
 
-### 10. **Confirm Success**
+### 11. **Confirm Success**
 
 - On success: Show the submitted review URL and brief confirmation
 - On failure: Display the full error and suggest next steps
@@ -201,9 +223,9 @@ _Submit this review, or tell me what to change?_
 
 ### Content & Structure
 
-- **Findings format:** `[Severity] issue → Location → Details → Suggestion`
+- **Findings format:** `[Severity] issue -> Location -> Details -> Suggestion`
 - **Action items:** Separate required changes (blocking) from advisory (optional)
-- **Tone:** Professional, respectful, collaborative—avoid dismissive or condescending language
+- **Tone:** Professional, respectful, collaborative — avoid dismissive or condescending language
 - **Specificity:** Reference exact files, line numbers, and code context
 - **Suggestions:** Offer concrete fixes or improvements, not just criticism
 
@@ -221,7 +243,7 @@ _Submit this review, or tell me what to change?_
 - If diff is empty, **stop immediately** — do not proceed
 - If diff is very large (1000+ lines), **focus on critical files** and state which were skipped
 - If PR fetch fails, **stop immediately** and ask user to:
-  - Verify the PR number
+  - Verify the PR number (`gh pr view 123`)
   - Run `gh auth status` to check authentication
   - Confirm repo accessibility
 - If `gh pr review` fails on user's own PR, suggest posting as a comment instead
@@ -251,6 +273,7 @@ _Submit this review, or tell me what to change?_
 | Prior AI review exists              | Ask: "Resubmit or cancel?"                                          |
 | User interrupts reviewing           | Offer: save draft, discard, or resume                               |
 | Outcome is ambiguous                | Ask: "Should this be approve, request-changes, or comment?"         |
+| Validation detects issues           | Revise in step 7; do NOT present problematic review                 |
 
 ---
 
@@ -260,42 +283,45 @@ _Submit this review, or tell me what to change?_
 
 ```
 User: "Approve PR #25"
-→ AI fetches diff, analyzes, finds no blocking issues
-→ Drafts approval review with minor observations (comment-level)
+-> AI fetches diff, analyzes, finds no blocking issues
+-> Validates: No High findings, outcome matches, tone professional
+-> Drafts approval review with minor observations (comment-level)
 User: "Looks good, submit it"
-→ Submits approval review successfully
+-> Submits approval review successfully
 ```
 
 **Catching a bug:**
 
 ```
 User: "Review PR #30 focusing on security"
-→ AI analyzes, finds potential SQL injection in query builder
-→ Drafts request-changes review with severity levels and suggestions
+-> AI analyzes, finds potential SQL injection in query builder
+-> Validates: Finding supported by diff, severity appropriate, suggestion concrete
+-> Drafts request-changes review with severity levels and suggestions
 User: "Make the suggestion more concrete with example code"
-→ AI revises and re-shows
+-> AI revises, revalidates, and re-shows
 User: "Good, submit it"
-→ Submits request-changes review
+-> Submits request-changes review
 ```
 
 **Large PR scope limitation:**
 
 ```
 User: "Review PR #100"
-→ AI fetches 2000+ line diff; notes scope
-→ Drafts review focusing on critical logic files, notes which were skipped
+-> AI fetches 2000+ line diff; notes scope
+-> Drafts review focusing on critical logic files, notes which were skipped
+-> Validates: Findings supported, skipped files documented
 User: "Looks comprehensive for the scope, submit it"
-→ Submits comment review
+-> Submits comment review
 ```
 
 **Iterative refinement:**
 
 ```
 User: "Review PR #45"
-→ AI drafts comment-level review with observations
+-> AI drafts comment-level review with observations
 User: "Actually, the middleware change looks risky—request changes?"
-→ AI revises outcome to request-changes, re-shows with higher severity
+-> AI revises outcome to request-changes, revalidates with higher severity
+-> Re-shows updated draft
 User: "Perfect, submit it"
-→ Submits request-changes review
+-> Submits request-changes review
 ```
-

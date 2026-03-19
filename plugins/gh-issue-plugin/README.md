@@ -12,7 +12,7 @@ Available inside a `gh claude issue chat` session. The issue number is already k
 
 Drafts a comment on the current issue and posts it after you confirm.
 
-**Triggers:** "write a comment on this issue", "draft a response", "add a comment saying...", "reply to this issue"
+**Use cases:** "write a comment on this issue", "draft a response", "add a comment saying...", "reply to this issue"
 
 ```
 /gh:issue:comment thank the reporter and ask for a reproduction case
@@ -30,7 +30,7 @@ Drafts a comment on the current issue and posts it after you confirm.
 
 Edits the title and/or body of the current issue and applies the change after you confirm.
 
-**Triggers:** "edit this issue", "update the issue body", "rewrite the description", "fix the issue title", "add acceptance criteria"
+**Use cases:** "edit this issue", "update the issue body", "rewrite the description", "fix the issue title", "add acceptance criteria"
 
 ```
 /gh:issue:edit add a definition of done section
@@ -49,7 +49,7 @@ Edits the title and/or body of the current issue and applies the change after yo
 
 Generates an implementation plan for the current issue and posts it as a comment after you confirm. The plan is a proposal for discussion — it does not execute any code.
 
-**Triggers:** "plan this issue", "create an implementation plan", "break down this issue into tasks", "what steps do I need to implement #N?"
+**Use cases:** "plan this issue", "create an implementation plan", "break down this issue into tasks", "what steps do I need to implement #N?"
 
 ```
 /gh:issue:plan focus on the database migration
@@ -59,7 +59,7 @@ Generates an implementation plan for the current issue and posts it as a comment
 **Notes:**
 
 - Idempotent: if a plan comment already exists on the issue (identified by the `<!-- gh-claude:issue-plan issue=N -->` marker), the skill updates that comment instead of creating a duplicate.
-- Tasks use sequential IDs (T001, T002, ...) for easy reference.
+- Tasks use sequential labels (Task 1, Task 2, ...) for easy reference.
 - If a focus area is provided, the plan is scoped to that area only.
 
 ## Environment variables

@@ -12,7 +12,7 @@ Available inside a `gh claude pr chat` session. The PR number is already known f
 
 Drafts a comment on the current PR and posts it after you confirm.
 
-**Triggers:** "write a comment on this PR", "draft a response", "add a comment saying...", "reply to this pull request", "respond to a review"
+**Use cases:** "write a comment on this PR", "draft a response", "add a comment saying...", "reply to this pull request", "respond to a review"
 
 ```
 /gh:pr:comment ask the author to add tests for the edge cases
@@ -30,7 +30,7 @@ Drafts a comment on the current PR and posts it after you confirm.
 
 Edits the title and/or body of the current PR and applies the change after you confirm.
 
-**Triggers:** "edit this PR", "update the PR body", "rewrite the description", "fix the PR title", "add a testing section", "update the checklist"
+**Use cases:** "edit this PR", "update the PR body", "rewrite the description", "fix the PR title", "add a testing section", "update the checklist"
 
 ```
 /gh:pr:edit add a testing section and update the summary
@@ -49,7 +49,7 @@ Edits the title and/or body of the current PR and applies the change after you c
 
 Generates a structured code review for the current PR and submits it after you confirm. Supports approve, request-changes, and comment outcomes.
 
-**Triggers:** "review this PR", "approve PR #42", "request changes on this PR", "give feedback on this pull request", "do a code review focusing on security"
+**Use cases:** "review this PR", "approve PR #42", "request changes on this PR", "give feedback on this pull request", "do a code review focusing on security"
 
 ```
 /gh:pr:review approve
