@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/gh-extensions/gh-claude/compare/v0.24.0...v0.25.0) (2026-03-19)
+
+
+### Features
+
+* move claude agent args before subcommand keyword ([#86](https://github.com/gh-extensions/gh-claude/issues/86)) ([25b1ec4](https://github.com/gh-extensions/gh-claude/commit/25b1ec48cc792a5e8c570a3e8478a157254dd69f))
+
 ## [0.24.0](https://github.com/gh-extensions/gh-claude/compare/v0.23.0...v0.24.0) (2026-03-19)
 
 
