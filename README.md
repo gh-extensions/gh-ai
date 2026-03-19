@@ -40,20 +40,24 @@ gh extension install gh-extensions/gh-claude                # installs from main
 ## Usage
 
 ```bash
-gh claude pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
-gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
-gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
-gh claude pr explain [PR_NUMBER]
-gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
-gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
-gh claude issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
-gh claude issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-gh claude issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
-gh claude run explain <RUN_ID>
-gh claude run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
+gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
+gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
+gh claude [CLAUDE_OPTIONS] run explain <RUN_ID>
+gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
 ```
+
+`CLAUDE_OPTIONS` are flags forwarded to the `claude` binary (e.g., `--model`,
+`--session-id`, `--resume`, `--verbose`, `--allowedTools`, `--permission-mode`).
+They are placed **before** the subcommand keyword.
 
 ### Pull Request
 
@@ -95,16 +99,16 @@ gh claude pr explain 42 | gh pr edit 42 --body -      # replace PR description
 ```
 
 Opens an interactive agent session with PR context. Each invocation starts a
-new session. Use `-- --session-id <UUID>` for a reusable named session, or
-`-- --resume <UUID>` to resume a specific session by UUID. Set
+new session. Use `--session-id <UUID>` for a reusable named session, or
+`--resume <UUID>` to resume a specific session by UUID. Set
 `GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
 auto-resume.
 
 ```bash
 gh claude pr chat 42
 gh claude pr chat -d "focus on the security changes"
-gh claude pr chat 42 -- --session-id <UUID>       # named session (reuses on next call)
-gh claude pr chat 42 -- --resume <UUID>           # resume by UUID
+gh claude --session-id <UUID> pr chat 42       # named session (reuses on next call)
+gh claude --resume <UUID> pr chat 42           # resume by UUID
 GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42   # auto-resume default session
 ```
 
@@ -138,16 +142,16 @@ gh claude issue plan 42 | pbcopy
 ```
 
 Opens an interactive agent session with issue context. Each invocation starts a
-new session. Use `-- --session-id <UUID>` for a reusable named session, or
-`-- --resume <UUID>` to resume a specific session by UUID. Set
+new session. Use `--session-id <UUID>` for a reusable named session, or
+`--resume <UUID>` to resume a specific session by UUID. Set
 `GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
 auto-resume.
 
 ```bash
 gh claude issue chat 42
 gh claude issue chat 42 -d "focus on the auth module"
-gh claude issue chat 42 -- --session-id <UUID>        # named session (reuses on next call)
-gh claude issue chat 42 -- --resume <UUID>            # resume by UUID
+gh claude --session-id <UUID> issue chat 42        # named session (reuses on next call)
+gh claude --resume <UUID> issue chat 42            # resume by UUID
 GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude issue chat 42  # auto-resume default session
 ```
 
@@ -160,16 +164,16 @@ gh claude run explain 123456 # uses --log-failed for failed runs, --log otherwis
 ```
 
 Opens an interactive agent session with workflow run context. Each invocation
-starts a new session. Use `-- --session-id <UUID>` for a reusable named
-session, or `-- --resume <UUID>` to resume a specific session by UUID. Set
+starts a new session. Use `--session-id <UUID>` for a reusable named
+session, or `--resume <UUID>` to resume a specific session by UUID. Set
 `GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
 auto-resume.
 
 ```bash
 gh claude run chat 123456
 gh claude run chat 123456 -d "focus on test failures"
-gh claude run chat 123456 -- --session-id <UUID>    # named session (reuses on next call)
-gh claude run chat 123456 -- --resume <UUID>        # resume by UUID
+gh claude --session-id <UUID> run chat 123456    # named session (reuses on next call)
+gh claude --resume <UUID> run chat 123456        # resume by UUID
 GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude run chat 123456  # auto-resume default session
 ```
 
@@ -248,17 +252,17 @@ ${XDG_STATE_HOME:-~/.local/state}/gh/claude/sessions/<session-id>/
 | Invocation | Behaviour |
 |---|---|
 | `gh claude pr chat 42` | Auto-generate UUID, new session, context rendered |
-| `gh claude pr chat 42 -- --session-id <UUID>` | Named session — creates on first call, resumes (no context re-render) on subsequent calls |
-| `gh claude pr chat 42 -- --resume <UUID>` | Resume a specific session by UUID; errors if not found or resource mismatch |
+| `gh claude --session-id <UUID> pr chat 42` | Named session — creates on first call, resumes (no context re-render) on subsequent calls |
+| `gh claude --resume <UUID> pr chat 42` | Resume a specific session by UUID; errors if not found or resource mismatch |
 | `GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42` | Default session — auto-resumes if exists, creates if not |
 
 ```bash
 # Named session: context rendered first time, skipped on reuse
-gh claude pr chat 42 -- --session-id <UUID>
-gh claude pr chat 42 -- --session-id <UUID>   # resumes, no re-fetch
+gh claude --session-id <UUID> pr chat 42
+gh claude --session-id <UUID> pr chat 42   # resumes, no re-fetch
 
 # Resume by UUID
-gh claude pr chat 42 -- --resume abc123-...
+gh claude --resume abc123-... pr chat 42
 
 # Default session via env var: always uses the same session, auto-resumes
 export GH_CLAUDE_DEFAULT_SESSION_ID=my-session
@@ -267,14 +271,13 @@ gh claude pr chat 42    # subsequent runs: auto-resume, no re-fetch
 ```
 
 `GH_CLAUDE_DEFAULT_SESSION_ID` is only consulted when neither `--session-id`
-nor `--resume` appear in the passthrough args, so explicit flags always take
-precedence.
+nor `--resume` are provided, so explicit flags always take precedence.
 
 Override the sessions root by setting `XDG_STATE_HOME`.
 
 ## Configuration
 
-Override the model via `gh config`.
+Override the model via `--model` or `gh config`.
 
 | Key                 | Default | Description                            |
 | ------------------- | ------- | -------------------------------------- |
@@ -283,9 +286,12 @@ Override the model via `gh config`.
 | `claude.issue.model` |         | Model override for `issue` subcommands |
 | `claude.run.model`   |         | Model override for `run` subcommands   |
 
-Per-command keys take priority over `claude.model`.
+Priority: `--model` flag > per-command config > `claude.model`.
 
 ```bash
+# Override the model for a single invocation
+gh claude --model sonnet pr chat 42
+
 # Set the default model
 gh config set claude.model haiku
 
