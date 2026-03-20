@@ -19,6 +19,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
+          name = "gh-claude";
           packages = with pkgs; [
             bash
             gh
