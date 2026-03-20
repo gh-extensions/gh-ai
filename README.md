@@ -1,12 +1,10 @@
 # gh-claude
 
+> Your Claude-powered copilot for the GitHub CLI. Draft pull requests, plan issue implementations, review code, debug CI failures, and drop into interactive coding sessions — without leaving the terminal.
+
 [![CI Tests](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml/badge.svg)](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml)
 [![Release](https://img.shields.io/github/v/release/gh-extensions/gh-claude)](https://github.com/gh-extensions/gh-claude/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-Your Claude-powered copilot for the GitHub CLI. Draft pull requests, plan issue
-implementations, review code, debug CI failures, and drop into interactive
-coding sessions — without leaving the terminal.
 
 Stop context-switching between your editor, browser, and terminal. `gh claude`
 meets you where you already work and handles the tedious parts so you can
