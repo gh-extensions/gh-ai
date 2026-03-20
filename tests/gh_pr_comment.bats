@@ -24,7 +24,7 @@ setup() {
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
 		declare -f _extract_pr_number _parse_pr_args _parse_pr_comment_args _show_pr_comment_help _gh_pr_comment \
-			_detect_pr_number _split_on_separator _create_context_dir _save_context_file \
+			_detect_pr_number _create_context_dir _save_context_file \
 			_prepare_pr_comment_context
 	)"
 }
@@ -32,7 +32,8 @@ setup() {
 @test "_parse_pr_comment_args: sets description from -d flag" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description -d "summarise open threads"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough -d "summarise open threads"
 
 	[[ "$description" == "summarise open threads" ]]
 }
@@ -40,7 +41,8 @@ setup() {
 @test "_parse_pr_comment_args: sets description from --description flag" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description --description "ask about migration"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough --description "ask about migration"
 
 	[[ "$description" == "ask about migration" ]]
 }
@@ -48,7 +50,8 @@ setup() {
 @test "_parse_pr_comment_args: sets description from --description=value" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description --description="request changes"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough --description="request changes"
 
 	[[ "$description" == "request changes" ]]
 }
@@ -56,7 +59,8 @@ setup() {
 @test "_parse_pr_comment_args: captures both PR number and description" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description 42 -d "summarise open threads"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough 42 -d "summarise open threads"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "summarise open threads" ]]
@@ -65,7 +69,8 @@ setup() {
 @test "_parse_pr_comment_args: strips leading # from PR number" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description "#42" -d "context"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough "#42" -d "context"
 
 	[[ "$number" == "42" ]]
 }
@@ -73,7 +78,8 @@ setup() {
 @test "_parse_pr_comment_args: accepts PR number without description flag" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description 99
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough 99
 
 	[[ "$number" == "99" ]]
 	[[ -z "$description" ]]
@@ -82,7 +88,8 @@ setup() {
 @test "_parse_pr_comment_args: accepts empty string for -d" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description -d ""
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough -d ""
 
 	[[ -z "$description" ]]
 }
@@ -90,8 +97,9 @@ setup() {
 @test "_parse_pr_comment_args: preserves special characters in description" {
 	local number=""
 	local description=""
+	local passthrough=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_pr_comment_args number description -d "$expected"
+	_parse_pr_comment_args number description passthrough -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
@@ -99,7 +107,8 @@ setup() {
 @test "_parse_pr_comment_args: defaults to empty when no flags given" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough
 
 	[[ -z "$number" ]]
 	[[ -z "$description" ]]
@@ -108,7 +117,8 @@ setup() {
 @test "_parse_pr_comment_args: returns error when -d has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_comment_args number description -d
+	local passthrough=()
+	run _parse_pr_comment_args number description passthrough -d
 
 	[[ "$status" -eq 1 ]]
 }
@@ -116,24 +126,37 @@ setup() {
 @test "_parse_pr_comment_args: returns error when --description has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_comment_args number description --description
+	local passthrough=()
+	run _parse_pr_comment_args number description passthrough --description
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_parse_pr_comment_args: returns error with hint for unknown flags" {
+@test "_parse_pr_comment_args: collects unknown flags as passthrough" {
 	local number=""
 	local description=""
-	run _parse_pr_comment_args number description --approve
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough --edit-last
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"use -- to pass flags to gh pr comment"* ]]
+	[[ "${passthrough[0]}" == "--edit-last" ]]
+}
+
+@test "_parse_pr_comment_args: known flags before unknown flag works correctly" {
+	local number=""
+	local description=""
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough 42 -d "comment text" --edit-last
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "comment text" ]]
+	[[ "${passthrough[0]}" == "--edit-last" ]]
 }
 
 @test "_parse_pr_comment_args: extracts PR number from canonical GitHub URL" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description "https://github.com/owner/repo/pull/42" -d "context"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough "https://github.com/owner/repo/pull/42" -d "context"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "context" ]]
@@ -142,7 +165,8 @@ setup() {
 @test "_parse_pr_comment_args: extracts PR number from URL with trailing slash" {
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description "https://github.com/owner/repo/pull/42/"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough "https://github.com/owner/repo/pull/42/"
 
 	[[ "$number" == "42" ]]
 }
@@ -150,7 +174,8 @@ setup() {
 @test "_parse_pr_comment_args: returns error for non-GitHub URL" {
 	local number=""
 	local description=""
-	run _parse_pr_comment_args number description "https://gitlab.com/owner/repo/merge_requests/42"
+	local passthrough=()
+	run _parse_pr_comment_args number description passthrough "https://gitlab.com/owner/repo/merge_requests/42"
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument"* ]]
@@ -159,7 +184,8 @@ setup() {
 @test "_parse_pr_comment_args: returns error for unexpected non-numeric argument" {
 	local number=""
 	local description=""
-	run _parse_pr_comment_args number description somebranch
+	local passthrough=()
+	run _parse_pr_comment_args number description passthrough somebranch
 
 	[[ "$status" -eq 1 ]]
 }
@@ -176,7 +202,8 @@ setup() {
 
 	local number=""
 	local description=""
-	_parse_pr_comment_args number description -d "context"
+	local passthrough=()
+	_parse_pr_comment_args number description passthrough -d "context"
 
 	[[ "$number" == "7" ]]
 }
@@ -244,32 +271,4 @@ setup() {
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"Failed to fetch pull request"* ]]
-}
-
-@test "_gh_pr_comment: passes passthrough args to gh pr comment" {
-	# Verify that args after -- are not consumed by the parser
-	local number=""
-	local description=""
-	local ai_args=()
-	local passthrough=()
-
-	# Simulate _split_on_separator behaviour inline
-	local found_sep=false
-	for arg in 42 -d "comment text" -- --edit-last; do
-		if [[ "$arg" == "--" ]]; then
-			found_sep=true
-			continue
-		fi
-		if $found_sep; then
-			passthrough+=("$arg")
-		else
-			ai_args+=("$arg")
-		fi
-	done
-
-	_parse_pr_comment_args number description "${ai_args[@]}"
-
-	[[ "$number" == "42" ]]
-	[[ "$description" == "comment text" ]]
-	[[ "${passthrough[0]}" == "--edit-last" ]]
 }

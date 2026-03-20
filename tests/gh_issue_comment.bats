@@ -22,14 +22,15 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
-		declare -f _extract_issue_number _parse_issue_args _parse_issue_comment_args _show_issue_comment_help _gh_issue_comment _split_on_separator
+		declare -f _extract_issue_number _parse_issue_args _parse_issue_comment_args _show_issue_comment_help _gh_issue_comment
 	)"
 }
 
 @test "_parse_issue_comment_args: sets description from -d flag" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description -d "post a status update"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough -d "post a status update"
 
 	[[ "$description" == "post a status update" ]]
 }
@@ -37,7 +38,8 @@ setup() {
 @test "_parse_issue_comment_args: sets description from --description flag" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description --description "acknowledge the report"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough --description "acknowledge the report"
 
 	[[ "$description" == "acknowledge the report" ]]
 }
@@ -45,7 +47,8 @@ setup() {
 @test "_parse_issue_comment_args: sets description from --description=value" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description --description="acknowledge the report"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough --description="acknowledge the report"
 
 	[[ "$description" == "acknowledge the report" ]]
 }
@@ -53,7 +56,8 @@ setup() {
 @test "_parse_issue_comment_args: captures issue number from first positional arg" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description 42 -d "post a status update"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough 42 -d "post a status update"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "post a status update" ]]
@@ -62,7 +66,8 @@ setup() {
 @test "_parse_issue_comment_args: strips leading # from issue number" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description "#42" -d "post a status update"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough "#42" -d "post a status update"
 
 	[[ "$number" == "42" ]]
 }
@@ -70,7 +75,8 @@ setup() {
 @test "_parse_issue_comment_args: captures issue number without other flags" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description 42
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough 42
 
 	[[ "$number" == "42" ]]
 }
@@ -78,7 +84,8 @@ setup() {
 @test "_parse_issue_comment_args: defaults number and description to empty" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough
 
 	[[ -z "$description" ]]
 	[[ -z "$number" ]]
@@ -87,8 +94,9 @@ setup() {
 @test "_parse_issue_comment_args: preserves special characters in description" {
 	local number=""
 	local description=""
+	local passthrough=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_issue_comment_args number description -d "$expected"
+	_parse_issue_comment_args number description passthrough -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
@@ -96,7 +104,8 @@ setup() {
 @test "_parse_issue_comment_args: last value wins when -d and --description both given" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description -d "first" --description="second"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
@@ -104,24 +113,37 @@ setup() {
 @test "_parse_issue_comment_args: returns error when -d has no value" {
 	local number=""
 	local description=""
-	run _parse_issue_comment_args number description -d
+	local passthrough=()
+	run _parse_issue_comment_args number description passthrough -d
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_parse_issue_comment_args: returns error with hint for unknown flags" {
+@test "_parse_issue_comment_args: collects unknown flags as passthrough" {
 	local number=""
 	local description=""
-	run _parse_issue_comment_args number description --edit
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough --edit
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"use -- to pass flags to gh issue comment"* ]]
+	[[ "${passthrough[0]}" == "--edit" ]]
+}
+
+@test "_parse_issue_comment_args: known flags before unknown flag works correctly" {
+	local number=""
+	local description=""
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough 42 -d "status update" --edit
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "status update" ]]
+	[[ "${passthrough[0]}" == "--edit" ]]
 }
 
 @test "_parse_issue_comment_args: accepts GitHub issue URL as issue number" {
 	local number=""
 	local description=""
-	_parse_issue_comment_args number description "https://github.com/owner/repo/issues/42" -d "post a status update"
+	local passthrough=()
+	_parse_issue_comment_args number description passthrough "https://github.com/owner/repo/issues/42" -d "post a status update"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "post a status update" ]]

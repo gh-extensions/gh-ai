@@ -43,14 +43,15 @@ _extract_issue_number() {
 # Shared argument parser for issue commands that accept an issue number and -d/--description.
 #
 # Extracts the issue number (first numeric arg) and -d/--description value.
-# Unknown flags produce an error; if subcmd is non-empty, the error hints to use --.
+# Unknown flags are collected into passthrough_ref.
 #
-# Usage: _parse_issue_args subcmd num_ref desc_ref [args...]
+# Usage: _parse_issue_args subcmd num_ref desc_ref passthrough_ref [args...]
 _parse_issue_args() {
 	local _pia_subcmd="$1"
 	local -n _pia_num="$2"
 	local -n _pia_desc="$3"
-	shift 3
+	local -n _pia_passthrough="$4"
+	shift 4
 
 	local _pia_raw=("$@")
 	local _pia_skip=false
@@ -78,12 +79,9 @@ _parse_issue_args() {
 			_pia_desc="${_pia_raw[$_pia_i]#--description=}"
 			;;
 		-*)
-			if [[ -n "$_pia_subcmd" ]]; then
-				gum log --level error "unknown flag '${_pia_raw[$_pia_i]}' (use -- to pass flags to gh issue $_pia_subcmd)"
-			else
-				gum log --level error "unknown flag '${_pia_raw[$_pia_i]}'"
-			fi
-			return 1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_pia_passthrough=("${_pia_raw[@]:$_pia_i}")
+			return 0
 			;;
 		*)
 			if [[ -z "$_pia_num" ]]; then
@@ -148,15 +146,15 @@ _prepare_issue_context() {
 	_save_context_file "$_ctx_dir" "state/issue_context.md" "$_ctx_context"
 }
 
-# Parse issue create arguments (before -- separator)
+# Parse issue create arguments
 #
-# Extracts -d/--description value. Unknown flags produce an error
-# with a hint to use --.
+# Extracts -d/--description value. Unknown flags are collected into passthrough_ref.
 #
-# Usage: _parse_issue_create_args desc_ref [args...]
+# Usage: _parse_issue_create_args desc_ref passthrough_ref [args...]
 _parse_issue_create_args() {
 	local -n _pica_desc="$1"
-	shift
+	local -n _pica_passthrough="$2"
+	shift 2
 
 	local _pica_raw=("$@")
 	local _pica_skip=false
@@ -184,8 +182,9 @@ _parse_issue_create_args() {
 			_pica_desc="${_pica_raw[$_pica_i]#--description=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${_pica_raw[$_pica_i]}' (use -- to pass flags to gh issue create)"
-			return 1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_pica_passthrough=("${_pica_raw[@]:$_pica_i}")
+			return 0
 			;;
 		*)
 			gum log --level error "unexpected argument '${_pica_raw[$_pica_i]}'"
@@ -223,19 +222,19 @@ _show_issue_create_help() {
 gh claude issue create - Create issues with AI-generated content
 
 USAGE:
-    gh claude issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
+    gh claude issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub issue with an AI-generated title and structured body
     from a brief description. Supports piped stdin as additional context.
-    Options after -- are passed directly to gh issue create.
+    Unknown flags are forwarded directly to gh issue create.
 
 FLAGS:
     -d, --description string   Brief description of the issue (required)
 
 EXAMPLES:
     gh claude issue create -d "Login page crashes with special chars"
-    gh claude issue create -d "Login crash" -- --label bug --assignee @me
+    gh claude issue create -d "Login crash" --label bug --assignee @me
     some_command 2>&1 | gh claude issue create -d "Command X fails"
 EOF
 }
@@ -255,20 +254,18 @@ _gh_issue_create() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_issue_create.tmpl"
 
 	local gh_issue_description=""
-	_parse_issue_create_args gh_issue_description "${args[@]}"
+	_parse_issue_create_args gh_issue_description passthrough "$@"
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude issue create -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue create -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -333,13 +330,13 @@ _show_issue_edit_help() {
 gh claude issue edit - Edit an existing issue with AI-generated content
 
 USAGE:
-    gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
+    gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub issue using AI. Fetches the current issue
     content, applies the requested changes via AI, and updates the issue
-    title and body. Supports piped stdin as additional context. Options
-    after -- are passed directly to gh issue edit.
+    title and body. Supports piped stdin as additional context. Unknown
+    flags are forwarded directly to gh issue edit.
 
 FLAGS:
     -d, --description string   Description of the changes to make (required)
@@ -348,7 +345,7 @@ EXAMPLES:
     gh claude issue edit 42 -d "add acceptance criteria"
     gh claude issue edit https://github.com/owner/repo/issues/42 -d "add acceptance criteria"
     gh claude issue edit 42 -d "fix typos and improve clarity"
-    gh claude issue edit 42 -d "rephrase as a bug report" -- --add-label bug
+    gh claude issue edit 42 -d "rephrase as a bug report" --add-label bug
     some_command 2>&1 | gh claude issue edit 42 -d "add error output"
 EOF
 }
@@ -369,26 +366,24 @@ _gh_issue_edit() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_issue_edit.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
-	_parse_issue_edit_args gh_issue_number gh_issue_description "${args[@]}"
+	_parse_issue_edit_args gh_issue_number gh_issue_description passthrough "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -457,13 +452,13 @@ _show_issue_comment_help() {
 gh claude issue comment - Post an AI-generated comment on an existing issue
 
 USAGE:
-    gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Posts an AI-generated comment on an existing GitHub issue. Fetches the
     current issue content and existing comments for context, generates the
     comment body via AI, and posts it. Supports piped stdin as additional
-    context. Options after -- are passed directly to gh issue comment.
+    context. Unknown flags are forwarded directly to gh issue comment.
 
 FLAGS:
     -d, --description string   Instructions for the comment (required)
@@ -475,7 +470,7 @@ EXAMPLES:
     gh claude issue comment 42 -d "summarize the discussion so far"
     echo "error: connection refused" | gh claude issue comment 42 -d "add this error as context"
     some_command 2>&1 | gh claude issue comment 42 -d "add the output as context"
-    gh claude issue comment 42 -d "acknowledge the report" -- --edit
+    gh claude issue comment 42 -d "acknowledge the report" --edit
 EOF
 }
 
@@ -495,26 +490,24 @@ _gh_issue_comment() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_issue_comment.tmpl"
 
 	local gh_issue_number="" gh_issue_description=""
-	_parse_issue_comment_args gh_issue_number gh_issue_description "${args[@]}"
+	_parse_issue_comment_args gh_issue_number gh_issue_description passthrough "$@"
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_issue_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -558,8 +551,16 @@ _gh_issue_comment() {
 
 # Parse issue plan arguments.
 #
-# Extracts issue number and -d/--description from args. Unknown flags produce an error.
-_parse_issue_plan_args() { _parse_issue_args "" "$@"; }
+# Extracts issue number and -d/--description from args. Unknown flags produce an error
+# (plan has no gh passthrough target).
+_parse_issue_plan_args() {
+	local _ipla_pt=()
+	_parse_issue_args "" "$1" "$2" _ipla_pt "${@:3}" || return $?
+	if [[ ${#_ipla_pt[@]} -gt 0 ]]; then
+		gum log --level error "unknown flag '${_ipla_pt[0]}'"
+		return 1
+	fi
+}
 
 # Fetches issue metadata into a temp directory for use by _gh_issue_plan.
 _prepare_issue_plan_context() { _prepare_issue_context "plan" "$@"; }
@@ -795,9 +796,9 @@ _show_issue_help() {
 gh claude issue - Issue commands with AI assistance
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
     gh claude [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
     gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
 

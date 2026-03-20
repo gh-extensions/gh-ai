@@ -22,14 +22,15 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _extract_pr_number _detect_pr_number _parse_pr_args _parse_pr_edit_args _show_pr_edit_help _gh_pr_edit _split_on_separator
+		declare -f _extract_pr_number _detect_pr_number _parse_pr_args _parse_pr_edit_args _show_pr_edit_help _gh_pr_edit
 	)"
 }
 
 @test "_parse_pr_edit_args: sets description from -d flag" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description -d "add testing section"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough -d "add testing section"
 
 	[[ "$description" == "add testing section" ]]
 }
@@ -37,7 +38,8 @@ setup() {
 @test "_parse_pr_edit_args: sets description from --description flag" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description --description "fix summary"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough --description "fix summary"
 
 	[[ "$description" == "fix summary" ]]
 }
@@ -45,7 +47,8 @@ setup() {
 @test "_parse_pr_edit_args: sets description from --description=value" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description --description="improve wording"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough --description="improve wording"
 
 	[[ "$description" == "improve wording" ]]
 }
@@ -53,7 +56,8 @@ setup() {
 @test "_parse_pr_edit_args: captures PR number from first positional arg" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description 42 -d "fix summary"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough 42 -d "fix summary"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "fix summary" ]]
@@ -62,7 +66,8 @@ setup() {
 @test "_parse_pr_edit_args: strips leading # from PR number" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description "#42" -d "fix summary"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough "#42" -d "fix summary"
 
 	[[ "$number" == "42" ]]
 }
@@ -70,7 +75,8 @@ setup() {
 @test "_parse_pr_edit_args: captures PR number without other flags" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description 42
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough 42
 
 	[[ "$number" == "42" ]]
 }
@@ -78,7 +84,8 @@ setup() {
 @test "_parse_pr_edit_args: defaults number and description to empty" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough
 
 	[[ -z "$description" ]]
 	[[ -z "$number" ]]
@@ -87,7 +94,8 @@ setup() {
 @test "_parse_pr_edit_args: last value wins when -d and --description both given" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description -d "first" --description="second"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
@@ -95,8 +103,9 @@ setup() {
 @test "_parse_pr_edit_args: preserves special characters in description" {
 	local number=""
 	local description=""
+	local passthrough=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_pr_edit_args number description -d "$expected"
+	_parse_pr_edit_args number description passthrough -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
@@ -104,7 +113,8 @@ setup() {
 @test "_parse_pr_edit_args: returns error when -d has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_edit_args number description -d
+	local passthrough=()
+	run _parse_pr_edit_args number description passthrough -d
 
 	[[ "$status" -eq 1 ]]
 }
@@ -112,24 +122,39 @@ setup() {
 @test "_parse_pr_edit_args: returns error when --description has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_edit_args number description --description
+	local passthrough=()
+	run _parse_pr_edit_args number description passthrough --description
 
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_parse_pr_edit_args: returns error with hint for unknown flags" {
+@test "_parse_pr_edit_args: collects unknown flags as passthrough" {
 	local number=""
 	local description=""
-	run _parse_pr_edit_args number description --add-label bug
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough --add-label bug
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"use -- to pass flags to gh pr edit"* ]]
+	[[ "${passthrough[0]}" == "--add-label" ]]
+	[[ "${passthrough[1]}" == "bug" ]]
+}
+
+@test "_parse_pr_edit_args: known flag before unknown flag works correctly" {
+	local number=""
+	local description=""
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough 42 -d "fix" --add-label bug
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "fix" ]]
+	[[ "${passthrough[0]}" == "--add-label" ]]
+	[[ "${passthrough[1]}" == "bug" ]]
 }
 
 @test "_parse_pr_edit_args: extracts PR number from canonical GitHub URL" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description "https://github.com/owner/repo/pull/42" -d "fix summary"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough "https://github.com/owner/repo/pull/42" -d "fix summary"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "fix summary" ]]
@@ -138,7 +163,8 @@ setup() {
 @test "_parse_pr_edit_args: extracts PR number from URL with trailing slash" {
 	local number=""
 	local description=""
-	_parse_pr_edit_args number description "https://github.com/owner/repo/pull/42/" -d "fix summary"
+	local passthrough=()
+	_parse_pr_edit_args number description passthrough "https://github.com/owner/repo/pull/42/" -d "fix summary"
 
 	[[ "$number" == "42" ]]
 }
@@ -146,7 +172,8 @@ setup() {
 @test "_parse_pr_edit_args: returns error for non-GitHub URL" {
 	local number=""
 	local description=""
-	run _parse_pr_edit_args number description "https://gitlab.com/owner/repo/merge_requests/42" -d "fix"
+	local passthrough=()
+	run _parse_pr_edit_args number description passthrough "https://gitlab.com/owner/repo/merge_requests/42" -d "fix"
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument"* ]]

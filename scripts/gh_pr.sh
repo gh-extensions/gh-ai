@@ -53,14 +53,15 @@ _extract_pr_number() {
 # Shared argument parser for PR commands that accept a PR number and -d/--description.
 #
 # Extracts the PR number (first numeric arg, with auto-detect fallback)
-# and -d/--description value. Unknown flags produce an error that names subcmd.
+# and -d/--description value. Unknown flags are collected into passthrough_ref.
 #
-# Usage: _parse_pr_args subcmd num_ref desc_ref [args...]
+# Usage: _parse_pr_args subcmd num_ref desc_ref passthrough_ref [args...]
 _parse_pr_args() {
 	local _ppa_subcmd="$1"
 	local -n _ppa_num="$2"
 	local -n _ppa_desc="$3"
-	shift 3
+	local -n _ppa_passthrough="$4"
+	shift 4
 
 	local _ppa_raw=("$@")
 	local _ppa_skip=false
@@ -88,8 +89,9 @@ _parse_pr_args() {
 			_ppa_desc="${_ppa_raw[$_ppa_i]#--description=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${_ppa_raw[$_ppa_i]}' (use -- to pass flags to gh pr $_ppa_subcmd)"
-			return 1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_ppa_passthrough=("${_ppa_raw[@]:$_ppa_i}")
+			return 0
 			;;
 		*)
 			if [[ -z "$_ppa_num" ]]; then
@@ -165,16 +167,17 @@ _prepare_pr_diff_context() {
 	_save_context_file "$_ctx_dir" "state/pr_commits.txt" "$_ctx_commits"
 }
 
-# Parse PR create arguments (before -- separator)
+# Parse PR create arguments
 #
-# Extracts -d/--description and -B/--base values. Unknown flags produce
-# an error with a hint to use --.
+# Extracts -d/--description and -B/--base values. Unknown flags are
+# collected into passthrough_ref.
 #
-# Usage: _parse_pr_create_args base_ref desc_ref [args...]
+# Usage: _parse_pr_create_args base_ref desc_ref passthrough_ref [args...]
 _parse_pr_create_args() {
 	local -n _prca_base_ref="$1"
 	local -n _prca_desc_ref="$2"
-	shift 2
+	local -n _prca_passthrough="$3"
+	shift 3
 
 	local _prca_raw=("$@")
 	local _prca_skip=false
@@ -215,12 +218,14 @@ _parse_pr_create_args() {
 			_prca_base_ref="${_prca_raw[$_prca_i]#--base=}"
 			;;
 		-*)
-			gum log --level error "unknown flag '${_prca_raw[$_prca_i]}' (use -- to pass flags to gh pr create)"
-			return 1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_prca_passthrough=("${_prca_raw[@]:$_prca_i}")
+			return 0
 			;;
 		*)
-			gum log --level error "unexpected argument '${_prca_raw[$_prca_i]}'"
-			return 1
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_prca_passthrough=("${_prca_raw[@]:$_prca_i}")
+			return 0
 			;;
 		esac
 		((++_prca_i))
@@ -262,12 +267,12 @@ _show_pr_create_help() {
 gh claude pr create - Create PRs with AI-generated titles and descriptions
 
 USAGE:
-    gh claude pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
+    gh claude pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub pull request with an AI-generated title and description
     based on the diff and commit history between the current and base branch.
-    Options after -- are passed directly to gh pr create.
+    Unknown flags are forwarded directly to gh pr create.
 
 FLAGS:
     -d, --description string   Optional guidance for the AI (e.g. focus area)
@@ -275,8 +280,8 @@ FLAGS:
 
 EXAMPLES:
     gh claude pr create
-    gh claude pr create -- --draft
-    gh claude pr create -B develop -- --draft
+    gh claude pr create --draft
+    gh claude pr create -B develop --draft
     gh claude pr create -d "focus on the security changes"
 EOF
 }
@@ -296,16 +301,14 @@ _gh_pr_create() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_create.tmpl"
 
 	local git_base_branch="" gh_pr_description=""
-	_parse_pr_create_args git_base_branch gh_pr_description "${args[@]}"
+	_parse_pr_create_args git_base_branch gh_pr_description passthrough "$@"
 
 	# Remember whether the user explicitly specified --base so we only
 	# forward it to gh pr create when intended (not from fallback defaults).
@@ -376,20 +379,20 @@ _show_pr_edit_help() {
 gh claude pr edit - Edit an existing PR with AI-generated content
 
 USAGE:
-    gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
+    gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub pull request using AI. Fetches the current PR
     content and diff, applies the requested changes via AI, and updates the
     PR title and body. Auto-detects PR from the current branch if no number
-    is provided. Options after -- are passed directly to gh pr edit.
+    is provided. Unknown flags are forwarded directly to gh pr edit.
 
 FLAGS:
     -d, --description string   Description of the changes to make (required)
 
 EXAMPLES:
     gh claude pr edit 42 -d "add testing section"
-    gh claude pr edit 42 -d "fix summary" -- --add-label bug
+    gh claude pr edit 42 -d "fix summary" --add-label bug
     gh claude pr edit -d "improve description"   # auto-detect PR from current branch
 EOF
 }
@@ -410,26 +413,24 @@ _gh_pr_edit() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_edit.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
-	_parse_pr_edit_args gh_pr_number gh_pr_description "${args[@]}"
+	_parse_pr_edit_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -498,12 +499,12 @@ _show_pr_review_help() {
 gh claude pr review - Review PRs with AI-generated feedback
 
 USAGE:
-    gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+    gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
 
 DESCRIPTION:
     Submits a GitHub PR review with AI-generated feedback based on the
     diff and commit history. Auto-detects PR from the current branch
-    if no number is provided. Options after -- are passed directly to
+    if no number is provided. Unknown flags are forwarded directly to
     gh pr review.
 
 FLAGS:
@@ -511,7 +512,7 @@ FLAGS:
 
 EXAMPLES:
     gh claude pr review 42
-    gh claude pr review 42 -- --approve
+    gh claude pr review 42 --approve
     gh claude pr review -d "focus on security"
     gh claude pr review              # auto-detect PR from current branch
 EOF
@@ -533,20 +534,18 @@ _gh_pr_review() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_review.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
-	_parse_pr_review_args gh_pr_number gh_pr_description "${args[@]}"
+	_parse_pr_review_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- OPTIONS]"
+		gum log --level info "Usage: gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [OPTIONS]"
 		return 1
 	fi
 
@@ -907,12 +906,12 @@ _show_pr_comment_help() {
 gh claude pr comment - Post an AI-generated comment on a pull request
 
 USAGE:
-    gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
+    gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Posts a GitHub PR comment with AI-generated content based on the PR body,
     existing comments, and the description you provide. Auto-detects PR from
-    the current branch if no number is provided. Options after -- are passed
+    the current branch if no number is provided. Unknown flags are forwarded
     directly to gh pr comment.
 
 FLAGS:
@@ -922,7 +921,7 @@ EXAMPLES:
     gh claude pr comment 42 -d "summarise the open review threads"
     gh claude pr comment -d "ask about the migration strategy"
     echo "some notes" | gh claude pr comment 42 -d "incorporate this context"
-    gh claude pr comment 42 -d "request changes" -- --edit-last
+    gh claude pr comment 42 -d "request changes" --edit-last
 EOF
 }
 
@@ -942,26 +941,24 @@ _gh_pr_comment() {
 		;;
 	esac
 
-	local args=()
 	local passthrough=()
-	_split_on_separator args passthrough "$@"
 
 	local template_file
 	# shellcheck disable=SC2154
 	template_file="$_gh_claude_source_dir/templates/gh_pr_comment.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
-	_parse_pr_comment_args gh_pr_number gh_pr_description "${args[@]}"
+	_parse_pr_comment_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [-- OPTIONS]"
+		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -1011,12 +1008,12 @@ _show_pr_help() {
 gh claude pr - Pull request commands with AI assistance
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
     gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
     gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
-    gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
+    gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Creates, edits, reviews, explains, and comments on GitHub pull requests

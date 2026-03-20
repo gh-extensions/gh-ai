@@ -23,14 +23,15 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _extract_pr_number _detect_pr_number _parse_pr_args _parse_pr_review_args _show_pr_review_help _gh_pr_review _split_on_separator
+		declare -f _extract_pr_number _detect_pr_number _parse_pr_args _parse_pr_review_args _show_pr_review_help _gh_pr_review
 	)"
 }
 
 @test "_parse_pr_review_args: sets description from -d flag" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description -d "focus on security"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough -d "focus on security"
 
 	[[ "$description" == "focus on security" ]]
 }
@@ -38,7 +39,8 @@ setup() {
 @test "_parse_pr_review_args: sets description from --description flag" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description --description "improve readability"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough --description "improve readability"
 
 	[[ "$description" == "improve readability" ]]
 }
@@ -46,7 +48,8 @@ setup() {
 @test "_parse_pr_review_args: sets description from --description=value" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description --description="use imperative mood"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough --description="use imperative mood"
 
 	[[ "$description" == "use imperative mood" ]]
 }
@@ -54,7 +57,8 @@ setup() {
 @test "_parse_pr_review_args: captures both PR number and description" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description 42 -d "focus on security"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough 42 -d "focus on security"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "focus on security" ]]
@@ -63,7 +67,8 @@ setup() {
 @test "_parse_pr_review_args: accepts empty string for -d" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description -d ""
+	local passthrough=()
+	_parse_pr_review_args number description passthrough -d ""
 
 	[[ -z "$description" ]]
 }
@@ -71,8 +76,9 @@ setup() {
 @test "_parse_pr_review_args: preserves special characters in description" {
 	local number=""
 	local description=""
+	local passthrough=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_pr_review_args number description -d "$expected"
+	_parse_pr_review_args number description passthrough -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
@@ -80,7 +86,8 @@ setup() {
 @test "_parse_pr_review_args: defaults description to empty when no flags given" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description
+	local passthrough=()
+	_parse_pr_review_args number description passthrough
 
 	[[ -z "$description" ]]
 }
@@ -88,7 +95,8 @@ setup() {
 @test "_parse_pr_review_args: last value wins when -d and --description both given" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description -d "first" --description="second"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
@@ -96,7 +104,8 @@ setup() {
 @test "_parse_pr_review_args: returns error when -d has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_review_args number description -d
+	local passthrough=()
+	run _parse_pr_review_args number description passthrough -d
 
 	[[ "$status" -eq 1 ]]
 }
@@ -104,25 +113,38 @@ setup() {
 @test "_parse_pr_review_args: returns error when --description has no value" {
 	local number=""
 	local description=""
-	run _parse_pr_review_args number description --description
+	local passthrough=()
+	run _parse_pr_review_args number description passthrough --description
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"--description requires a value"* ]]
 }
 
-@test "_parse_pr_review_args: returns error with hint for unknown flags" {
+@test "_parse_pr_review_args: collects unknown flags as passthrough" {
 	local number=""
 	local description=""
-	run _parse_pr_review_args number description --approve
+	local passthrough=()
+	_parse_pr_review_args number description passthrough --approve
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"use -- to pass flags to gh pr review"* ]]
+	[[ "${passthrough[0]}" == "--approve" ]]
+}
+
+@test "_parse_pr_review_args: known flag before unknown flag works correctly" {
+	local number=""
+	local description=""
+	local passthrough=()
+	_parse_pr_review_args number description passthrough 42 -d "focus" --approve
+
+	[[ "$number" == "42" ]]
+	[[ "$description" == "focus" ]]
+	[[ "${passthrough[0]}" == "--approve" ]]
 }
 
 @test "_parse_pr_review_args: extracts PR number from canonical GitHub URL" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description "https://github.com/owner/repo/pull/42"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough "https://github.com/owner/repo/pull/42"
 
 	[[ "$number" == "42" ]]
 }
@@ -130,7 +152,8 @@ setup() {
 @test "_parse_pr_review_args: extracts PR number from URL with query string" {
 	local number=""
 	local description=""
-	_parse_pr_review_args number description "https://github.com/owner/repo/pull/42?tab=files" -d "focus on security"
+	local passthrough=()
+	_parse_pr_review_args number description passthrough "https://github.com/owner/repo/pull/42?tab=files" -d "focus on security"
 
 	[[ "$number" == "42" ]]
 	[[ "$description" == "focus on security" ]]
@@ -139,7 +162,8 @@ setup() {
 @test "_parse_pr_review_args: returns error for non-GitHub URL" {
 	local number=""
 	local description=""
-	run _parse_pr_review_args number description "https://gitlab.com/owner/repo/merge_requests/42"
+	local passthrough=()
+	run _parse_pr_review_args number description passthrough "https://gitlab.com/owner/repo/merge_requests/42"
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"unexpected argument"* ]]

@@ -22,72 +22,93 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_issue.sh
 		source "$REPO_ROOT/scripts/gh_issue.sh"
-		declare -f _parse_issue_create_args _show_issue_create_help _gh_issue_create _split_on_separator
+		declare -f _parse_issue_create_args _show_issue_create_help _gh_issue_create
 	)"
 }
 
 @test "_parse_issue_create_args: sets description from -d flag" {
 	local description=""
-	_parse_issue_create_args description -d "Login page crashes"
+	local passthrough=()
+	_parse_issue_create_args description passthrough -d "Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
 @test "_parse_issue_create_args: sets description from --description flag" {
 	local description=""
-	_parse_issue_create_args description --description "Login page crashes"
+	local passthrough=()
+	_parse_issue_create_args description passthrough --description "Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
 @test "_parse_issue_create_args: sets description from --description=value" {
 	local description=""
-	_parse_issue_create_args description --description="Login page crashes"
+	local passthrough=()
+	_parse_issue_create_args description passthrough --description="Login page crashes"
 
 	[[ "$description" == "Login page crashes" ]]
 }
 
 @test "_parse_issue_create_args: defaults description to empty when no flags given" {
 	local description=""
-	_parse_issue_create_args description
+	local passthrough=()
+	_parse_issue_create_args description passthrough
 
 	[[ -z "$description" ]]
 }
 
 @test "_parse_issue_create_args: preserves special characters in description" {
 	local description=""
+	local passthrough=()
 	local expected='fix: handle $HOME and '"'"'quotes'"'"' & <html>'
-	_parse_issue_create_args description -d "$expected"
+	_parse_issue_create_args description passthrough -d "$expected"
 
 	[[ "$description" == "$expected" ]]
 }
 
 @test "_parse_issue_create_args: last value wins when -d and --description both given" {
 	local description=""
-	_parse_issue_create_args description -d "first" --description="second"
+	local passthrough=()
+	_parse_issue_create_args description passthrough -d "first" --description="second"
 
 	[[ "$description" == "second" ]]
 }
 
 @test "_parse_issue_create_args: returns error when -d has no value" {
 	local description=""
-	run _parse_issue_create_args description -d
+	local passthrough=()
+	run _parse_issue_create_args description passthrough -d
 
 	[[ "$status" -eq 1 ]]
 }
 
 @test "_parse_issue_create_args: error message includes flag name when --description has no value" {
 	local description=""
-	run _parse_issue_create_args description --description
+	local passthrough=()
+	run _parse_issue_create_args description passthrough --description
 
 	[[ "$status" -eq 1 ]]
 	[[ "$output" == *"--description requires a value"* ]]
 }
 
-@test "_parse_issue_create_args: returns error with hint for unknown flags" {
+@test "_parse_issue_create_args: collects unknown flags as passthrough" {
 	local description=""
-	run _parse_issue_create_args description --label bug
+	local passthrough=()
+	_parse_issue_create_args description passthrough --label bug
 
-	[[ "$status" -eq 1 ]]
-	[[ "$output" == *"use -- to pass flags to gh issue create"* ]]
+	[[ "${passthrough[0]}" == "--label" ]]
+	[[ "${passthrough[1]}" == "bug" ]]
+}
+
+@test "_parse_issue_create_args: known flag before unknown flag works correctly" {
+	local description=""
+	local passthrough=()
+	_parse_issue_create_args description passthrough -d "crash report" --label bug --assignee @me
+
+	[[ "$description" == "crash report" ]]
+	[[ "${passthrough[0]}" == "--label" ]]
+	[[ "${passthrough[1]}" == "bug" ]]
+	[[ "${passthrough[2]}" == "--assignee" ]]
+	[[ "${passthrough[3]}" == "@me" ]]
 }
