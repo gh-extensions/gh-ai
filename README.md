@@ -1,5 +1,7 @@
 # gh-claude
 
+[![CI Tests](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml/badge.svg)](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml)
+
 Your Claude-powered copilot for the GitHub CLI. Draft pull requests, plan issue
 implementations, review code, debug CI failures, and drop into interactive
 coding sessions — without leaving the terminal.
