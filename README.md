@@ -1,6 +1,8 @@
 # gh-claude
 
 [![CI Tests](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml/badge.svg)](https://github.com/gh-extensions/gh-claude/actions/workflows/test.yml)
+[![Release](https://img.shields.io/github/v/release/gh-extensions/gh-claude)](https://github.com/gh-extensions/gh-claude/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Your Claude-powered copilot for the GitHub CLI. Draft pull requests, plan issue
 implementations, review code, debug CI failures, and drop into interactive
