@@ -40,15 +40,15 @@ gh extension install gh-extensions/gh-claude                # installs from main
 ## Usage
 
 ```bash
-gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [-- GH_PR_CREATE_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_EDIT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [-- GH_PR_REVIEW_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
 gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
-gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [-- GH_PR_COMMENT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
-gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [-- GH_ISSUE_CREATE_OPTIONS]
-gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_EDIT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [-- GH_ISSUE_COMMENT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
 gh claude [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
 gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
 gh claude [CLAUDE_OPTIONS] run explain <RUN_ID>
@@ -65,7 +65,7 @@ Creates a pull request with an AI-generated title and description.
 
 ```bash
 gh claude pr create
-gh claude pr create -B develop -- --draft
+gh claude pr create -B develop --draft
 gh claude pr create -d "focus on the security changes"
 ```
 
@@ -74,7 +74,7 @@ of what to change.
 
 ```bash
 gh claude pr edit 42 -d "add testing section"
-gh claude pr edit 42 -d "fix summary" -- --add-label bug
+gh claude pr edit 42 -d "fix summary" --add-label bug
 gh claude pr edit -d "improve description"   # auto-detect PR from current branch
 ```
 
@@ -83,9 +83,9 @@ to provide extra context or focus areas that guide the AI review.
 
 ```bash
 gh claude pr review 42
-gh claude pr review 42 -- --approve
+gh claude pr review 42 --approve
 gh claude pr review -d "focus on security"
-gh claude pr review 42 -d "check error handling" -- --comment
+gh claude pr review 42 -d "check error handling" --comment
 gh claude pr review # auto-detects PR for the current branch
 ```
 
@@ -118,7 +118,7 @@ Creates a structured GitHub issue from a brief description.
 
 ```bash
 gh claude issue create -d "Login page crashes with special chars"
-gh claude issue create -d "Login crash" -- --label bug --assignee @me
+gh claude issue create -d "Login crash" --label bug --assignee @me
 some_command 2>&1 | gh claude issue create -d "Command X fails" # pipe error context
 ```
 
@@ -128,7 +128,7 @@ what to change.
 ```bash
 gh claude issue edit 42 -d "add acceptance criteria"
 gh claude issue edit 42 -d "fix typos and improve clarity"
-gh claude issue edit 42 -d "rephrase as a bug report" -- --add-label bug
+gh claude issue edit 42 -d "rephrase as a bug report" --add-label bug
 ```
 
 Generates an AI implementation plan from an issue and prints it to stdout.
