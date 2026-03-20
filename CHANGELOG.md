@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/gh-extensions/gh-claude/compare/v0.25.0...v0.26.0) (2026-03-20)
+
+
+### Features
+
+* remove mandatory -- separator for passthrough args ([94660b0](https://github.com/gh-extensions/gh-claude/commit/94660b0926f6c53e46d47c5767524802a26d8df3))
+
 ## [0.25.0](https://github.com/gh-extensions/gh-claude/compare/v0.24.0...v0.25.0) (2026-03-19)
 
 
