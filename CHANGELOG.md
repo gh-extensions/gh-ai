@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.1](https://github.com/gh-extensions/gh-claude/compare/v0.26.0...v0.26.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* add postCreateCommand to restore nix volume permissions ([9316967](https://github.com/gh-extensions/gh-claude/commit/9316967d1b8b035d6b961eb5ff009ae3770d3b34))
+
 ## [0.26.0](https://github.com/gh-extensions/gh-claude/compare/v0.25.0...v0.26.0) (2026-03-20)
 
 
