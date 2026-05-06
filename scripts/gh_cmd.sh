@@ -273,9 +273,9 @@ _git_branch_diff() {
 	_commits_ref=$(printf '%s\n' "$_log_ref" | sed 's/^[a-f0-9]* /- /')
 }
 
-# Create a temporary context directory for ask-mode commands
+# Create a temporary context directory for commands
 #
-# Creates a temp directory that can hold large context files. Caller is
+# Creates a temp directory that can hold context files. Caller is
 # responsible for cleanup (rm -rf) after use.
 #
 # Usage: _create_context_dir context_dir_ref
@@ -285,40 +285,7 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-claude-ctx.XXXXXXXXXX")
 }
 
-# Generate a UUID v4 using /dev/urandom and od (no uuidgen required).
-#
-# Reads 16 random bytes, formats them as a lowercase UUID v4 string with
-# the version (4) and variant bits set correctly.
-#
-# Stdout: uuid string (e.g. f47ac10b-58cc-4372-a567-0e02b2c3d479)
-# Usage: uuid=$(_uuidgen)
-_uuidgen() {
-	local _ug_hex
-	_ug_hex=$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')
-	printf '%s-%s-4%s-%02x%s-%s\n' \
-		"${_ug_hex:0:8}" \
-		"${_ug_hex:8:4}" \
-		"${_ug_hex:13:3}" \
-		$(( (16#${_ug_hex:16:2} & 0x3f) | 0x80 )) \
-		"${_ug_hex:18:2}" \
-		"${_ug_hex:20:12}"
-}
-
-# Resolve the base directory for persistent chat sessions.
-# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/claude/sessions.
-#
-# Stdout: base directory path
-# Usage: base=$(_gh_session_base_dir)
-_gh_session_base_dir() {
-	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/claude/sessions"
-}
-
-# Resolve context directory: persistent session dir for chat, temp dir otherwise
-#
-# For chat commands, returns early if dir_ref is already set (pre-resolved by
-# _resolve_chat_session). Otherwise creates the session directory under the
-# XDG-based sessions base. All other command types get a temporary directory
-# via _create_context_dir.
+# Resolve context directory: always creates a temporary directory.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
 _resolve_context_dir() {
@@ -326,17 +293,7 @@ _resolve_context_dir() {
 	local _rcd_name="$2"
 	local -n _rcd_dir="$3"
 
-	if [[ "$_rcd_type" == "chat" ]]; then
-		if [[ -n "$_rcd_dir" ]]; then
-			return 0
-		fi
-		local _rcd_base
-		_rcd_base=$(_gh_session_base_dir)
-		_rcd_dir="${_rcd_base}/${_rcd_name}"
-		mkdir -p "$_rcd_dir"
-	else
-		_create_context_dir _rcd_dir
-	fi
+	_create_context_dir _rcd_dir
 }
 
 # Save content to a named file in a context directory
@@ -404,94 +361,6 @@ _parse_chat_args() {
 		((++_pca_i))
 	done
 }
-
-# Resolve session directory and arguments for chat commands.
-#
-# Four modes:
-#   - user_resume non-empty: dir must exist; chat.id must match resource name;
-#     is_new="", args=() (--resume is already in passthrough)
-#   - user_session_id non-empty: dir = <base>/<user_session_id>; if dir already
-#     exists, is_new="" (skip context); if absent, create dir, write chat.id,
-#     is_new=1; args=() in both cases (--session-id is already in passthrough)
-#   - GH_CLAUDE_DEFAULT_SESSION_ID set: dir = <base>/<GH_CLAUDE_DEFAULT_SESSION_ID>;
-#     if dir exists, is_new="", args=(--resume UUID) — auto-resume;
-#     if absent, create dir, write chat.id, is_new=1, args=(--session-id UUID)
-#   - Auto-generate: new UUID, create dir, write chat.id, is_new=1,
-#     args=(--session-id <UUID>)
-#
-# Usage: _resolve_chat_session name user_session_id user_resume dir_ref is_new_ref args_ref
-_resolve_chat_session() {
-	local _rcs_name="$1"
-	local _rcs_user_session_id="$2"
-	local _rcs_user_resume="$3"
-	local -n _rcs_dir="$4"
-	local -n _rcs_is_new="$5"
-	local -n _rcs_args="$6"
-
-	local _rcs_base
-	_rcs_base=$(_gh_session_base_dir)
-
-	if [[ -n "$_rcs_user_resume" ]]; then
-		_rcs_dir="${_rcs_base}/${_rcs_user_resume}"
-		if [[ ! -d "$_rcs_dir" ]]; then
-			gum log --level error "Session not found: ${_rcs_user_resume}"
-			return 1
-		fi
-		local _rcs_stored_name
-		_rcs_stored_name=$(cat "$_rcs_dir/chat.id" 2>/dev/null || true)
-		if [[ "$_rcs_stored_name" != "$_rcs_name" ]]; then
-			gum log --level error "Session ${_rcs_user_resume} belongs to '${_rcs_stored_name}', not '${_rcs_name}'"
-			return 1
-		fi
-		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_is_new=""
-		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_args=()
-	elif [[ -n "$_rcs_user_session_id" ]]; then
-		_rcs_dir="${_rcs_base}/${_rcs_user_session_id}"
-		if [[ -d "$_rcs_dir" ]]; then
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_is_new=""
-		else
-			mkdir -p "$_rcs_dir"
-			printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_is_new=1
-		fi
-		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_args=()
-	elif [[ -n "${GH_CLAUDE_DEFAULT_SESSION_ID:-}" ]]; then
-		_rcs_dir="${_rcs_base}/${GH_CLAUDE_DEFAULT_SESSION_ID}"
-		if [[ -d "$_rcs_dir" ]]; then
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_is_new=""
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_args=(--resume "$GH_CLAUDE_DEFAULT_SESSION_ID")
-		else
-			mkdir -p "$_rcs_dir"
-			printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_is_new=1
-			# shellcheck disable=SC2034 # nameref: set by caller
-			_rcs_args=(--session-id "$GH_CLAUDE_DEFAULT_SESSION_ID")
-		fi
-	else
-		local _rcs_uuid
-		_rcs_uuid=$(_uuidgen)
-		if [[ -z "$_rcs_uuid" ]]; then
-			gum log --level error "Failed to generate session UUID"
-			return 1
-		fi
-		_rcs_dir="${_rcs_base}/${_rcs_uuid}"
-		mkdir -p "$_rcs_dir"
-		printf '%s' "$_rcs_name" >"$_rcs_dir/chat.id"
-		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_is_new=1
-		# shellcheck disable=SC2034 # nameref: set by caller
-		_rcs_args=(--session-id "$_rcs_uuid")
-	fi
-}
-
 
 main() {
 	local cmd

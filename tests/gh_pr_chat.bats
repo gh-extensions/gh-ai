@@ -35,9 +35,7 @@ setup() {
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
 		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _extract_claude_arg _show_pr_chat_help _gh_pr_chat _detect_pr_number \
-			_cmd_chat _cmd_render _get_agent _git_repo_path _resolve_chat_session \
-			_prepare_pr_chat_context _prepare_pr_diff_context _resolve_context_dir _create_context_dir _save_context_file \
-			_gh_session_base_dir _uuidgen
+			_cmd_chat _cmd_render _get_agent _git_repo_path _resolve_context_dir _create_context_dir _save_context_file
 	)"
 }
 
@@ -263,13 +261,8 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_pr_chat: resumes session when --resume is in _GH_CLAUDE_ARGS" {
+@test "_gh_pr_chat: always renders prompt" {
 	_setup_chat_mocks
-
-	# Create a valid session dir so --resume finds it
-	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
-	mkdir -p "$base/abc123"
-	printf 'pull-42' >"$base/abc123/chat.id"
 
 	_cmd_chat() {
 		printf 'URL:%s\n' "$1"
@@ -279,36 +272,12 @@ _setup_chat_mocks() {
 	}
 	export -f _cmd_chat
 
-	_GH_CLAUDE_ARGS=(--resume abc123)
 	run _gh_pr_chat 42
 
 	[[ "$status" -eq 0 ]]
-	# No prompt rendered on resume
-	[[ "$output" != *"Test PR Title"* ]]
-}
-
-@test "_gh_pr_chat: resumes session when --session-id is in _GH_CLAUDE_ARGS and dir exists" {
-	_setup_chat_mocks
-
-	# Pre-create session dir so --session-id triggers resume (is_new="")
-	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
-	mkdir -p "$base/my-review"
-	printf 'pull-42' >"$base/my-review/chat.id"
-
-	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
-		printf 'ARGS:%s\n' "$*"
-	}
-	export -f _cmd_chat
-
-	_GH_CLAUDE_ARGS=(--session-id my-review)
-	run _gh_pr_chat 42
-
-	[[ "$status" -eq 0 ]]
-	# No prompt rendered on resume
-	[[ "$output" != *"Test PR Title"* ]]
+	# Prompt should be rendered
+	[[ "$output" == *"PROMPT:"* ]]
+	[[ "$output" == *"Test PR Title"* ]]
 }
 
 @test "_gh_pr_chat: shows help with --help flag" {
@@ -334,26 +303,4 @@ _setup_chat_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"--model sonnet --verbose"* ]]
-}
-
-@test "_gh_pr_chat: accepts --session-id in _GH_CLAUDE_ARGS for new session" {
-	_setup_chat_mocks
-
-	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
-		printf 'ARGS:%s\n' "$*"
-	}
-	export -f _cmd_chat
-
-	_GH_CLAUDE_ARGS=(--session-id my-review)
-	run _gh_pr_chat 42
-
-	[[ "$status" -eq 0 ]]
-	# New session should render prompt
-	[[ "$output" == *"PROMPT:"* ]]
-	# Session dir should have been created
-	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
-	[[ -d "$base/my-review" ]]
 }

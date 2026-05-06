@@ -240,42 +240,19 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
   | xargs -I{} sh -c 'gh claude issue plan "{}" | jules new'
 ```
 
-## Session Management
+## Agent Sessions
 
-Session state is stored under the XDG state directory:
+The CLI is agent-agnostic and does not manage session IDs internally. It always fetches the latest data from GitHub and passes it as a context prompt to the agent.
 
-```text
-${XDG_STATE_HOME:-~/.local/state}/gh/claude/sessions/<session-id>/
-  chat.id   — resource identifier (e.g. pull-42, issue-7, run-123456)
-```
-
-**Four modes:**
-
-| Invocation | Behaviour |
-|---|---|
-| `gh claude pr chat 42` | Auto-generate UUID, new session, context rendered |
-| `gh claude --session-id <UUID> pr chat 42` | Named session — creates on first call, resumes (no context re-render) on subsequent calls |
-| `gh claude --resume <UUID> pr chat 42` | Resume a specific session by UUID; errors if not found or resource mismatch |
-| `GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42` | Default session — auto-resumes if exists, creates if not |
+You can manage agent-specific sessions by passing flags directly:
 
 ```bash
-# Named session: context rendered first time, skipped on reuse
-gh claude --session-id <UUID> pr chat 42
-gh claude --session-id <UUID> pr chat 42   # resumes, no re-fetch
+# Start a new session with context
+gh claude pr chat 42
 
-# Resume by UUID
-gh claude --resume abc123-... pr chat 42
-
-# Default session via env var: always uses the same session, auto-resumes
-export GH_CLAUDE_DEFAULT_SESSION_ID=my-session
-gh claude pr chat 42    # first run: new session, context rendered
-gh claude pr chat 42    # subsequent runs: auto-resume, no re-fetch
+# Resume a specific Claude session (agent handles history)
+gh claude --resume <ID> pr chat 42
 ```
-
-`GH_CLAUDE_DEFAULT_SESSION_ID` is only consulted when neither `--session-id`
-nor `--resume` are provided, so explicit flags always take precedence.
-
-Override the sessions root by setting `XDG_STATE_HOME`.
 
 ## Configuration
 

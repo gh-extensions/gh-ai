@@ -122,10 +122,6 @@ _parse_pr_args() {
 # Fetches PR metadata and diff, saves context files to the context directory,
 # and populates the output variables via namerefs.
 #
-# When type is "chat" the context is written to the pre-resolved session
-# directory (set by _resolve_chat_session before this is called).
-# For all other types a temporary directory is created.
-#
 # Usage: _prepare_pr_diff_context type pr_number dir_ref title_ref head_ref url_ref
 _prepare_pr_diff_context() {
 	local _ctx_type="$1"
@@ -135,16 +131,18 @@ _prepare_pr_diff_context() {
 	local -n _ctx_head="$5"
 	local -n _ctx_url="$6"
 
+	_resolve_context_dir "$_ctx_type" "pull-$_ctx_num" _ctx_dir || return 1
+
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub pull request #$_ctx_num metadata..." -- \
-		gh pr view "$_ctx_num" --json title,body,headRefName,commits,url || true)
+		gh pr view "$_ctx_num" --json title,body,headRefName,commits,url,updatedAt || true)
 	if [[ -z "$_ctx_meta" ]]; then
 		gum log --level error "Failed to fetch pull request #$_ctx_num metadata"
 		return 1
 	fi
 
 	# Single jq pass: extract all fields via eval
-	local _ctx_body="" _ctx_commits=""
+	local _ctx_body="" _ctx_commits="" _ctx_updated_at=""
 	# shellcheck disable=SC2154
 	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_pr_meta.jq")"
 
@@ -158,8 +156,6 @@ _prepare_pr_diff_context() {
 
 	local _ctx_diff_stat
 	_ctx_diff_stat=$(printf '%s' "$_ctx_diff" | git apply --stat 2>/dev/null || true)
-
-	_resolve_context_dir "$_ctx_type" "pull-$_ctx_num" _ctx_dir || return 1
 
 	_save_context_file "$_ctx_dir" "state/pr_body.md" "$_ctx_body"
 	_save_context_file "$_ctx_dir" "state/pr_diff.patch" "$_ctx_diff"
@@ -777,13 +773,6 @@ EXAMPLES:
     gh claude pr chat -d "focus on the security changes"
     gh claude pr chat                                     # auto-detect PR
     gh claude --model sonnet pr chat 42
-    gh claude --session-id <UUID> pr chat 42              # named session
-    gh claude --resume <UUID> pr chat 42                  # resume a session
-
-ENVIRONMENT:
-    GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
-        Auto-resume default session: resumes if it exists, creates if not.
-        Explicit --session-id or --resume flags take precedence.
 EOF
 }
 
@@ -819,40 +808,33 @@ _gh_pr_chat() {
 		return 1
 	fi
 
-	local gh_pr_user_session_id="" gh_pr_user_resume=""
-	gh_pr_user_session_id=$(_extract_claude_arg --session-id)
-	gh_pr_user_resume=$(_extract_claude_arg --resume)
-
-	local gh_pr_dir="" gh_pr_is_new_chat="" gh_pr_session_args=()
-	_resolve_chat_session "pull-$gh_pr_number" "$gh_pr_user_session_id" "$gh_pr_user_resume" gh_pr_dir gh_pr_is_new_chat gh_pr_session_args || return 1
-
+	local gh_pr_dir=""
 	local gh_pr_title="" gh_pr_head="" gh_pr_url="" gh_pr_prompt=""
-	if [[ -n "$gh_pr_is_new_chat" ]]; then
-		_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
+	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
-		if [[ -z "$gh_pr_head" ]]; then
-			gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
-			return 1
-		fi
-
-		local gh_pr_focus=""
-		if [[ -n "$gh_pr_description" ]]; then
-			gh_pr_focus="<focus>${gh_pr_description}</focus>"
-		fi
-
-		# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
-		gh_pr_prompt=$(
-			GH_PR_NUMBER="$gh_pr_number" \
-				GH_PR_TITLE="$gh_pr_title" \
-				GH_PR_URL="$gh_pr_url" \
-				GH_PR_FOCUS="$gh_pr_focus" \
-				GH_CLAUDE_SESSION_DIR="$gh_pr_dir" \
-				GH_PR_HEAD="$gh_pr_head" \
-				"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
-		)
+	if [[ -z "$gh_pr_head" ]]; then
+		gum log --level error "Could determine head branch for pull request #$gh_pr_number"
+		return 1
 	fi
 
-	_cmd_chat "$gh_pr_url" "$gh_pr_prompt" "${gh_pr_session_args[@]}"
+	local gh_pr_focus=""
+	if [[ -n "$gh_pr_description" ]]; then
+		gh_pr_focus="<focus>${gh_pr_description}</focus>"
+	fi
+
+	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	gh_pr_prompt=$(
+		GH_PR_NUMBER="$gh_pr_number" \
+			GH_PR_TITLE="$gh_pr_title" \
+			GH_PR_URL="$gh_pr_url" \
+			GH_PR_FOCUS="$gh_pr_focus" \
+			GH_CLAUDE_SESSION_DIR="$gh_pr_dir" \
+			GH_PR_HEAD="$gh_pr_head" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
+
+	_cmd_chat "$gh_pr_url" "$gh_pr_prompt"
+	rm -rf "$gh_pr_dir"
 }
 
 # Parse PR comment arguments (before -- separator).

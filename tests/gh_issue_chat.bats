@@ -35,9 +35,7 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _extract_issue_number _parse_chat_args _parse_issue_chat_args _extract_claude_arg _show_issue_chat_help _gh_issue_chat \
-			_cmd_chat _cmd_render _get_agent _git_repo_path _resolve_chat_session \
-			_prepare_issue_chat_context _prepare_issue_context _resolve_context_dir _create_context_dir _save_context_file \
-			_gh_session_base_dir _uuidgen
+			_cmd_chat _cmd_render _get_agent _git_repo_path _resolve_context_dir _create_context_dir _save_context_file
 	)"
 }
 
@@ -214,13 +212,8 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 1 ]]
 }
 
-@test "_gh_issue_chat: resumes session when --resume is in _GH_CLAUDE_ARGS" {
+@test "_gh_issue_chat: always renders prompt" {
 	_setup_chat_mocks
-
-	# Create a valid session dir so --resume finds it
-	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
-	mkdir -p "$base/abc123"
-	printf 'issue-42' >"$base/abc123/chat.id"
 
 	_cmd_chat() {
 		printf 'URL:%s\n' "$1"
@@ -229,12 +222,12 @@ _setup_chat_mocks() {
 		printf 'ARGS:%s\n' "$*"
 	}
 
-	_GH_CLAUDE_ARGS=(--resume abc123)
 	run _gh_issue_chat 42
 
 	[[ "$status" -eq 0 ]]
-	# No prompt rendered on resume
-	[[ "$output" != *"Test Issue"* ]]
+	# Prompt should be rendered
+	[[ "$output" == *"PROMPT:"* ]]
+	[[ "$output" == *"Test Issue"* ]]
 }
 
 @test "_gh_issue_chat: shows help with --help flag" {
@@ -260,25 +253,4 @@ _setup_chat_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"--model sonnet --verbose"* ]]
-}
-
-@test "_gh_issue_chat: accepts --session-id in _GH_CLAUDE_ARGS for new session" {
-	_setup_chat_mocks
-
-	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
-		printf 'ARGS:%s\n' "$*"
-	}
-
-	_GH_CLAUDE_ARGS=(--session-id my-session)
-	run _gh_issue_chat 42
-
-	[[ "$status" -eq 0 ]]
-	# New session should render prompt
-	[[ "$output" == *"PROMPT:"* ]]
-	# Session dir should have been created
-	local base="$BATS_TEST_TMPDIR/.local/state/gh/claude/sessions"
-	[[ -d "$base/my-session" ]]
 }

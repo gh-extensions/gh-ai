@@ -3,4 +3,5 @@
 "_ctx_body=" + ((.body // "") | @sh),
 "_ctx_commits=" + (([(.commits // [])[] | "- " + .messageHeadline] | join("\n")) | @sh),
 "_ctx_comments=" + (([(.comments // [])[].body] | join("\n---\n")) | @sh),
-"_ctx_url=" + ((.url // "") | @sh)
+"_ctx_url=" + ((.url // "") | @sh),
+"_ctx_updated_at=" + ((.updatedAt // "") | @sh)

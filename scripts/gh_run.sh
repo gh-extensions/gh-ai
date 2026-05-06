@@ -30,6 +30,8 @@ _prepare_run_context() {
 	local -n _ctx_branch="$8"
 	local -n _ctx_head_sha="$9"
 
+	_resolve_context_dir "$_ctx_type" "run-$_ctx_id" _ctx_dir || return 1
+
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub workflow run #$_ctx_id metadata..." -- \
 		gh run view "$_ctx_id" --json displayTitle,conclusion,url,event,headBranch,headSha,jobs || true)
@@ -57,8 +59,6 @@ _prepare_run_context() {
 		gum log --level info "Logs may still be streaming, have expired, or the run may not have started yet"
 		return 1
 	fi
-
-	_resolve_context_dir "$_ctx_type" "run-$_ctx_id" _ctx_dir || return 1
 
 	_save_context_file "$_ctx_dir" "state/run_jobs.txt" "$_ctx_jobs"
 	_save_context_file "$_ctx_dir" "state/run_log.txt" "$_ctx_log"
@@ -221,13 +221,6 @@ EXAMPLES:
     gh claude run chat 123456
     gh claude run chat 123456 -d "focus on test failures"
     gh claude --model sonnet run chat 123456
-    gh claude --session-id <UUID> run chat 123456       # named session
-    gh claude --resume <UUID> run chat 123456           # resume a session
-
-ENVIRONMENT:
-    GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
-        Auto-resume default session: resumes if it exists, creates if not.
-        Explicit --session-id or --resume flags take precedence.
 EOF
 }
 
@@ -264,32 +257,25 @@ _gh_run_chat() {
 		gh_run_focus="<focus>${gh_run_description}</focus>"
 	fi
 
-	local gh_run_user_session_id="" gh_run_user_resume=""
-	gh_run_user_session_id=$(_extract_claude_arg --session-id)
-	gh_run_user_resume=$(_extract_claude_arg --resume)
-
-	local gh_run_dir="" gh_run_is_new_chat="" gh_run_session_args=()
-	_resolve_chat_session "run-$gh_run_id" "$gh_run_user_session_id" "$gh_run_user_resume" gh_run_dir gh_run_is_new_chat gh_run_session_args || return 1
-
+	local gh_run_dir=""
 	local gh_run_title="" gh_run_conclusion="" gh_run_url="" gh_run_event="" gh_run_branch="" gh_run_sha="" gh_run_prompt=""
-	if [[ -n "$gh_run_is_new_chat" ]]; then
-		_prepare_run_chat_context "$gh_run_id" gh_run_dir gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_sha || return 1
+	_prepare_run_chat_context "$gh_run_id" gh_run_dir gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_sha || return 1
 
-		gh_run_prompt=$(
-			GH_RUN_ID="$gh_run_id" \
-				GH_RUN_TITLE="$gh_run_title" \
-				GH_RUN_CONCLUSION="$gh_run_conclusion" \
-				GH_RUN_FOCUS="$gh_run_focus" \
-				GH_RUN_URL="$gh_run_url" \
-				GH_RUN_EVENT="$gh_run_event" \
-				GH_RUN_BRANCH="$gh_run_branch" \
-				GH_RUN_SHA="$gh_run_sha" \
-				GH_CLAUDE_SESSION_DIR="$gh_run_dir" \
-				"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
-		)
-	fi
+	gh_run_prompt=$(
+		GH_RUN_ID="$gh_run_id" \
+			GH_RUN_TITLE="$gh_run_title" \
+			GH_RUN_CONCLUSION="$gh_run_conclusion" \
+			GH_RUN_FOCUS="$gh_run_focus" \
+			GH_RUN_URL="$gh_run_url" \
+			GH_RUN_EVENT="$gh_run_event" \
+			GH_RUN_BRANCH="$gh_run_branch" \
+			GH_RUN_SHA="$gh_run_sha" \
+			GH_CLAUDE_SESSION_DIR="$gh_run_dir" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
 
-	_cmd_chat "$gh_run_url" "$gh_run_prompt" "${gh_run_session_args[@]}"
+	_cmd_chat "$gh_run_url" "$gh_run_prompt"
+	rm -rf "$gh_run_dir"
 }
 
 # Run help function

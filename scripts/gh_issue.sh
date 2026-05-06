@@ -108,10 +108,6 @@ _parse_issue_args() {
 # and populates the output variables via namerefs. Reads optional stdin
 # into issue_context.md.
 #
-# When type is "chat" the context is written to the pre-resolved session
-# directory (set by _resolve_chat_session before this is called).
-# For all other types a temporary directory is created.
-#
 # Usage: _prepare_issue_context type issue_number dir_ref title_ref labels_ref url_ref
 _prepare_issue_context() {
 	local _ctx_type="$1"
@@ -121,20 +117,20 @@ _prepare_issue_context() {
 	local -n _ctx_labels="$5"
 	local -n _ctx_url="$6"
 
+	_resolve_context_dir "$_ctx_type" "issue-$_ctx_num" _ctx_dir || return 1
+
 	local _ctx_meta
 	_ctx_meta=$(gum spin --title "Fetching GitHub issue #$_ctx_num metadata..." -- \
-		gh issue view "$_ctx_num" --json title,body,labels,comments,url || true)
+		gh issue view "$_ctx_num" --json title,body,labels,comments,url,updatedAt || true)
 	if [[ -z "$_ctx_meta" ]]; then
 		gum log --level error "Failed to fetch issue #$_ctx_num"
 		return 1
 	fi
 
 	# Single jq pass: extract all fields via eval
-	local _ctx_body="" _ctx_comments=""
+	local _ctx_body="" _ctx_comments="" _ctx_updated_at=""
 	# shellcheck disable=SC2154
 	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_issue_meta.jq")"
-
-	_resolve_context_dir "$_ctx_type" "issue-$_ctx_num" _ctx_dir || return 1
 
 	local _ctx_context=""
 	if [[ ! -t 0 ]]; then
@@ -719,13 +715,6 @@ EXAMPLES:
     gh claude issue chat https://github.com/owner/repo/issues/42
     gh claude issue chat 42 -d "focus on the auth module"
     gh claude --model sonnet issue chat 42
-    gh claude --session-id <UUID> issue chat 42            # named session
-    gh claude --resume <UUID> issue chat 42                # resume a session
-
-ENVIRONMENT:
-    GH_CLAUDE_DEFAULT_SESSION_ID=<UUID>
-        Auto-resume default session: resumes if it exists, creates if not.
-        Explicit --session-id or --resume flags take precedence.
 EOF
 }
 
@@ -757,34 +746,28 @@ _gh_issue_chat() {
 		return 1
 	fi
 
-	local gh_issue_user_session_id="" gh_issue_user_resume=""
-	gh_issue_user_session_id=$(_extract_claude_arg --session-id)
-	gh_issue_user_resume=$(_extract_claude_arg --resume)
+	local gh_issue_dir=""
+	local gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
-	local gh_issue_dir="" gh_issue_is_new_chat="" gh_issue_session_args=()
-	_resolve_chat_session "issue-$gh_issue_number" "$gh_issue_user_session_id" "$gh_issue_user_resume" gh_issue_dir gh_issue_is_new_chat gh_issue_session_args || return 1
-
-	local gh_issue_title="" gh_issue_labels="" gh_issue_url="" gh_issue_prompt=""
-	if [[ -n "$gh_issue_is_new_chat" ]]; then
-		_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
-
-		local gh_issue_focus=""
-		if [[ -n "$gh_issue_description" ]]; then
-			gh_issue_focus="<focus>${gh_issue_description}</focus>"
-		fi
-
-		gh_issue_prompt=$(
-			GH_ISSUE_NUMBER="$gh_issue_number" \
-				GH_ISSUE_TITLE="$gh_issue_title" \
-				GH_ISSUE_URL="$gh_issue_url" \
-				GH_ISSUE_LABELS="$gh_issue_labels" \
-				GH_ISSUE_FOCUS="$gh_issue_focus" \
-				GH_CLAUDE_SESSION_DIR="$gh_issue_dir" \
-				"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
-		)
+	local gh_issue_focus=""
+	if [[ -n "$gh_issue_description" ]]; then
+		gh_issue_focus="<focus>${gh_issue_description}</focus>"
 	fi
 
-	_cmd_chat "$gh_issue_url" "$gh_issue_prompt" "${gh_issue_session_args[@]}"
+	local gh_issue_prompt
+	gh_issue_prompt=$(
+		GH_ISSUE_NUMBER="$gh_issue_number" \
+			GH_ISSUE_TITLE="$gh_issue_title" \
+			GH_ISSUE_URL="$gh_issue_url" \
+			GH_ISSUE_LABELS="$gh_issue_labels" \
+			GH_ISSUE_FOCUS="$gh_issue_focus" \
+			GH_CLAUDE_SESSION_DIR="$gh_issue_dir" \
+			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+	)
+
+	_cmd_chat "$gh_issue_url" "$gh_issue_prompt"
+	rm -rf "$gh_issue_dir"
 }
 
 # Issue help function
