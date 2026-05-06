@@ -1,5 +1,5 @@
 {
-  description = "gh-claude development shell";
+  description = "gh-ai development shell";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -19,7 +19,7 @@
       in
       {
         devShells.default = pkgs.mkShell {
-          name = "gh-claude";
+          name = "gh-ai";
           packages = with pkgs; [
             bash
             gh
@@ -28,12 +28,6 @@
             bats
             shellcheck
           ];
-
-          shellHook = ''
-            if ! command -v claude &>/dev/null; then
-              echo "warning: 'claude' CLI not found — install via: https://code.claude.com/docs/en/terminal-guide"
-            fi
-          '';
         };
       }
     );
