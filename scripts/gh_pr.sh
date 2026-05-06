@@ -833,7 +833,7 @@ _gh_pr_chat() {
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$gh_pr_url" "$gh_pr_prompt"
+	_cmd_chat "$gh_pr_prompt"
 }
 
 # Parse PR comment arguments (before -- separator).

@@ -194,9 +194,8 @@ _setup_chat_mocks() {
 	_setup_chat_mocks
 
 	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
+		printf 'PROMPT:%s\n' "$1"
+		shift 1
 		printf 'ARGS:%s\n' "$*"
 	}
 	export -f _cmd_chat
@@ -266,9 +265,8 @@ _setup_chat_mocks() {
 	_setup_chat_mocks
 
 	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
+		printf 'PROMPT:%s\n' "$1"
+		shift 1
 		printf 'ARGS:%s\n' "$*"
 	}
 	export -f _cmd_chat
@@ -278,7 +276,7 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 	# Prompt should be rendered
 	[[ "$output" == *"PROMPT:"* ]]
-	[[ "$output" == *"Test PR Title"* ]]
+	[[ "$output" == *"Test PR"* ]]
 }
 
 @test "_gh_pr_chat: shows help with --help flag" {

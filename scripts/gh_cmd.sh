@@ -120,11 +120,10 @@ _trust_workspace() {
 # Extra positional args are forwarded to claude.
 # Pre-trusts the current directory so Claude skips the "trust this folder" dialog.
 #
-# Usage: _cmd_chat "url" "context prompt" [AGENT_ARGS...]
+# Usage: _cmd_chat "context prompt" [AGENT_ARGS...]
 _cmd_chat() {
-	local url="$1"
-	local prompt="$2"
-	shift 2
+	local prompt="$1"
+	shift 1
 
 	if ! command -v claude &>/dev/null; then
 		gum log --level error "claude not found"
@@ -137,7 +136,7 @@ _cmd_chat() {
 	_trust_workspace "$(pwd -P)"
 
 	if [[ -n "$prompt" ]]; then
-		printf "%s" "$url" | claude --append-system-prompt "$prompt" "$@" "${_GH_CLAUDE_ARGS[@]}"
+		printf "%s" "$prompt" | claude "$@" "${_GH_CLAUDE_ARGS[@]}"
 	else
 		claude "$@" "${_GH_CLAUDE_ARGS[@]}"
 	fi

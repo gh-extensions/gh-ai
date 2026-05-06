@@ -274,7 +274,7 @@ _gh_run_chat() {
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$gh_run_url" "$gh_run_prompt"
+	_cmd_chat "$gh_run_prompt"
 }
 
 # Run help function

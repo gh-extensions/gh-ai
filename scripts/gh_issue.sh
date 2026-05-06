@@ -766,7 +766,7 @@ _gh_issue_chat() {
 			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$gh_issue_url" "$gh_issue_prompt"
+	_cmd_chat "$gh_issue_prompt"
 }
 
 # Issue help function

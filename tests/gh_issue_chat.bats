@@ -164,9 +164,8 @@ _setup_chat_mocks() {
 
 	# Mock _cmd_chat to capture what it receives
 	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
+		printf 'PROMPT:%s\n' "$1"
+		shift 1
 		printf 'ARGS:%s\n' "$*"
 	}
 
@@ -217,9 +216,8 @@ _setup_chat_mocks() {
 	_setup_chat_mocks
 
 	_cmd_chat() {
-		printf 'URL:%s\n' "$1"
-		printf 'PROMPT:%s\n' "$2"
-		shift 2
+		printf 'PROMPT:%s\n' "$1"
+		shift 1
 		printf 'ARGS:%s\n' "$*"
 	}
 
