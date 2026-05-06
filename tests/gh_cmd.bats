@@ -29,8 +29,8 @@ setup() {
 			_gh_config_ai_model _extract_ai_arg \
 			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
 			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
-			_ask_ai _ask_codex _ask_gemini \
-			_chat_ai _chat_codex _chat_gemini \
+			_ask_claude _ask_codex _ask_gemini \
+			_chat_claude _chat_codex _chat_gemini \
 			_get_codex_default_model _get_gemini_default_model
 	)"
 }
@@ -39,11 +39,11 @@ setup() {
 # Agent resolution
 # ---------------------------------------------------------------------------
 
-@test "_get_agent: defaults to ai" {
+@test "_get_agent: defaults to claude" {
 	gh() { :; }
 	export -f gh
 	run _get_agent
-	[[ "$output" == "ai" ]]
+	[[ "$output" == "claude" ]]
 }
 
 @test "_get_agent: respects ai.agent config" {
@@ -54,7 +54,6 @@ setup() {
 }
 
 @test "_get_agent_default_model: returns correct defaults" {
-	[[ "$(_get_agent_default_model ai)" == "haiku" ]]
 	[[ "$(_get_agent_default_model claude)" == "haiku" ]]
 	[[ "$(_get_agent_default_model codex)" == "gpt-5.4-mini" ]]
 	[[ "$(_get_agent_default_model gemini)" == "gemini-2.0-flash" ]]

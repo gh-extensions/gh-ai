@@ -131,7 +131,7 @@ _cmd_ask() {
 
 	case "$agent" in
 	claude)
-		_ask_ai "$agent_model"
+		_ask_claude "$agent_model"
 		;;
 	codex)
 		_ask_codex "$agent_model"

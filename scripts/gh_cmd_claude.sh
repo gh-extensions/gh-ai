@@ -15,8 +15,8 @@ _get_claude_default_model() {
 
 # Send a prompt to Claude in non-interactive (prompt) mode
 #
-# Usage: echo "prompt" | _ask_ai MODEL
-_ask_ai() {
+# Usage: echo "prompt" | _ask_claude MODEL
+_ask_claude() {
 	local agent_model="$1"
 
 	MAX_THINKING_TOKENS=0 claude -p \
@@ -31,11 +31,7 @@ _ask_ai() {
 
 # Pipe a prompt into Claude for an interactive session
 #
-# Usage: printf "%s" "$prompt" | _chat_ai [AGENT_ARGS...]
-_chat_ai() {
+# Usage: printf "%s" "$prompt" | _chat_claude [AGENT_ARGS...]
+_chat_claude() {
 	claude "${_GH_AI_ARGS[@]}" "$@"
 }
-
-# Aliases for backward compatibility or explicit 'claude' agent setting
-_ask_claude() { _ask_ai "$@"; }
-_chat_claude() { _chat_ai "$@"; }
