@@ -834,7 +834,6 @@ _gh_pr_chat() {
 	)
 
 	_cmd_chat "$gh_pr_url" "$gh_pr_prompt"
-	rm -rf "$gh_pr_dir"
 }
 
 # Parse PR comment arguments (before -- separator).

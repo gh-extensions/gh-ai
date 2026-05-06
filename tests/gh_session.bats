@@ -10,6 +10,7 @@ REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 setup() {
 	export _gh_claude_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
+	unset XDG_STATE_HOME
 
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	git() {
@@ -26,8 +27,31 @@ setup() {
 		export _gh_claude_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _create_context_dir _resolve_context_dir _save_context_file _extract_claude_arg
+		declare -f _gh_session_base_dir _create_context_dir _resolve_context_dir _save_context_file _extract_claude_arg
 	)"
+}
+
+# ---------------------------------------------------------------------------
+# _gh_session_base_dir
+# ---------------------------------------------------------------------------
+
+@test "_gh_session_base_dir: returns default path" {
+	local result
+	result=$(_gh_session_base_dir)
+	echo "HOME: $HOME"
+	echo "result: $result"
+	[[ "$result" == "$HOME/.local/state/gh/claude/sessions" ]]
+}
+
+# ---------------------------------------------------------------------------
+# _gh_session_base_dir
+# ---------------------------------------------------------------------------
+
+@test "_gh_session_base_dir: respects XDG_STATE_HOME" {
+	export XDG_STATE_HOME="/tmp/state"
+	local result
+	result=$(_gh_session_base_dir)
+	[[ "$result" == "/tmp/state/gh/claude/sessions" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -47,12 +71,31 @@ setup() {
 # _resolve_context_dir
 # ---------------------------------------------------------------------------
 
-@test "_resolve_context_dir: always creates a temporary directory" {
+@test "_resolve_context_dir: creates persistent dir for chat" {
 	local dir=""
 	_resolve_context_dir "chat" "pull-42" dir
 
+	echo "HOME: $HOME"
+	echo "dir: $dir"
+	[[ -d "$dir" ]]
+	[[ "$dir" == "$HOME/.local/state/gh/claude/sessions/pull-42" ]]
+}
+
+@test "_resolve_context_dir: creates temp dir for non-chat" {
+	local dir=""
+	_resolve_context_dir "issue" "issue-1" dir
+
 	[[ -d "$dir" ]]
 	[[ "$dir" == *"gh-claude-ctx."* ]]
+	rm -rf "$dir"
+}
+
+@test "_resolve_context_dir: returns early if dir is already set for chat" {
+	local dir="/tmp/pre-resolved"
+	mkdir -p "$dir"
+	_resolve_context_dir "chat" "pull-42" dir
+
+	[[ "$dir" == "/tmp/pre-resolved" ]]
 	rm -rf "$dir"
 }
 

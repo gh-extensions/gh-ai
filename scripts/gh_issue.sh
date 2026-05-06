@@ -767,7 +767,6 @@ _gh_issue_chat() {
 	)
 
 	_cmd_chat "$gh_issue_url" "$gh_issue_prompt"
-	rm -rf "$gh_issue_dir"
 }
 
 # Issue help function

@@ -273,6 +273,16 @@ _git_branch_diff() {
 	_commits_ref=$(printf '%s\n' "$_log_ref" | sed 's/^[a-f0-9]* /- /')
 }
 
+# Resolve the base directory for persistent chat sessions.
+#
+# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/claude/sessions.
+#
+# Stdout: base directory path
+# Usage: base=$(_gh_session_base_dir)
+_gh_session_base_dir() {
+	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/claude/sessions"
+}
+
 # Create a temporary context directory for commands
 #
 # Creates a temp directory that can hold context files. Caller is
@@ -285,7 +295,12 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-claude-ctx.XXXXXXXXXX")
 }
 
-# Resolve context directory: always creates a temporary directory.
+# Resolve context directory: persistent session dir for chat, temp dir otherwise
+#
+# For chat commands, returns early if dir_ref is already set (pre-resolved by
+# _resolve_chat_session). Otherwise creates the session directory under the
+# XDG-based sessions base. All other command types get a temporary directory
+# via _create_context_dir.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
 _resolve_context_dir() {
@@ -293,7 +308,17 @@ _resolve_context_dir() {
 	local _rcd_name="$2"
 	local -n _rcd_dir="$3"
 
-	_create_context_dir _rcd_dir
+	if [[ "$_rcd_type" == "chat" ]]; then
+		if [[ -n "$_rcd_dir" ]]; then
+			return 0
+		fi
+		local _rcd_base
+		_rcd_base=$(_gh_session_base_dir)
+		_rcd_dir="${_rcd_base}/${_rcd_name}"
+		mkdir -p "$_rcd_dir"
+	else
+		_create_context_dir _rcd_dir
+	fi
 }
 
 # Save content to a named file in a context directory

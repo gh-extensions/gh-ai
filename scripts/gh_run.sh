@@ -275,7 +275,6 @@ _gh_run_chat() {
 	)
 
 	_cmd_chat "$gh_run_url" "$gh_run_prompt"
-	rm -rf "$gh_run_dir"
 }
 
 # Run help function

@@ -35,7 +35,8 @@ setup() {
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		declare -f _extract_issue_number _parse_chat_args _parse_issue_chat_args _extract_claude_arg _show_issue_chat_help _gh_issue_chat \
-			_cmd_chat _cmd_render _get_agent _git_repo_path _resolve_context_dir _create_context_dir _save_context_file
+			_prepare_issue_chat_context _prepare_issue_context \
+			_cmd_chat _cmd_render _get_agent _git_repo_path _gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file
 	)"
 }
 
@@ -174,7 +175,7 @@ _setup_chat_mocks() {
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"PROMPT:"* ]]
 	[[ "$output" == *"Test Issue"* ]]
-	[[ "$output" == *"--session-id"* ]]
+	[[ "$output" == *"/.local/state/gh/claude/sessions/issue-42"* ]]
 }
 
 
