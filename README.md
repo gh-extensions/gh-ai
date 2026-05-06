@@ -15,7 +15,10 @@ focus on shipping.
 - [GitHub CLI](https://cli.github.com/) (`gh`)
 - [Bash](https://www.gnu.org/software/bash/) 4.4+ (`bash`)
 - [jq](https://jqlang.github.io/jq/) (`jq`)
-- [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
+- One supported AI agent:
+  - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
+  - [Codex](https://developers.openai.com/codex/) (`codex`)
+  - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
 - [Gum](https://github.com/charmbracelet/gum) (`gum`)
 
 **macOS (Homebrew):**
@@ -30,7 +33,11 @@ brew install gh bash jq gum
 nix profile install nixpkgs#gh nixpkgs#bash nixpkgs#jq nixpkgs#gum
 ```
 
-Install `claude` separately: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
+Install your AI agent separately:
+
+- Claude Code: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
+- Codex: [OpenAI Codex](https://developers.openai.com/codex/)
+- Gemini CLI: [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
 
 ## Installation
 
@@ -256,16 +263,22 @@ gh claude --resume <ID> pr chat 42
 
 ## Configuration
 
-Override the model via `--model` or `gh config`.
+Override the AI provider and model via `gh config`.
 
-| Key                 | Default | Description                            |
-| ------------------- | ------- | -------------------------------------- |
-| `claude.model`       | `haiku` | Model for all commands (fallback)      |
-| `claude.pr.model`    |         | Model override for `pr` subcommands    |
-| `claude.issue.model` |         | Model override for `issue` subcommands |
-| `claude.run.model`   |         | Model override for `run` subcommands   |
+| Key                 | Default       | Description                            |
+| ------------------- | ------------- | -------------------------------------- |
+| `claude.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`) |
+| `claude.model`       | Agent default | Model for all commands (fallback)      |
+| `claude.pr.model`    |               | Model override for `pr` subcommands    |
+| `claude.issue.model` |               | Model override for `issue` subcommands |
+| `claude.run.model`   |               | Model override for `run` subcommands   |
 
-Priority: `--model` flag > per-command config > `claude.model`.
+Agent defaults:
+- `claude`: `haiku`
+- `codex`: `gpt-5.4-mini`
+- `gemini`: `gemini-2.0-flash`
+
+Priority: `--model` flag > per-command config > `claude.model` > agent default.
 
 ```bash
 # Override the model for a single invocation
@@ -274,8 +287,9 @@ gh claude --model sonnet pr chat 42
 # Set the default model
 gh config set claude.model haiku
 
-# Use a stronger model for PRs
-gh config set claude.pr.model sonnet
+# Use Gemini
+gh config set claude.agent gemini
+gh config set claude.model gemini-2.0-flash
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't

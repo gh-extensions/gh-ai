@@ -26,8 +26,36 @@ setup() {
 		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _cmd_render _parse_title _parse_body \
 			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace \
-			_gh_config_claude_model _extract_claude_arg
+			_gh_config_claude_model _extract_claude_arg \
+			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
+			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
+			_ask_claude _ask_codex _ask_gemini \
+			_chat_claude _chat_codex _chat_gemini
 	)"
+}
+
+# ---------------------------------------------------------------------------
+# Agent resolution
+# ---------------------------------------------------------------------------
+
+@test "_get_agent: defaults to claude" {
+	gh() { :; }
+	export -f gh
+	run _get_agent
+	[[ "$output" == "claude" ]]
+}
+
+@test "_get_agent: respects claude.agent config" {
+	gh() { echo "gemini"; }
+	export -f gh
+	run _get_agent
+	[[ "$output" == "gemini" ]]
+}
+
+@test "_get_agent_default_model: returns correct defaults" {
+	[[ "$(_get_agent_default_model claude)" == "haiku" ]]
+	[[ "$(_get_agent_default_model codex)" == "gpt-5.4-mini" ]]
+	[[ "$(_get_agent_default_model gemini)" == "gemini-2.0-flash" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -390,7 +418,22 @@ Actual body.")
 # _gh_config_claude_model
 # ---------------------------------------------------------------------------
 
-@test "_gh_config_claude_model: returns haiku by default with no scope" {
+@test "_gh_config_claude_model: returns agent default when no config set" {
+	gh() {
+		case "$*" in
+		"config get claude.agent"*) echo "gemini" ;;
+		*) :; ;;
+		esac
+	}
+	export -f gh
+
+	local output
+	output=$(_gh_config_claude_model)
+
+	[[ "$output" == "gemini-2.0-flash" ]]
+}
+
+@test "_gh_config_claude_model: returns haiku by default with no scope and no config" {
 	gh() { :; }
 	export -f gh
 
@@ -401,7 +444,13 @@ Actual body.")
 }
 
 @test "_gh_config_claude_model: returns claude.model when set, no scope" {
-	gh() { echo "sonnet"; }
+	gh() {
+		case "$*" in
+		"config get claude.agent"*) echo "claude" ;;
+		"config get claude.model"*) echo "sonnet" ;;
+		*) :; ;;
+		esac
+	}
 	export -f gh
 
 	local output
@@ -441,14 +490,19 @@ Actual body.")
 	[[ "$output" == "sonnet" ]]
 }
 
-@test "_gh_config_claude_model: falls back to haiku when neither claude.pr.model nor claude.model set" {
-	gh() { :; }
+@test "_gh_config_claude_model: falls back to agent default when config keys unset" {
+	gh() {
+		case "$*" in
+		"config get claude.agent"*) echo "codex" ;;
+		*) :; ;;
+		esac
+	}
 	export -f gh
 
 	local output
 	output=$(_gh_config_claude_model "pr")
 
-	[[ "$output" == "haiku" ]]
+	[[ "$output" == "gpt-5.4-mini" ]]
 }
 
 @test "_gh_config_claude_model: _GH_CLAUDE_ARGS --model overrides config" {
@@ -462,15 +516,34 @@ Actual body.")
 	[[ "$output" == "opus" ]]
 }
 
-@test "_gh_config_claude_model: falls back to config when _GH_CLAUDE_ARGS has no --model" {
-	gh() { echo "sonnet"; }
+# ---------------------------------------------------------------------------
+# Dispatch tests
+# ---------------------------------------------------------------------------
+
+@test "_cmd_ask: dispatches to correct agent" {
+	gh() { echo "codex"; }
 	export -f gh
 
-	_GH_CLAUDE_ARGS=(--verbose)
-	local output
-	output=$(_gh_config_claude_model)
+	_ask_codex() { echo "called codex with $1"; }
+	export -f _ask_codex
 
-	[[ "$output" == "sonnet" ]]
+	run _cmd_ask "custom-model"
+	[[ "$output" == "called codex with custom-model" ]]
+}
+
+@test "_cmd_chat: dispatches to correct agent" {
+	gh() { echo "gemini"; }
+	export -f gh
+
+	# Mock command -v to succeed for gemini
+	command() { [[ "$2" == "gemini" ]] && return 0 || builtin command "$@"; }
+	export -f command
+
+	_chat_gemini() { echo "called gemini chat"; }
+	export -f _chat_gemini
+
+	run _cmd_chat "my prompt"
+	[[ "$output" == "called gemini chat" ]]
 }
 
 # ---------------------------------------------------------------------------

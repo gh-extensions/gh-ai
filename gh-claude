@@ -8,7 +8,7 @@ _gh_claude_source_dir=$(dirname "${BASH_SOURCE[0]}")
 
 # Verify required dependencies are installed
 #
-# Checks that Bash 4.4+, gh, and claude are available.
+# Checks that Bash 4.4+, gh, gum, and the configured AI agent are available.
 # Prints installation instructions and exits if any are missing.
 _check_dependencies() {
 	if [[ "${BASH_VERSINFO[0]}" -lt 4 || ("${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -lt 4) ]]; then
@@ -21,9 +21,35 @@ _check_dependencies() {
 
 	if ! command -v gh &>/dev/null; then
 		missing+=("gh      — https://cli.github.com")
-	fi
-	if ! command -v claude &>/dev/null; then
-		missing+=("claude  — https://docs.anthropic.com/en/docs/claude-code")
+	else
+		local agent
+		agent=$(gh config get claude.agent 2>/dev/null || true)
+		agent="${agent:-claude}"
+
+		case "$agent" in
+		claude)
+			if ! command -v claude &>/dev/null; then
+				missing+=("claude  — https://docs.anthropic.com/en/docs/claude-code")
+			fi
+			;;
+		codex)
+			if ! command -v codex &>/dev/null; then
+				missing+=("codex   — https://developers.openai.com/codex")
+			fi
+			;;
+		gemini)
+			if ! command -v gemini &>/dev/null; then
+				missing+=("gemini  — https://github.com/google-gemini/gemini-cli")
+			fi
+			if ! command -v jq &>/dev/null; then
+				missing+=("jq      — https://stedolan.github.io/jq/")
+			fi
+			;;
+		*)
+			echo "gh-claude: unsupported agent '$agent' (supported: claude, codex, gemini)" >&2
+			exit 1
+			;;
+		esac
 	fi
 	if ! command -v gum &>/dev/null; then
 		missing+=("gum     — https://github.com/charmbracelet/gum")
@@ -65,15 +91,29 @@ FLAGS:
     -V, --version   Print version
 
 CLAUDE OPTIONS:
-    Options placed before the subcommand are forwarded to the claude binary.
+    Options placed before the subcommand are forwarded to the configured agent binary.
     For example: --model, --verbose, --resume, --session-id, --allowedTools,
     --disallowedTools, --effort, --permission-mode, --mcp-config, etc.
+
+CONFIGURATION:
+    Override the AI provider and model via `gh config`.
+
+    | Key               | Default         | Description                           |
+    | ----------------- | --------------- | ------------------------------------- |
+    | `claude.agent`    | `claude`        | AI agent (`claude`, `codex`, `gemini`) |
+    | `claude.model`    | Agent default   | Model for all commands                |
+    | `claude.pr.model` |                 | Model override for `pr` commands      |
+
+    Agent defaults:
+    - `claude`: `haiku`
+    - `codex`: `gpt-5.4-mini`
+    - `gemini`: `gemini-2.0-flash`
 
 EXAMPLES:
     gh claude pr chat 42
     gh claude --model sonnet pr chat 42
-    gh claude --verbose --effort high issue chat 7
-    gh claude --resume <UUID> pr chat 42
+    gh config set claude.agent gemini
+    gh config set claude.model gemini-2.0-flash
 
 SEE ALSO:
     gh claude pr --help        # PR command help

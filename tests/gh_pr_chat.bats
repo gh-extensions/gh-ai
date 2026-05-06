@@ -36,7 +36,8 @@ setup() {
 		source "$REPO_ROOT/scripts/gh_pr.sh"
 		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _extract_claude_arg _show_pr_chat_help _gh_pr_chat _detect_pr_number \
 			_prepare_pr_chat_context _prepare_pr_diff_context \
-			_cmd_chat _cmd_render _get_agent _git_repo_path _gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file
+			_cmd_chat _cmd_render _get_agent _git_repo_path _gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file \
+			_chat_claude _chat_codex _chat_gemini _ask_claude _ask_codex _ask_gemini _gh_config_claude_model _trust_workspace
 	)"
 }
 

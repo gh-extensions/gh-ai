@@ -23,6 +23,7 @@
           packages = with pkgs; [
             bash
             gh
+            jq
             gum
             bats
             shellcheck

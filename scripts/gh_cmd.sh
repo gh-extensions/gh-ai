@@ -6,6 +6,14 @@ set -euo pipefail
 
 _gh_cmd_dir=$(dirname "${BASH_SOURCE[0]}")
 
+# Source provider modules
+# shellcheck source=scripts/gh_cmd_claude.sh
+source "$_gh_cmd_dir/gh_cmd_claude.sh"
+# shellcheck source=scripts/gh_cmd_codex.sh
+source "$_gh_cmd_dir/gh_cmd_codex.sh"
+# shellcheck source=scripts/gh_cmd_gemini.sh
+source "$_gh_cmd_dir/gh_cmd_gemini.sh"
+
 # Core utility functions for gh-claude
 
 # Render a template file by substituting ${VAR} placeholders with env var values
@@ -34,11 +42,46 @@ _cmd_render() {
 	awk -f "$_gh_cmd_dir/gh_render.awk" "$template_file"
 }
 
+# Resolve the configured agent binary name
+#
+# Reads claude.agent from gh config (default: claude).
+#
+# Usage: _get_agent       # prints binary name to stdout
+_get_agent() {
+	local agent
+	agent=$(gh config get claude.agent 2>/dev/null || true)
+	printf '%s' "${agent:-claude}"
+}
+
+# Resolve the default model for an AI provider
+#
+# Usage: _get_agent_default_model AGENT
+_get_agent_default_model() {
+	case "$1" in
+	claude)
+		_get_claude_default_model
+		;;
+	codex)
+		_get_codex_default_model
+		;;
+	gemini)
+		_get_gemini_default_model
+		;;
+	*)
+		gum log --level error "Unsupported agent '$1' (supported: claude, codex, gemini)"
+		return 1
+		;;
+	esac
+}
+
 # Resolve the configured model for a given scope
-# Resolves: _GH_CLAUDE_ARGS --model → claude.<scope>.model → claude.model → haiku
+# Resolves: _GH_CLAUDE_ARGS --model → claude.<scope>.model → claude.model → agent default
 # Usage: _gh_config_claude_model [SCOPE]   (SCOPE: pr | issue | run | empty)
 _gh_config_claude_model() {
 	local scope="${1:-}"
+	local agent
+	agent=$(_get_agent)
+
 	local model=""
 	model=$(_extract_claude_arg --model)
 	if [[ -z "$model" && -n "$scope" ]]; then
@@ -46,6 +89,9 @@ _gh_config_claude_model() {
 	fi
 	if [[ -z "$model" ]]; then
 		model=$(gh config get claude.model 2>/dev/null || true)
+	fi
+	if [[ -z "$model" ]]; then
+		model=$(_get_agent_default_model "$agent")
 	fi
 	printf '%s' "${model:-haiku}"
 }
@@ -68,26 +114,36 @@ _extract_claude_arg() {
 	done
 }
 
-# Send a prompt to Claude in non-interactive (prompt) mode
+# Send a prompt to the configured AI provider in non-interactive (prompt) mode
 #
-# Reads a prompt from stdin and sends it to claude.
-# Uses the given model or falls back to claude.model / haiku.
+# Reads a prompt from stdin and sends it to the configured AI provider.
+# Uses the given model or falls back to configured model / agent default.
 #
 # Usage: echo "prompt" | _cmd_ask [MODEL]
 _cmd_ask() {
+	local agent
+	agent=$(_get_agent)
+
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
 		agent_model=$(_gh_config_claude_model)
 	fi
 
-	MAX_THINKING_TOKENS=0 claude -p \
-		--model="$agent_model" \
-		--no-session-persistence \
-		--disable-slash-commands \
-		--setting-sources='' \
-		--system-prompt='' \
-		--tools='' \
-		- || true
+	case "$agent" in
+	claude)
+		_ask_claude "$agent_model"
+		;;
+	codex)
+		_ask_codex "$agent_model"
+		;;
+	gemini)
+		_ask_gemini "$agent_model"
+		;;
+	*)
+		gum log --level error "Unsupported agent '$agent' (supported: claude, codex, gemini)"
+		return 1
+		;;
+	esac
 }
 
 # Pre-trust a workspace directory in Claude Code so the trust dialog is skipped.
@@ -114,31 +170,34 @@ _trust_workspace() {
 	mv "$tmp" "$claude_json"
 }
 
-# Pipe a prompt into Claude
+# Pipe a prompt into the configured AI provider for an interactive session
 #
-# Verifies the claude binary exists, then pipes the prompt into it.
-# Extra positional args are forwarded to claude.
-# Pre-trusts the current directory so Claude skips the "trust this folder" dialog.
+# Verifies the agent binary exists, then pipes the prompt into it.
+# Extra positional args are forwarded to the agent.
 #
 # Usage: _cmd_chat "context prompt" [AGENT_ARGS...]
 _cmd_chat() {
 	local prompt="$1"
 	shift 1
 
-	if ! command -v claude &>/dev/null; then
-		gum log --level error "claude not found"
-		gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code"
+	local agent
+	agent=$(_get_agent)
+
+	# Verify the agent binary exists
+	if ! command -v "$agent" &>/dev/null; then
+		gum log --level error "$agent not found"
+		case "$agent" in
+		claude) gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code" ;;
+		codex) gum log --level info "Install codex: https://developers.openai.com/codex" ;;
+		gemini) gum log --level info "Install gemini: https://github.com/google-gemini/gemini-cli" ;;
+		esac
 		return 1
 	fi
 
-	# Pre-trust the project root so Claude doesn't prompt the user to
-	# trust the directory when starting a session.
-	_trust_workspace "$(pwd -P)"
-
 	if [[ -n "$prompt" ]]; then
-		printf "%s" "$prompt" | claude "$@" "${_GH_CLAUDE_ARGS[@]}"
+		printf "%s" "$prompt" | "_chat_$agent" "$@"
 	else
-		claude "$@" "${_GH_CLAUDE_ARGS[@]}"
+		"_chat_$agent" "$@"
 	fi
 }
 
