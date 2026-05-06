@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
-# Claude provider functions for gh-claude
+# Claude provider functions for gh-ai
 
-# Print the default Claude model for gh-claude commands
+# Print the default Claude model for gh-ai commands
 #
 # Usage: _get_claude_default_model
 _get_claude_default_model() {
@@ -15,8 +15,8 @@ _get_claude_default_model() {
 
 # Send a prompt to Claude in non-interactive (prompt) mode
 #
-# Usage: echo "prompt" | _ask_claude MODEL
-_ask_claude() {
+# Usage: echo "prompt" | _ask_ai MODEL
+_ask_ai() {
 	local agent_model="$1"
 
 	MAX_THINKING_TOKENS=0 claude -p \
@@ -31,11 +31,11 @@ _ask_claude() {
 
 # Pipe a prompt into Claude for an interactive session
 #
-# Usage: printf "%s" "$prompt" | _chat_claude [AGENT_ARGS...]
-_chat_claude() {
-	# Pre-trust the project root so Claude doesn't prompt the user to
-	# trust the directory when starting a session.
-	_trust_workspace "$(pwd -P)"
-
-	claude "$@" "${_GH_CLAUDE_ARGS[@]}"
+# Usage: printf "%s" "$prompt" | _chat_ai [AGENT_ARGS...]
+_chat_ai() {
+	claude "$@" "${_GH_AI_ARGS[@]}"
 }
+
+# Aliases for backward compatibility or explicit 'claude' agent setting
+_ask_claude() { _ask_ai "$@"; }
+_chat_claude() { _chat_ai "$@"; }

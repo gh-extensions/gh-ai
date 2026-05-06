@@ -7,7 +7,7 @@ set -euo pipefail
 # shellcheck source=gh_cmd.sh
 source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
 
-# PR-related functions for gh-claude
+# PR-related functions for gh-ai
 
 # Detect the PR number for the current branch
 #
@@ -144,7 +144,7 @@ _prepare_pr_diff_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_body="" _ctx_commits="" _ctx_updated_at=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_pr_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_pr_meta.jq")"
 
 	local _ctx_diff
 	_ctx_diff=$(gum spin --title "Fetching GitHub pull request #$_ctx_num diff..." -- \
@@ -260,10 +260,10 @@ _prepare_pr_create_context() {
 # including usage examples and available options.
 _show_pr_create_help() {
 	cat <<'EOF'
-gh claude pr create - Create PRs with AI-generated titles and descriptions
+gh ai pr create - Create PRs with AI-generated titles and descriptions
 
 USAGE:
-    gh claude pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+    gh ai pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
 
 DESCRIPTION:
     Creates a GitHub pull request with an AI-generated title and description
@@ -275,10 +275,10 @@ FLAGS:
     -B, --base string          Base branch for the pull request
 
 EXAMPLES:
-    gh claude pr create
-    gh claude pr create --draft
-    gh claude pr create -B develop --draft
-    gh claude pr create -d "focus on the security changes"
+    gh ai pr create
+    gh ai pr create --draft
+    gh ai pr create -B develop --draft
+    gh ai pr create -d "focus on the security changes"
 EOF
 }
 
@@ -301,7 +301,7 @@ _gh_pr_create() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_create.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_create.tmpl"
 
 	local git_base_branch="" gh_pr_description=""
 	_parse_pr_create_args git_base_branch gh_pr_description passthrough "$@"
@@ -317,19 +317,19 @@ _gh_pr_create() {
 	_prepare_pr_create_context gh_pr_dir "$git_base_branch" || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_claude_model "pr")
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_content
 	# Generate PR content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_content=$(
 		gum spin --title "Generating GitHub pull request..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
 					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -372,10 +372,10 @@ _prepare_pr_edit_context() { _prepare_pr_diff_context "edit" "$@"; }
 # including usage examples and available options.
 _show_pr_edit_help() {
 	cat <<'EOF'
-gh claude pr edit - Edit an existing PR with AI-generated content
+gh ai pr edit - Edit an existing PR with AI-generated content
 
 USAGE:
-    gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+    gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
 
 DESCRIPTION:
     Edits an existing GitHub pull request using AI. Fetches the current PR
@@ -387,9 +387,9 @@ FLAGS:
     -d, --description string   Description of the changes to make (required)
 
 EXAMPLES:
-    gh claude pr edit 42 -d "add testing section"
-    gh claude pr edit 42 -d "fix summary" --add-label bug
-    gh claude pr edit -d "improve description"   # auto-detect PR from current branch
+    gh ai pr edit 42 -d "add testing section"
+    gh ai pr edit 42 -d "fix summary" --add-label bug
+    gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 EOF
 }
 
@@ -413,20 +413,20 @@ _gh_pr_edit() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_edit.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_edit.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
 	_parse_pr_edit_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr edit [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -434,14 +434,14 @@ _gh_pr_edit() {
 	_prepare_pr_edit_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_claude_model "pr")
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_content
 	# Generate updated PR content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_content=$(
 		gum spin --title "Generating updated GitHub pull request #$gh_pr_number..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
@@ -450,7 +450,7 @@ _gh_pr_edit() {
 					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -492,10 +492,10 @@ _prepare_pr_review_context() { _prepare_pr_diff_context "review" "$@"; }
 # including usage examples and available options.
 _show_pr_review_help() {
 	cat <<'EOF'
-gh claude pr review - Review PRs with AI-generated feedback
+gh ai pr review - Review PRs with AI-generated feedback
 
 USAGE:
-    gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
+    gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
 
 DESCRIPTION:
     Submits a GitHub PR review with AI-generated feedback based on the
@@ -507,10 +507,10 @@ FLAGS:
     -d, --description string   Additional context for AI review generation
 
 EXAMPLES:
-    gh claude pr review 42
-    gh claude pr review 42 --approve
-    gh claude pr review -d "focus on security"
-    gh claude pr review              # auto-detect PR from current branch
+    gh ai pr review 42
+    gh ai pr review 42 --approve
+    gh ai pr review -d "focus on security"
+    gh ai pr review              # auto-detect PR from current branch
 EOF
 }
 
@@ -534,14 +534,14 @@ _gh_pr_review() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_review.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_review.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
 	_parse_pr_review_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr review [PR_NUMBER] [-d <DESCRIPTION>] [OPTIONS]"
+		gum log --level info "Usage: gh ai pr review [PR_NUMBER] [-d <DESCRIPTION>] [OPTIONS]"
 		return 1
 	fi
 
@@ -549,14 +549,14 @@ _gh_pr_review() {
 	_prepare_pr_review_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_claude_model "pr")
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_review
 	# Generate review content using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_review=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number review..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
@@ -566,7 +566,7 @@ _gh_pr_review() {
 					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -636,10 +636,10 @@ _prepare_pr_explain_context() { _prepare_pr_diff_context "explain" "$@"; }
 # including usage examples and available options.
 _show_pr_explain_help() {
 	cat <<'EOF'
-gh claude pr explain - Generate a plain-language explanation of a PR
+gh ai pr explain - Generate a plain-language explanation of a PR
 
 USAGE:
-    gh claude pr explain [PR_NUMBER]
+    gh ai pr explain [PR_NUMBER]
 
 DESCRIPTION:
     Generates a plain-language explanation of what a pull request does
@@ -647,10 +647,10 @@ DESCRIPTION:
     if no number is provided.
 
 EXAMPLES:
-    gh claude pr explain 42
-    gh claude pr explain                              # auto-detect PR
-    gh claude pr explain 42 | gh pr comment 42 --body -   # post as comment
-    gh claude pr explain 42 | gh pr edit 42 --body -      # replace PR body
+    gh ai pr explain 42
+    gh ai pr explain                              # auto-detect PR
+    gh ai pr explain 42 | gh pr comment 42 --body -   # post as comment
+    gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR body
 EOF
 }
 
@@ -670,14 +670,14 @@ _gh_pr_explain() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_explain.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
 
 	local gh_pr_number=""
 	_parse_pr_explain_args gh_pr_number "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr explain [PR_NUMBER]"
+		gum log --level info "Usage: gh ai pr explain [PR_NUMBER]"
 		return 1
 	fi
 
@@ -685,14 +685,14 @@ _gh_pr_explain() {
 	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_claude_model "pr")
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_explain
 	# Generate explanation using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_explain=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
@@ -701,7 +701,7 @@ _gh_pr_explain() {
 					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
 					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -752,10 +752,10 @@ _prepare_pr_chat_context() { _prepare_pr_diff_context "chat" "$@"; }
 # including usage examples and available options.
 _show_pr_chat_help() {
 	cat <<'EOF'
-gh claude pr chat - Open an agent session with PR context
+gh ai pr chat - Open an agent session with PR context
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub PR metadata and diff, renders it as context, and
@@ -763,16 +763,16 @@ DESCRIPTION:
     Auto-detects PR from the current branch if no number is provided.
     Claude options (e.g. --model, --verbose) go before the subcommand.
 
-    Configure the model: gh config set claude.pr.model <model>
+    Configure the model: gh config set ai.pr.model <model>
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
 
 EXAMPLES:
-    gh claude pr chat 42
-    gh claude pr chat -d "focus on the security changes"
-    gh claude pr chat                                     # auto-detect PR
-    gh claude --model sonnet pr chat 42
+    gh ai pr chat 42
+    gh ai pr chat -d "focus on the security changes"
+    gh ai pr chat                                     # auto-detect PR
+    gh ai --model sonnet pr chat 42
 EOF
 }
 
@@ -793,7 +793,7 @@ _gh_pr_chat() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_chat.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
 	_parse_pr_chat_args gh_pr_number gh_pr_description "$@"
@@ -804,7 +804,7 @@ _gh_pr_chat() {
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr chat [PR_NUMBER] [-d <DESCRIPTION>]"
+		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>]"
 		return 1
 	fi
 
@@ -828,9 +828,9 @@ _gh_pr_chat() {
 			GH_PR_TITLE="$gh_pr_title" \
 			GH_PR_URL="$gh_pr_url" \
 			GH_PR_FOCUS="$gh_pr_focus" \
-			GH_CLAUDE_SESSION_DIR="$gh_pr_dir" \
+			GH_AI_SESSION_DIR="$gh_pr_dir" \
 			GH_PR_HEAD="$gh_pr_head" \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
 	_cmd_chat "$gh_pr_prompt"
@@ -862,7 +862,7 @@ _prepare_pr_comment_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_body="" _ctx_comments="" _ctx_head="" _ctx_commits=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_pr_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_pr_meta.jq")"
 
 	local _ctx_dir_path
 	_create_context_dir _ctx_dir_path
@@ -884,10 +884,10 @@ _prepare_pr_comment_context() {
 # including usage examples and available options.
 _show_pr_comment_help() {
 	cat <<'EOF'
-gh claude pr comment - Post an AI-generated comment on a pull request
+gh ai pr comment - Post an AI-generated comment on a pull request
 
 USAGE:
-    gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
+    gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Posts a GitHub PR comment with AI-generated content based on the PR body,
@@ -899,10 +899,10 @@ FLAGS:
     -d, --description string   Context or instructions for the AI comment (required)
 
 EXAMPLES:
-    gh claude pr comment 42 -d "summarise the open review threads"
-    gh claude pr comment -d "ask about the migration strategy"
-    echo "some notes" | gh claude pr comment 42 -d "incorporate this context"
-    gh claude pr comment 42 -d "request changes" --edit-last
+    gh ai pr comment 42 -d "summarise the open review threads"
+    gh ai pr comment -d "ask about the migration strategy"
+    echo "some notes" | gh ai pr comment 42 -d "incorporate this context"
+    gh ai pr comment 42 -d "request changes" --edit-last
 EOF
 }
 
@@ -926,20 +926,20 @@ _gh_pr_comment() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_pr_comment.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_comment.tmpl"
 
 	local gh_pr_number="" gh_pr_description=""
 	_parse_pr_comment_args gh_pr_number gh_pr_description passthrough "$@"
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
 	if [[ -z "$gh_pr_description" ]]; then
 		gum log --level error "No description provided"
-		gum log --level info "Usage: gh claude pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
+		gum log --level info "Usage: gh ai pr comment [PR_NUMBER] -d <DESCRIPTION> [OPTIONS]"
 		return 1
 	fi
 
@@ -947,14 +947,14 @@ _gh_pr_comment() {
 	_prepare_pr_comment_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_url || return 1
 
 	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_claude_model "pr")
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
 
 	local gh_pr_comment
 	# Generate comment content using assistant
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_pr_comment=$(
 		gum spin --title "Generating GitHub pull request #$gh_pr_number comment..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
@@ -962,7 +962,7 @@ _gh_pr_comment() {
 					GH_PR_COMMENTS_FILE="$gh_pr_dir/state/pr_comments.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					GH_PR_CONTEXT_FILE="$gh_pr_dir/state/pr_context.md" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -986,15 +986,15 @@ _gh_pr_comment() {
 # including usage examples and available options.
 _show_pr_help() {
 	cat <<'EOF'
-gh claude pr - Pull request commands with AI assistance
+gh ai pr - Pull request commands with AI assistance
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
-    gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
-    gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
-    gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
+    gh ai [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+    gh ai [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+    gh ai [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
+    gh ai [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
+    gh ai [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Creates, edits, reviews, explains, and comments on GitHub pull requests
@@ -1010,12 +1010,12 @@ COMMANDS:
     comment     Post an AI-generated comment on a pull request
 
 SEE ALSO:
-    gh claude pr create --help     # Full list of gh pr create options
-    gh claude pr edit --help       # Full list of gh pr edit options
-    gh claude pr review --help     # Full list of gh pr review options
-    gh claude pr explain --help    # PR explain usage
-    gh claude pr chat --help       # PR chat usage
-    gh claude pr comment --help    # PR comment usage
+    gh ai pr create --help     # Full list of gh pr create options
+    gh ai pr edit --help       # Full list of gh pr edit options
+    gh ai pr review --help     # Full list of gh pr review options
+    gh ai pr explain --help    # PR explain usage
+    gh ai pr chat --help       # PR chat usage
+    gh ai pr comment --help    # PR comment usage
 EOF
 }
 
@@ -1055,7 +1055,7 @@ _gh_pr() {
 	*)
 		gum log --level error "unknown pr command '$subcommand'"
 		gum log --level info "Available commands: create, edit, review, explain, chat, comment"
-		gum log --level info "Run 'gh claude pr --help' for usage information"
+		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
 		;;
 	esac

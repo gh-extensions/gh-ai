@@ -14,7 +14,7 @@ source "$_gh_cmd_dir/gh_cmd_codex.sh"
 # shellcheck source=scripts/gh_cmd_gemini.sh
 source "$_gh_cmd_dir/gh_cmd_gemini.sh"
 
-# Core utility functions for gh-claude
+# Core utility functions for gh-ai
 
 # Render a template file by substituting ${VAR} placeholders with env var values
 #
@@ -44,13 +44,13 @@ _cmd_render() {
 
 # Resolve the configured agent binary name
 #
-# Reads claude.agent from gh config (default: claude).
+# Reads ai.agent from gh config (default: claude).
 #
 # Usage: _get_agent       # prints binary name to stdout
 _get_agent() {
 	local agent
-	agent=$(gh config get claude.agent 2>/dev/null || true)
-	printf '%s' "${agent:-claude}"
+	agent=$(gh config get ai.agent 2>/dev/null || true)
+	printf '%s' "${agent:-ai}"
 }
 
 # Resolve the default model for an AI provider
@@ -58,7 +58,7 @@ _get_agent() {
 # Usage: _get_agent_default_model AGENT
 _get_agent_default_model() {
 	case "$1" in
-	claude)
+	ai | claude)
 		_get_claude_default_model
 		;;
 	codex)
@@ -68,27 +68,27 @@ _get_agent_default_model() {
 		_get_gemini_default_model
 		;;
 	*)
-		gum log --level error "Unsupported agent '$1' (supported: claude, codex, gemini)"
+		gum log --level error "Unsupported agent '$1' (supported: ai, codex, gemini)"
 		return 1
 		;;
 	esac
 }
 
 # Resolve the configured model for a given scope
-# Resolves: _GH_CLAUDE_ARGS --model → claude.<scope>.model → claude.model → agent default
-# Usage: _gh_config_claude_model [SCOPE]   (SCOPE: pr | issue | run | empty)
-_gh_config_claude_model() {
+# Resolves: _GH_AI_ARGS --model → ai.<scope>.model → ai.model → agent default
+# Usage: _gh_config_ai_model [SCOPE]   (SCOPE: pr | issue | run | empty)
+_gh_config_ai_model() {
 	local scope="${1:-}"
 	local agent
 	agent=$(_get_agent)
 
 	local model=""
-	model=$(_extract_claude_arg --model)
+	model=$(_extract_ai_arg --model)
 	if [[ -z "$model" && -n "$scope" ]]; then
-		model=$(gh config get "claude.${scope}.model" 2>/dev/null || true)
+		model=$(gh config get "ai.${scope}.model" 2>/dev/null || true)
 	fi
 	if [[ -z "$model" ]]; then
-		model=$(gh config get claude.model 2>/dev/null || true)
+		model=$(gh config get ai.model 2>/dev/null || true)
 	fi
 	if [[ -z "$model" ]]; then
 		model=$(_get_agent_default_model "$agent")
@@ -96,18 +96,18 @@ _gh_config_claude_model() {
 	printf '%s' "${model:-haiku}"
 }
 
-# Extract a flag's value from the _GH_CLAUDE_ARGS array.
+# Extract a flag's value from the _GH_AI_ARGS array.
 #
-# Scans _GH_CLAUDE_ARGS for a --flag followed by its value.
+# Scans _GH_AI_ARGS for a --flag followed by its value.
 # Prints the value to stdout if found; prints nothing otherwise.
 #
-# Usage: value=$(_extract_claude_arg --model)
-_extract_claude_arg() {
+# Usage: value=$(_extract_ai_arg --model)
+_extract_ai_arg() {
 	local _eca_flag="$1"
 	local _eca_i=0
-	while [[ $_eca_i -lt ${#_GH_CLAUDE_ARGS[@]} ]]; do
-		if [[ "${_GH_CLAUDE_ARGS[$_eca_i]}" == "$_eca_flag" ]] && ((_eca_i + 1 < ${#_GH_CLAUDE_ARGS[@]})); then
-			printf '%s' "${_GH_CLAUDE_ARGS[$((_eca_i + 1))]}"
+	while [[ $_eca_i -lt ${#_GH_AI_ARGS[@]} ]]; do
+		if [[ "${_GH_AI_ARGS[$_eca_i]}" == "$_eca_flag" ]] && ((_eca_i + 1 < ${#_GH_AI_ARGS[@]})); then
+			printf '%s' "${_GH_AI_ARGS[$((_eca_i + 1))]}"
 			return 0
 		fi
 		((++_eca_i))
@@ -126,12 +126,12 @@ _cmd_ask() {
 
 	local agent_model="${1:-}"
 	if [[ -z "$agent_model" ]]; then
-		agent_model=$(_gh_config_claude_model)
+		agent_model=$(_gh_config_ai_model)
 	fi
 
 	case "$agent" in
-	claude)
-		_ask_claude "$agent_model"
+	ai | claude)
+		_ask_ai "$agent_model"
 		;;
 	codex)
 		_ask_codex "$agent_model"
@@ -140,34 +140,10 @@ _cmd_ask() {
 		_ask_gemini "$agent_model"
 		;;
 	*)
-		gum log --level error "Unsupported agent '$agent' (supported: claude, codex, gemini)"
+		gum log --level error "Unsupported agent '$agent' (supported: ai, codex, gemini)"
 		return 1
 		;;
 	esac
-}
-
-# Pre-trust a workspace directory in Claude Code so the trust dialog is skipped.
-#
-# Claude stores trust decisions in ~/.claude.json under per-workspace keys.
-# By injecting the entry before Claude enters the directory, we bypass the
-# interactive "trust this folder" prompt that would otherwise block the session.
-#
-# Usage: _trust_workspace "/path/to/workspace"
-_trust_workspace() {
-	local workspace_path="$1"
-	local claude_json="$HOME/.claude.json"
-	local tmp
-	tmp=$(mktemp)
-
-	if [[ -f "$claude_json" ]]; then
-		jq --arg path "$workspace_path" \
-			'.projects[$path].hasTrustDialogAccepted = true' "$claude_json" >"$tmp"
-	else
-		jq -n --arg path "$workspace_path" \
-			'{projects: {($path): {hasTrustDialogAccepted: true}}}' >"$tmp"
-	fi
-
-	mv "$tmp" "$claude_json"
 }
 
 # Pipe a prompt into the configured AI provider for an interactive session
@@ -183,10 +159,13 @@ _cmd_chat() {
 	local agent
 	agent=$(_get_agent)
 
+	local binary="$agent"
+	[[ "$agent" == "ai" || "$agent" == "claude" ]] && binary="claude"
+
 	# Verify the agent binary exists
-	if ! command -v "$agent" &>/dev/null; then
-		gum log --level error "$agent not found"
-		case "$agent" in
+	if ! command -v "$binary" &>/dev/null; then
+		gum log --level error "$binary not found"
+		case "$binary" in
 		claude) gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code" ;;
 		codex) gum log --level info "Install codex: https://developers.openai.com/codex" ;;
 		gemini) gum log --level info "Install gemini: https://github.com/google-gemini/gemini-cli" ;;
@@ -333,12 +312,12 @@ _git_branch_diff() {
 
 # Resolve the base directory for persistent chat sessions.
 #
-# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/claude/sessions.
+# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/ai/sessions.
 #
 # Stdout: base directory path
 # Usage: base=$(_gh_session_base_dir)
 _gh_session_base_dir() {
-	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/claude/sessions"
+	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/ai/sessions"
 }
 
 # Create a temporary context directory for commands
@@ -350,7 +329,7 @@ _gh_session_base_dir() {
 _create_context_dir() {
 	local -n _cdir_ref="$1"
 	local _ctx_tmpdir="${TMPDIR:-/tmp}"
-	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-claude-ctx.XXXXXXXXXX")
+	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
 }
 
 # Resolve context directory: persistent session dir for chat, temp dir otherwise

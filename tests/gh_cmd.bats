@@ -8,10 +8,10 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_claude_source_dir="$REPO_ROOT"
+	export _gh_ai_source_dir="$REPO_ROOT"
 
-	# Initialize global claude args array (set per-test when needed)
-	_GH_CLAUDE_ARGS=()
+	# Initialize global AI args array (set per-test when needed)
+	_GH_AI_ARGS=()
 
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
 	gh() { echo ""; }
@@ -20,17 +20,17 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_claude_source_dir="$REPO_ROOT"
+		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		printf '_gh_cmd_dir=%q\n' "$_gh_cmd_dir"
 		declare -f _cmd_render _parse_title _parse_body \
-			_gh_repo_name _git_repo_path _git_branch_diff _trust_workspace \
-			_gh_config_claude_model _extract_claude_arg \
+			_gh_repo_name _git_repo_path _git_branch_diff \
+			_gh_config_ai_model _extract_ai_arg \
 			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
 			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
-			_ask_claude _ask_codex _ask_gemini \
-			_chat_claude _chat_codex _chat_gemini
+			_ask_ai _ask_codex _ask_gemini \
+			_chat_ai _chat_codex _chat_gemini
 	)"
 }
 
@@ -38,14 +38,14 @@ setup() {
 # Agent resolution
 # ---------------------------------------------------------------------------
 
-@test "_get_agent: defaults to claude" {
+@test "_get_agent: defaults to ai" {
 	gh() { :; }
 	export -f gh
 	run _get_agent
-	[[ "$output" == "claude" ]]
+	[[ "$output" == "ai" ]]
 }
 
-@test "_get_agent: respects claude.agent config" {
+@test "_get_agent: respects ai.agent config" {
 	gh() { echo "gemini"; }
 	export -f gh
 	run _get_agent
@@ -53,6 +53,7 @@ setup() {
 }
 
 @test "_get_agent_default_model: returns correct defaults" {
+	[[ "$(_get_agent_default_model ai)" == "haiku" ]]
 	[[ "$(_get_agent_default_model claude)" == "haiku" ]]
 	[[ "$(_get_agent_default_model codex)" == "gpt-5.4-mini" ]]
 	[[ "$(_get_agent_default_model gemini)" == "gemini-2.0-flash" ]]
@@ -365,153 +366,103 @@ Actual body.")
 }
 
 # ---------------------------------------------------------------------------
-# _trust_workspace
+# _gh_config_ai_model
 # ---------------------------------------------------------------------------
 
-@test "_trust_workspace: creates ~/.claude.json when absent" {
-	export HOME="$BATS_TEST_TMPDIR"
-	rm -f "$HOME/.claude.json"
-
-	_trust_workspace "/tmp/test-workspace"
-
-	[[ -f "$HOME/.claude.json" ]]
-	local accepted
-	accepted=$(jq -r '.projects["/tmp/test-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
-	[[ "$accepted" == "true" ]]
-}
-
-@test "_trust_workspace: merges into existing ~/.claude.json" {
-	export HOME="$BATS_TEST_TMPDIR"
-	printf '%s\n' '{"existingKey": "existingValue"}' >"$HOME/.claude.json"
-
-	_trust_workspace "/tmp/new-workspace"
-
-	local existing
-	existing=$(jq -r '.existingKey' "$HOME/.claude.json")
-	[[ "$existing" == "existingValue" ]]
-
-	local accepted
-	accepted=$(jq -r '.projects["/tmp/new-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
-	[[ "$accepted" == "true" ]]
-}
-
-@test "_trust_workspace: preserves existing workspace entries" {
-	export HOME="$BATS_TEST_TMPDIR"
-	jq -n '{projects: {"/tmp/other": {hasTrustDialogAccepted: true, customSetting: "keep"}}}' >"$HOME/.claude.json"
-
-	_trust_workspace "/tmp/new-workspace"
-
-	local other_accepted
-	other_accepted=$(jq -r '.projects["/tmp/other"].hasTrustDialogAccepted' "$HOME/.claude.json")
-	[[ "$other_accepted" == "true" ]]
-
-	local custom
-	custom=$(jq -r '.projects["/tmp/other"].customSetting' "$HOME/.claude.json")
-	[[ "$custom" == "keep" ]]
-
-	local new_accepted
-	new_accepted=$(jq -r '.projects["/tmp/new-workspace"].hasTrustDialogAccepted' "$HOME/.claude.json")
-	[[ "$new_accepted" == "true" ]]
-}
-
-# ---------------------------------------------------------------------------
-# _gh_config_claude_model
-# ---------------------------------------------------------------------------
-
-@test "_gh_config_claude_model: returns agent default when no config set" {
+@test "_gh_config_ai_model: returns agent default when no config set" {
 	gh() {
 		case "$*" in
-		"config get claude.agent"*) echo "gemini" ;;
+		"config get ai.agent"*) echo "gemini" ;;
 		*) :; ;;
 		esac
 	}
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model)
+	output=$(_gh_config_ai_model)
 
 	[[ "$output" == "gemini-2.0-flash" ]]
 }
 
-@test "_gh_config_claude_model: returns haiku by default with no scope and no config" {
+@test "_gh_config_ai_model: returns haiku by default with no scope and no config" {
 	gh() { :; }
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model)
+	output=$(_gh_config_ai_model)
 
 	[[ "$output" == "haiku" ]]
 }
 
-@test "_gh_config_claude_model: returns claude.model when set, no scope" {
+@test "_gh_config_ai_model: returns ai.model when set, no scope" {
 	gh() {
 		case "$*" in
-		"config get claude.agent"*) echo "claude" ;;
-		"config get claude.model"*) echo "sonnet" ;;
+		"config get ai.agent"*) echo "claude" ;;
+		"config get ai.model"*) echo "sonnet" ;;
 		*) :; ;;
 		esac
 	}
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model)
+	output=$(_gh_config_ai_model)
 
 	[[ "$output" == "sonnet" ]]
 }
 
-@test "_gh_config_claude_model: returns claude.pr.model when set with pr scope" {
+@test "_gh_config_ai_model: returns ai.pr.model when set with pr scope" {
 	gh() {
 		case "$*" in
-		*"claude.pr.model"*) echo "opus" ;;
+		*"ai.pr.model"*) echo "opus" ;;
 		*) :; ;;
 		esac
 	}
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model "pr")
+	output=$(_gh_config_ai_model "pr")
 
 	[[ "$output" == "opus" ]]
 }
 
-@test "_gh_config_claude_model: falls back to claude.model when claude.pr.model unset" {
+@test "_gh_config_ai_model: falls back to ai.model when ai.pr.model unset" {
 	gh() {
 		case "$*" in
-		*"claude.pr.model"*) :; ;;
-		*"claude.model"*) echo "sonnet" ;;
+		*"ai.pr.model"*) :; ;;
+		*"ai.model"*) echo "sonnet" ;;
 		*) :; ;;
 		esac
 	}
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model "pr")
+	output=$(_gh_config_ai_model "pr")
 
 	[[ "$output" == "sonnet" ]]
 }
 
-@test "_gh_config_claude_model: falls back to agent default when config keys unset" {
+@test "_gh_config_ai_model: falls back to agent default when config keys unset" {
 	gh() {
 		case "$*" in
-		"config get claude.agent"*) echo "codex" ;;
+		"config get ai.agent"*) echo "codex" ;;
 		*) :; ;;
 		esac
 	}
 	export -f gh
 
 	local output
-	output=$(_gh_config_claude_model "pr")
+	output=$(_gh_config_ai_model "pr")
 
 	[[ "$output" == "gpt-5.4-mini" ]]
 }
 
-@test "_gh_config_claude_model: _GH_CLAUDE_ARGS --model overrides config" {
+@test "_gh_config_ai_model: _GH_AI_ARGS --model overrides config" {
 	gh() { echo "sonnet"; }
 	export -f gh
 
-	_GH_CLAUDE_ARGS=(--model opus)
+	_GH_AI_ARGS=(--model opus)
 	local output
-	output=$(_gh_config_claude_model "pr")
+	output=$(_gh_config_ai_model "pr")
 
 	[[ "$output" == "opus" ]]
 }
@@ -547,37 +498,37 @@ Actual body.")
 }
 
 # ---------------------------------------------------------------------------
-# _extract_claude_arg
+# _extract_ai_arg
 # ---------------------------------------------------------------------------
 
-@test "_extract_claude_arg: returns value for present flag" {
-	_GH_CLAUDE_ARGS=(--model sonnet)
+@test "_extract_ai_arg: returns value for present flag" {
+	_GH_AI_ARGS=(--model sonnet)
 	local output
-	output=$(_extract_claude_arg --model)
+	output=$(_extract_ai_arg --model)
 
 	[[ "$output" == "sonnet" ]]
 }
 
-@test "_extract_claude_arg: returns empty for absent flag" {
-	_GH_CLAUDE_ARGS=(--verbose)
+@test "_extract_ai_arg: returns empty for absent flag" {
+	_GH_AI_ARGS=(--verbose)
 	local output
-	output=$(_extract_claude_arg --model)
+	output=$(_extract_ai_arg --model)
 
 	[[ -z "$output" ]]
 }
 
-@test "_extract_claude_arg: returns empty with empty array" {
-	_GH_CLAUDE_ARGS=()
+@test "_extract_ai_arg: returns empty with empty array" {
+	_GH_AI_ARGS=()
 	local output
-	output=$(_extract_claude_arg --model)
+	output=$(_extract_ai_arg --model)
 
 	[[ -z "$output" ]]
 }
 
-@test "_extract_claude_arg: handles flag at end without value" {
-	_GH_CLAUDE_ARGS=(--model)
+@test "_extract_ai_arg: handles flag at end without value" {
+	_GH_AI_ARGS=(--model)
 	local output
-	output=$(_extract_claude_arg --model)
+	output=$(_extract_ai_arg --model)
 
 	[[ -z "$output" ]]
 }

@@ -8,7 +8,7 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_claude_source_dir="$REPO_ROOT"
+	export _gh_ai_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
 	unset XDG_STATE_HOME
 
@@ -24,10 +24,10 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_claude_source_dir="$REPO_ROOT"
+		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _gh_session_base_dir _create_context_dir _resolve_context_dir _save_context_file _extract_claude_arg
+		declare -f _gh_session_base_dir _create_context_dir _resolve_context_dir _save_context_file _extract_ai_arg
 	)"
 }
 
@@ -40,7 +40,7 @@ setup() {
 	result=$(_gh_session_base_dir)
 	echo "HOME: $HOME"
 	echo "result: $result"
-	[[ "$result" == "$HOME/.local/state/gh/claude/sessions" ]]
+	[[ "$result" == "$HOME/.local/state/gh/ai/sessions" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ setup() {
 	export XDG_STATE_HOME="/tmp/state"
 	local result
 	result=$(_gh_session_base_dir)
-	[[ "$result" == "/tmp/state/gh/claude/sessions" ]]
+	[[ "$result" == "/tmp/state/gh/ai/sessions" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -63,7 +63,7 @@ setup() {
 	_create_context_dir dir
 
 	[[ -d "$dir" ]]
-	[[ "$dir" == *"gh-claude-ctx."* ]]
+	[[ "$dir" == *"gh-ai-ctx."* ]]
 	rm -rf "$dir"
 }
 
@@ -78,7 +78,7 @@ setup() {
 	echo "HOME: $HOME"
 	echo "dir: $dir"
 	[[ -d "$dir" ]]
-	[[ "$dir" == "$HOME/.local/state/gh/claude/sessions/pull-42" ]]
+	[[ "$dir" == "$HOME/.local/state/gh/ai/sessions/pull-42" ]]
 }
 
 @test "_resolve_context_dir: creates temp dir for non-chat" {
@@ -86,7 +86,7 @@ setup() {
 	_resolve_context_dir "issue" "issue-1" dir
 
 	[[ -d "$dir" ]]
-	[[ "$dir" == *"gh-claude-ctx."* ]]
+	[[ "$dir" == *"gh-ai-ctx."* ]]
 	rm -rf "$dir"
 }
 
@@ -100,13 +100,13 @@ setup() {
 }
 
 # ---------------------------------------------------------------------------
-# _extract_claude_arg
+# _extract_ai_arg
 # ---------------------------------------------------------------------------
 
-@test "_extract_claude_arg: extracts flag value" {
-	_GH_CLAUDE_ARGS=(--model sonnet --verbose)
+@test "_extract_ai_arg: extracts flag value" {
+	_GH_AI_ARGS=(--model sonnet --verbose)
 	local result
-	result=$(_extract_claude_arg --model)
+	result=$(_extract_ai_arg --model)
 
 	[[ "$result" == "sonnet" ]]
 }

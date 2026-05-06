@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
-# Gemini provider functions for gh-claude
+# Gemini provider functions for gh-ai
 
-# Print the default Gemini model for gh-claude commands
+# Print the default Gemini model for gh-ai commands
 #
 # Usage: _get_gemini_default_model
 _get_gemini_default_model() {
@@ -20,7 +20,7 @@ _ask_gemini() {
 	local agent_model="$1"
 	local prompt output error_file
 	prompt=$(cat)
-	error_file=$(mktemp "${TMPDIR:-/tmp}/gh-claude-gemini-error.XXXXXX")
+	error_file=$(mktemp "${TMPDIR:-/tmp}/gh-ai-gemini-error.XXXXXX")
 
 	if ! output=$(
 		CI=true gemini \
@@ -33,7 +33,7 @@ _ask_gemini() {
 			</dev/null \
 			2>"$error_file"
 	); then
-		echo "gh-claude: gemini failed to generate a response" >&2
+		echo "gh-ai: gemini failed to generate a response" >&2
 		cat "$error_file" >&2
 		rm -f "$error_file"
 		return 1
@@ -43,7 +43,7 @@ _ask_gemini() {
 	output=$(printf '%s' "$output" | jq -r '.response // empty')
 
 	if [[ -z "$output" ]]; then
-		echo "gh-claude: gemini returned an empty response" >&2
+		echo "gh-ai: gemini returned an empty response" >&2
 		return 1
 	fi
 	printf '%s' "$output"
@@ -58,5 +58,5 @@ _chat_gemini() {
 
 	# Gemini CLI doesn't have a perfect "agent" mode like Claude,
 	# but we can pass the prompt and let it be interactive if supported.
-	gemini --prompt "$prompt" "$@" "${_GH_CLAUDE_ARGS[@]}"
+	gemini --prompt "$prompt" "$@" "${_GH_AI_ARGS[@]}"
 }

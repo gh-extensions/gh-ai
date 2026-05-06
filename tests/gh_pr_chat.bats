@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 
-# Unit tests for gh claude pr chat arg parsing and integration
+# Unit tests for gh ai pr chat arg parsing and integration
 #
 # Requires bats-core: https://github.com/bats-core/bats-core
 # Run: bats tests/gh_pr_chat.bats
@@ -8,12 +8,12 @@
 REPO_ROOT="$(cd "$(dirname "$BATS_TEST_DIRNAME")" && pwd)"
 
 setup() {
-	export _gh_claude_source_dir="$REPO_ROOT"
+	export _gh_ai_source_dir="$REPO_ROOT"
 	export HOME="$BATS_TEST_TMPDIR"
 	unset XDG_STATE_HOME
 
-	# Initialize global claude args array (set per-test when needed)
-	_GH_CLAUDE_ARGS=()
+	# Initialize global AI args array (set per-test when needed)
+	_GH_AI_ARGS=()
 
 	mkdir -p "$BATS_TEST_TMPDIR/.git"
 	gum() { if [[ "$1" == "log" ]]; then shift; shift; shift; echo "$@"; fi; }
@@ -29,15 +29,15 @@ setup() {
 
 	# shellcheck disable=SC2155
 	eval "$(
-		export _gh_claude_source_dir="$REPO_ROOT"
+		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
 		# shellcheck source=../scripts/gh_pr.sh
 		source "$REPO_ROOT/scripts/gh_pr.sh"
-		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _extract_claude_arg _show_pr_chat_help _gh_pr_chat _detect_pr_number \
+		declare -f _extract_pr_number _parse_chat_args _parse_pr_chat_args _extract_ai_arg _show_pr_chat_help _gh_pr_chat _detect_pr_number \
 			_prepare_pr_chat_context _prepare_pr_diff_context \
 			_cmd_chat _cmd_render _get_agent _git_repo_path _gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file \
-			_chat_claude _chat_codex _chat_gemini _ask_claude _ask_codex _ask_gemini _gh_config_claude_model _trust_workspace
+			_chat_ai _chat_codex _chat_gemini _ask_ai _ask_codex _ask_gemini _gh_config_ai_model
 	)"
 }
 
@@ -205,7 +205,7 @@ _setup_chat_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"PROMPT:"* ]]
-	[[ "$output" == *"/.local/state/gh/claude/sessions/pull-42"* ]]
+	[[ "$output" == *"/.local/state/gh/ai/sessions/pull-42"* ]]
 }
 
 
@@ -291,14 +291,14 @@ _setup_chat_mocks() {
 # Passthrough parsing and forwarding
 # ---------------------------------------------------------------------------
 
-@test "_gh_pr_chat: forwards _GH_CLAUDE_ARGS to _cmd_chat via claude" {
+@test "_gh_pr_chat: forwards _GH_AI_ARGS to _cmd_chat via claude" {
 	_setup_chat_mocks
 
 	# Mock claude to capture args
 	claude() { printf 'CLAUDE_ARGS:%s\n' "$*"; }
 	export -f claude
 
-	_GH_CLAUDE_ARGS=(--model sonnet --verbose)
+	_GH_AI_ARGS=(--model sonnet --verbose)
 	run _gh_pr_chat 42
 
 	[[ "$status" -eq 0 ]]

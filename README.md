@@ -1,12 +1,12 @@
-# gh-claude
+# gh-ai
 
-> Your Claude-powered copilot for the GitHub CLI. Draft pull requests, plan issue implementations, review code, debug CI failures, and drop into interactive coding sessions — without leaving the terminal.
+> Your AI-powered copilot for the GitHub CLI. Draft pull requests, plan issue implementations, review code, debug CI failures, and drop into interactive coding sessions — without leaving the terminal.
 
-[![CI](https://github.com/gh-extensions/gh-claude/actions/workflows/ci.yml/badge.svg)](https://github.com/gh-extensions/gh-claude/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/gh-extensions/gh-claude)](https://github.com/gh-extensions/gh-claude/releases/latest)
+[![CI](https://github.com/gh-extensions/gh-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/gh-extensions/gh-ai/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/gh-extensions/gh-ai)](https://github.com/gh-extensions/gh-ai/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Stop context-switching between your editor, browser, and terminal. `gh claude`
+Stop context-switching between your editor, browser, and terminal. `gh ai`
 meets you where you already work and handles the tedious parts so you can
 focus on shipping.
 
@@ -42,29 +42,29 @@ Install your AI agent separately:
 ## Installation
 
 ```bash
-gh extension install gh-extensions/gh-claude --pin v1.2.3  # recommended: pin to a stable release
-gh extension install gh-extensions/gh-claude                # installs from main (unstable)
+gh extension install gh-extensions/gh-ai --pin v1.2.3  # recommended: pin to a stable release
+gh extension install gh-extensions/gh-ai                # installs from main (unstable)
 ```
 
 ## Usage
 
 ```bash
-gh claude [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
-gh claude [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
-gh claude [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
-gh claude [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
-gh claude [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-gh claude [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
-gh claude [CLAUDE_OPTIONS] run explain <RUN_ID>
-gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+gh ai [AI_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+gh ai [AI_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+gh ai [AI_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
+gh ai [AI_OPTIONS] pr explain [PR_NUMBER]
+gh ai [AI_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
+gh ai [AI_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+gh ai [AI_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
+gh ai [AI_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+gh ai [AI_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
+gh ai [AI_OPTIONS] issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
+gh ai [AI_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
+gh ai [AI_OPTIONS] run explain <RUN_ID>
+gh ai [AI_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
 ```
 
-`CLAUDE_OPTIONS` are flags forwarded to the `claude` binary (e.g., `--model`,
+`AI_OPTIONS` are flags forwarded to the AI agent binary (e.g., `--model`,
 `--session-id`, `--resume`, `--verbose`, `--allowedTools`, `--permission-mode`).
 They are placed **before** the subcommand keyword.
 
@@ -73,52 +73,49 @@ They are placed **before** the subcommand keyword.
 Creates a pull request with an AI-generated title and description.
 
 ```bash
-gh claude pr create
-gh claude pr create -B develop --draft
-gh claude pr create -d "focus on the security changes"
+gh ai pr create
+gh ai pr create -B develop --draft
+gh ai pr create -d "focus on the security changes"
 ```
 
 Edits an existing pull request with AI-generated updates based on a description
 of what to change.
 
 ```bash
-gh claude pr edit 42 -d "add testing section"
-gh claude pr edit 42 -d "fix summary" --add-label bug
-gh claude pr edit -d "improve description"   # auto-detect PR from current branch
+gh ai pr edit 42 -d "add testing section"
+gh ai pr edit 42 -d "fix summary" --add-label bug
+gh ai pr edit -d "improve description"   # auto-detect PR from current branch
 ```
 
 Reviews a pull request with AI-generated feedback. Use `-d`/`--description`
 to provide extra context or focus areas that guide the AI review.
 
 ```bash
-gh claude pr review 42
-gh claude pr review 42 --approve
-gh claude pr review -d "focus on security"
-gh claude pr review 42 -d "check error handling" --comment
-gh claude pr review # auto-detects PR for the current branch
+gh ai pr review 42
+gh ai pr review 42 --approve
+gh ai pr review -d "focus on security"
+gh ai pr review 42 -d "check error handling" --comment
+gh ai pr review # auto-detects PR for the current branch
 ```
 
 Explains a pull request in plain language.
 
 ```bash
-gh claude pr explain 42
-gh claude pr explain                              # auto-detect PR from current branch
-gh claude pr explain 42 | gh pr comment 42 --body -   # post as PR comment
-gh claude pr explain 42 | gh pr edit 42 --body -      # replace PR description
+gh ai pr explain 42
+gh ai pr explain                              # auto-detect PR from current branch
+gh ai pr explain 42 | gh pr comment 42 --body -   # post as PR comment
+gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR description
 ```
 
 Opens an interactive agent session with PR context. Each invocation starts a
 new session. Use `--session-id <UUID>` for a reusable named session, or
-`--resume <UUID>` to resume a specific session by UUID. Set
-`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
-auto-resume.
+`--resume <UUID>` to resume a specific session by UUID.
 
 ```bash
-gh claude pr chat 42
-gh claude pr chat -d "focus on the security changes"
-gh claude --session-id <UUID> pr chat 42       # named session (reuses on next call)
-gh claude --resume <UUID> pr chat 42           # resume by UUID
-GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42   # auto-resume default session
+gh ai pr chat 42
+gh ai pr chat -d "focus on the security changes"
+gh ai --session-id <UUID> pr chat 42       # named session (reuses on next call)
+gh ai --resume <UUID> pr chat 42           # resume by UUID
 ```
 
 ### Issue
@@ -126,18 +123,18 @@ GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude pr chat 42   # auto-resume default
 Creates a structured GitHub issue from a brief description.
 
 ```bash
-gh claude issue create -d "Login page crashes with special chars"
-gh claude issue create -d "Login crash" --label bug --assignee @me
-some_command 2>&1 | gh claude issue create -d "Command X fails" # pipe error context
+gh ai issue create -d "Login page crashes with special chars"
+gh ai issue create -d "Login crash" --label bug --assignee @me
+some_command 2>&1 | gh ai issue create -d "Command X fails" # pipe error context
 ```
 
 Edits an existing issue with AI-generated updates based on a description of
 what to change.
 
 ```bash
-gh claude issue edit 42 -d "add acceptance criteria"
-gh claude issue edit 42 -d "fix typos and improve clarity"
-gh claude issue edit 42 -d "rephrase as a bug report" --add-label bug
+gh ai issue edit 42 -d "add acceptance criteria"
+gh ai issue edit 42 -d "fix typos and improve clarity"
+gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
 ```
 
 Generates an AI implementation plan from an issue and prints it to stdout.
@@ -145,23 +142,20 @@ Use `-d`/`--description` to provide extra context or constraints that guide
 the AI when writing the plan.
 
 ```bash
-gh claude issue plan 42
-gh claude issue plan 42 -d "focus on the auth module"
-gh claude issue plan 42 | pbcopy
+gh ai issue plan 42
+gh ai issue plan 42 -d "focus on the auth module"
+gh ai issue plan 42 | pbcopy
 ```
 
 Opens an interactive agent session with issue context. Each invocation starts a
 new session. Use `--session-id <UUID>` for a reusable named session, or
-`--resume <UUID>` to resume a specific session by UUID. Set
-`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
-auto-resume.
+`--resume <UUID>` to resume a specific session by UUID.
 
 ```bash
-gh claude issue chat 42
-gh claude issue chat 42 -d "focus on the auth module"
-gh claude --session-id <UUID> issue chat 42        # named session (reuses on next call)
-gh claude --resume <UUID> issue chat 42            # resume by UUID
-GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude issue chat 42  # auto-resume default session
+gh ai issue chat 42
+gh ai issue chat 42 -d "focus on the auth module"
+gh ai --session-id <UUID> issue chat 42        # named session (reuses on next call)
+gh ai --resume <UUID> issue chat 42            # resume by UUID
 ```
 
 ### Run
@@ -169,21 +163,18 @@ GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude issue chat 42  # auto-resume defau
 Analyzes a GitHub Actions workflow run and explains what happened.
 
 ```bash
-gh claude run explain 123456 # uses --log-failed for failed runs, --log otherwise
+gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
 ```
 
 Opens an interactive agent session with workflow run context. Each invocation
 starts a new session. Use `--session-id <UUID>` for a reusable named
-session, or `--resume <UUID>` to resume a specific session by UUID. Set
-`GH_CLAUDE_DEFAULT_SESSION_ID` to always use the same session with
-auto-resume.
+session, or `--resume <UUID>` to resume a specific session by UUID.
 
 ```bash
-gh claude run chat 123456
-gh claude run chat 123456 -d "focus on test failures"
-gh claude --session-id <UUID> run chat 123456    # named session (reuses on next call)
-gh claude --resume <UUID> run chat 123456        # resume by UUID
-GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude run chat 123456  # auto-resume default session
+gh ai run chat 123456
+gh ai run chat 123456 -d "focus on test failures"
+gh ai --session-id <UUID> run chat 123456    # named session (reuses on next call)
+gh ai --resume <UUID> run chat 123456        # resume by UUID
 ```
 
 ## Recipes
@@ -191,7 +182,7 @@ GH_CLAUDE_DEFAULT_SESSION_ID=<UUID> gh claude run chat 123456  # auto-resume def
 **Pipe an issue plan directly into an AI agent**
 
 ```bash
-gh claude issue plan 42 | claude  # or: jules new, gh agent-task create -F -
+gh ai issue plan 42 | claude  # or: jules new, gh agent-task create -F -
 ```
 
 **Start work on an issue, generate a plan, and open a draft PR in one command**
@@ -203,26 +194,26 @@ pull request.
 ```bash
 gh issue develop 42 --checkout && \
   git commit --allow-empty -m "chore: start work on #42" && git push && \
-  gh claude issue plan 42 | gh pr create --title "Implementation plan for #42" -F -
+  gh ai issue plan 42 | gh pr create --title "Implementation plan for #42" -F -
 ```
 
 **Open a chat session inside an isolated worktree with [gh-worktree](https://github.com/gh-extensions/gh-worktree)**
 
 [gh-worktree](https://github.com/gh-extensions/gh-worktree) creates a dedicated git worktree for the
-resource, then runs a command inside it. Combine it with `gh claude` to get a
+resource, then runs a command inside it. Combine it with `gh ai` to get a
 chat session that starts in the correct branch with no impact on your working tree.
 
 ```bash
-gh worktree pr 42 -- gh claude pr chat 42
-gh worktree issue 42 -- gh claude issue chat 42
-gh worktree run 12345678 -- gh claude run chat 12345678
+gh worktree pr 42 -- gh ai pr chat 42
+gh worktree issue 42 -- gh ai issue chat 42
+gh worktree run 12345678 -- gh ai run chat 12345678
 ```
 
 Inside tmux, open the session in a new window so your current work is not interrupted:
 
 ```bash
-tmux new-window -n "pull-42" "gh worktree pr 42 -- gh claude pr chat 42"
-tmux new-window -n "issue-42" "gh worktree issue 42 -- gh claude issue chat 42"
+tmux new-window -n "pull-42" "gh worktree pr 42 -- gh ai pr chat 42"
+tmux new-window -n "issue-42" "gh worktree issue 42 -- gh ai issue chat 42"
 ```
 
 **Start a dedicated tmux session for a PR or issue**
@@ -230,21 +221,21 @@ tmux new-window -n "issue-42" "gh worktree issue 42 -- gh claude issue chat 42"
 Create a named tmux session in the background, then attach to it. Useful when you want a fully isolated terminal session you can detach from and return to later.
 
 ```bash
-gh worktree pr 42 --keep -- tmux new-session -d -s "pull-42" "gh claude pr chat 42" && tmux attach -t "pull-42"
-gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh claude issue chat 42" && tmux attach -t "issue-42"
-gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh claude run chat 123" && tmux attach -t "run-123"
+gh worktree pr 42 --keep -- tmux new-session -d -s "pull-42" "gh ai pr chat 42" && tmux attach -t "pull-42"
+gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh ai issue chat 42" && tmux attach -t "issue-42"
+gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh ai run chat 123" && tmux attach -t "run-123"
 ```
 
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
 
-Pipe the list of open Dependabot PRs into `gh claude issue create` so the AI names
+Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
 each PR in the issue body, then hand off the implementation plan to an AI agent.
 
 ```bash
 # Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
-  | gh claude issue create -d "Your task is to consolidate Dependabot pull requests." \
-  | xargs -I{} sh -c 'gh claude issue plan "{}" | jules new'
+  | gh ai issue create -d "Your task is to consolidate Dependabot pull requests." \
+  | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
 ```
 
 ## Agent Sessions
@@ -255,45 +246,46 @@ You can manage agent-specific sessions by passing flags directly:
 
 ```bash
 # Start a new session with context
-gh claude pr chat 42
+gh ai pr chat 42
 
 # Resume a specific Claude session (agent handles history)
-gh claude --resume <ID> pr chat 42
+gh ai --resume <ID> pr chat 42
 ```
 
 ## Configuration
 
 Override the AI provider and model via `gh config`.
 
-| Key                 | Default       | Description                            |
-| ------------------- | ------------- | -------------------------------------- |
-| `claude.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`) |
-| `claude.model`       | Agent default | Model for all commands (fallback)      |
-| `claude.pr.model`    |               | Model override for `pr` subcommands    |
-| `claude.issue.model` |               | Model override for `issue` subcommands |
-| `claude.run.model`   |               | Model override for `run` subcommands   |
+| Key              | Default       | Description                            |
+| ---------------- | ------------- | -------------------------------------- |
+| `ai.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`) |
+| `ai.model`       | Agent default | Model for all commands (fallback)      |
+| `ai.pr.model`    |               | Model override for `pr` subcommands    |
+| `ai.issue.model` |               | Model override for `issue` subcommands |
+| `ai.run.model`   |               | Model override for `run` subcommands   |
 
 Agent defaults:
+
 - `claude`: `haiku`
 - `codex`: `gpt-5.4-mini`
 - `gemini`: `gemini-2.0-flash`
 
-Priority: `--model` flag > per-command config > `claude.model` > agent default.
+Priority: `--model` flag > per-command config > `ai.model` > agent default.
 
 ```bash
 # Override the model for a single invocation
-gh claude --model sonnet pr chat 42
+gh ai --model sonnet pr chat 42
 
 # Set the default model
-gh config set claude.model haiku
+gh config set ai.model haiku
 
 # Use Gemini
-gh config set claude.agent gemini
-gh config set claude.model gemini-2.0-flash
+gh config set ai.agent gemini
+gh config set ai.model gemini-2.0-flash
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't
-> recognize (e.g. `'claude.pr.model' is not a known configuration key`).
+> recognize (e.g. `'ai.pr.model' is not a known configuration key`).
 > This is expected — the values are still saved and used by the extension.
 
 ## Integrations
@@ -302,11 +294,11 @@ gh config set claude.model gemini-2.0-flash
 
 [gh-fzf](https://github.com/gh-extensions/gh-fzf) is a GitHub CLI extension
 that wraps `gh` commands in an interactive fuzzy finder. Source
-`extras/gh_fzf.sh` in your shell config to register `gh claude` keybinds via
+`extras/gh_fzf.sh` in your shell config to register `gh ai` keybinds via
 `GH_FZF_*_OPTS`.
 
 ```bash
-source "$HOME/.local/share/gh/extensions/gh-claude/extras/gh_fzf.sh"
+source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 ```
 
 | Context        | Key     | Action                                           |
@@ -320,15 +312,15 @@ source "$HOME/.local/share/gh/extensions/gh-claude/extras/gh_fzf.sh"
 | `gh-fzf run`   | `alt-C` | Chat about the selected workflow run with AI     |
 
 When inside tmux, chat bindings (`alt-C`) automatically open in a new tmux
-window so fzf stays interactive. Set `GH_CLAUDE_FZF_TMUX=0` to disable this
+window so fzf stays interactive. Set `GH_AI_FZF_TMUX=0` to disable this
 and always run inline.
 
 ## The gh-extensions Ecosystem
 
-| Repo | What it provides |
-|------|-----------------|
-| **gh-claude** ← you are here | AI-powered copilot for the GitHub CLI |
-| [gh-fzf](https://github.com/gh-extensions/gh-fzf) | Fuzzy finder for GitHub CLI |
+| Repo                                                        | What it provides                                          |
+| ----------------------------------------------------------- | --------------------------------------------------------- |
+| **gh-ai** ← you are here                                    | AI-powered copilot for the GitHub CLI                     |
+| [gh-fzf](https://github.com/gh-extensions/gh-fzf)           | Fuzzy finder for GitHub CLI                               |
 | [gh-worktree](https://github.com/gh-extensions/gh-worktree) | Isolated git worktrees for PRs, issues, and workflow runs |
 
 ## License

@@ -7,7 +7,7 @@ set -euo pipefail
 # shellcheck source=gh_cmd.sh
 source "$(dirname "${BASH_SOURCE[0]}")/gh_cmd.sh"
 
-# Run-related functions for gh-claude
+# Run-related functions for gh-ai
 
 # Shared context helper for run commands.
 #
@@ -43,7 +43,7 @@ _prepare_run_context() {
 	# Single jq pass: extract all fields via eval
 	local _ctx_jobs=""
 	# shellcheck disable=SC2154
-	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_claude_source_dir/queries/gh_run_meta.jq")"
+	eval "$(printf '%s' "$_ctx_meta" | jq -rf "$_gh_ai_source_dir/queries/gh_run_meta.jq")"
 
 	local _ctx_log
 	if [[ "$_ctx_conclusion" == "failure" ]]; then
@@ -109,10 +109,10 @@ _prepare_run_explain_context() { _prepare_run_context "explain" "$@"; }
 # including usage examples and available options.
 _show_run_explain_help() {
 	cat <<'EOF'
-gh claude run explain - Analyze a workflow run and explain failures
+gh ai run explain - Analyze a workflow run and explain failures
 
 USAGE:
-    gh claude run explain <RUN_ID>
+    gh ai run explain <RUN_ID>
 
 DESCRIPTION:
     Analyzes a GitHub Actions workflow run and generates an AI explanation
@@ -120,7 +120,7 @@ DESCRIPTION:
     Uses --log-failed for failed runs and --log otherwise.
 
 EXAMPLES:
-    gh claude run explain 123456
+    gh ai run explain 123456
 EOF
 }
 
@@ -141,14 +141,14 @@ _gh_run_explain() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_run_explain.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_run_explain.tmpl"
 
 	local gh_run_id=""
 	_parse_run_explain_args gh_run_id "$@"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
-		gum log --level info "Usage: gh claude run explain <RUN_ID>"
+		gum log --level info "Usage: gh ai run explain <RUN_ID>"
 		return 1
 	fi
 
@@ -156,14 +156,14 @@ _gh_run_explain() {
 	_prepare_run_explain_context "$gh_run_id" gh_run_dir gh_run_title gh_run_conclusion gh_run_url gh_run_event gh_run_branch gh_run_sha || return 1
 
 	local gh_run_agent_model
-	gh_run_agent_model=$(_gh_config_claude_model "run")
+	gh_run_agent_model=$(_gh_config_ai_model "run")
 
 	local gh_run_explain
 	# Generate explanation using assistant run
 	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
 	gh_run_explain=$(
 		gum spin --title "Analyzing GitHub workflow run #$gh_run_id..." -- \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" ask "$gh_run_agent_model" < <(
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_run_agent_model" < <(
 				GH_RUN_TITLE="$gh_run_title" \
 					GH_RUN_CONCLUSION="$gh_run_conclusion" \
 					GH_RUN_URL="$gh_run_url" \
@@ -172,7 +172,7 @@ _gh_run_explain() {
 					GH_RUN_SHA="$gh_run_sha" \
 					GH_RUN_JOBS_FILE="$gh_run_dir/state/run_jobs.txt" \
 					GH_RUN_LOG_FILE="$gh_run_dir/state/run_log.txt" \
-					"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
 
@@ -201,10 +201,10 @@ _prepare_run_chat_context() { _prepare_run_context "chat" "$@"; }
 # including usage examples and available options.
 _show_run_chat_help() {
 	cat <<'EOF'
-gh claude run chat - Open an agent session with workflow run context
+gh ai run chat - Open an agent session with workflow run context
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Fetches the GitHub Actions workflow run metadata and logs, renders
@@ -212,15 +212,15 @@ DESCRIPTION:
     (default: claude).
     Claude options (e.g. --model, --verbose) go before the subcommand.
 
-    Configure the model: gh config set claude.run.model <model>
+    Configure the model: gh config set ai.run.model <model>
 
 FLAGS:
     -d, --description string   Extra context or focus for the agent (optional)
 
 EXAMPLES:
-    gh claude run chat 123456
-    gh claude run chat 123456 -d "focus on test failures"
-    gh claude --model sonnet run chat 123456
+    gh ai run chat 123456
+    gh ai run chat 123456 -d "focus on test failures"
+    gh ai --model sonnet run chat 123456
 EOF
 }
 
@@ -241,14 +241,14 @@ _gh_run_chat() {
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_claude_source_dir/templates/gh_run_chat.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_run_chat.tmpl"
 
 	local gh_run_id="" gh_run_description=""
 	_parse_run_chat_args gh_run_id gh_run_description "$@"
 
 	if [[ -z "$gh_run_id" ]]; then
 		gum log --level error "No run ID provided"
-		gum log --level info "Usage: gh claude run chat <RUN_ID> [-d <DESCRIPTION>]"
+		gum log --level info "Usage: gh ai run chat <RUN_ID> [-d <DESCRIPTION>]"
 		return 1
 	fi
 
@@ -270,8 +270,8 @@ _gh_run_chat() {
 			GH_RUN_EVENT="$gh_run_event" \
 			GH_RUN_BRANCH="$gh_run_branch" \
 			GH_RUN_SHA="$gh_run_sha" \
-			GH_CLAUDE_SESSION_DIR="$gh_run_dir" \
-			"$_gh_claude_source_dir/scripts/gh_cmd.sh" render "$template_file"
+			GH_AI_SESSION_DIR="$gh_run_dir" \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
 	_cmd_chat "$gh_run_prompt"
@@ -283,11 +283,11 @@ _gh_run_chat() {
 # including usage examples and available options.
 _show_run_help() {
 	cat <<'EOF'
-gh claude run - Workflow run commands with AI assistance
+gh ai run - Workflow run commands with AI assistance
 
 USAGE:
-    gh claude [CLAUDE_OPTIONS] run explain <RUN_ID>
-    gh claude [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] run explain <RUN_ID>
+    gh ai [CLAUDE_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>]
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs and explains what happened.
@@ -299,8 +299,8 @@ COMMANDS:
     chat        Open an agent session with workflow run context
 
 SEE ALSO:
-    gh claude run explain --help    # Run explain usage
-    gh claude run chat --help       # Run chat usage
+    gh ai run explain --help    # Run explain usage
+    gh ai run chat --help       # Run chat usage
 EOF
 }
 
@@ -328,7 +328,7 @@ _gh_run() {
 	*)
 		gum log --level error "unknown run command '$subcommand'"
 		gum log --level info "Available commands: explain, chat"
-		gum log --level info "Run 'gh claude run --help' for usage information"
+		gum log --level info "Run 'gh ai run --help' for usage information"
 		return 1
 		;;
 	esac

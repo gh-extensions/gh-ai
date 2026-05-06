@@ -1,5 +1,5 @@
-# gh-claude fzf bindings — source this file in your shell config to register all
-# gh-claude keybinds with gh-fzf via GH_FZF_*_OPTS.
+# gh-ai fzf bindings — source this file in your shell config to register all
+# gh-ai keybinds with gh-fzf via GH_FZF_*_OPTS.
 #
 # Usage: add to ~/.bashrc or ~/.zshrc
 #   source /path/to/extras/gh_fzf.sh
@@ -22,7 +22,7 @@
 # When inside tmux, chat bindings (alt-C) open in a new tmux window so fzf
 # stays interactive.
 
-_gh_fzf_agent="claude"
+_gh_fzf_agent="ai"
 
 _gh_fzf_dir=$(dirname "${BASH_SOURCE[0]:-$0}")
 [[ "$_gh_fzf_dir" = /* ]] || _gh_fzf_dir="$(cd "$_gh_fzf_dir" && pwd)"
@@ -38,13 +38,13 @@ _gh_fzf_pgr="gum pager"
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_issue_opts=(
-		"--bind=alt-P:execute(gh claude issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/issue-{1} gh claude issue chat {1})+abort"
+		"--bind=alt-P:execute(gh ai issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/issue-{1} gh ai issue chat {1})+abort"
 	)
 else
 	_gh_fzf_issue_opts=(
-		"--bind=alt-P:execute(gh claude issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
-		"--bind=alt-C:execute(gh claude issue chat {1})+abort"
+		"--bind=alt-P:execute(gh ai issue plan {1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
+		"--bind=alt-C:execute(gh ai issue chat {1})+abort"
 	)
 fi
 GH_FZF_ISSUE_OPTS+="${GH_FZF_ISSUE_OPTS:+ }$(printf '%q ' "${_gh_fzf_issue_opts[@]}")"
@@ -54,15 +54,15 @@ unset _gh_fzf_issue_opts
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_pr_opts=(
-		"--bind=alt-E:execute(gh claude pr explain {1} | ${_gh_fzf_pgr})"
-		"--bind=alt-R:execute(gh claude pr review {1} -- --request-changes)+abort"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh claude pr chat {1})+abort"
+		"--bind=alt-E:execute(gh ai pr explain {1} | ${_gh_fzf_pgr})"
+		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/pull-{1} gh ai pr chat {1})+abort"
 	)
 else
 	_gh_fzf_pr_opts=(
-		"--bind=alt-E:execute(gh claude pr explain {1} | ${_gh_fzf_pgr})"
-		"--bind=alt-R:execute(gh claude pr review {1} -- --request-changes)+abort"
-		"--bind=alt-C:execute(gh claude pr chat {1})+abort"
+		"--bind=alt-E:execute(gh ai pr explain {1} | ${_gh_fzf_pgr})"
+		"--bind=alt-R:execute(gh ai pr review {1} -- --request-changes)+abort"
+		"--bind=alt-C:execute(gh ai pr chat {1})+abort"
 	)
 fi
 GH_FZF_PR_OPTS+="${GH_FZF_PR_OPTS:+ }$(printf '%q ' "${_gh_fzf_pr_opts[@]}")"
@@ -72,13 +72,13 @@ unset _gh_fzf_pr_opts
 
 if [[ "$_gh_fzf_tmux_use" -eq 1 ]]; then
 	_gh_fzf_run_opts=(
-		"--bind=alt-E:execute(gh claude run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
-		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/run-{-1} gh claude run chat {-1})+abort"
+		"--bind=alt-E:execute(gh ai run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
+		"--bind=alt-C:execute-silent(${_gh_fzf_tmux_cmd} new-window ${_gh_fzf_agent}/run-{-1} gh ai run chat {-1})+abort"
 	)
 else
 	_gh_fzf_run_opts=(
-		"--bind=alt-E:execute(gh claude run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
-		"--bind=alt-C:execute(gh claude run chat {-1})+abort"
+		"--bind=alt-E:execute(gh ai run explain {-1} | ${_gh_fzf_fmt} | ${_gh_fzf_pgr})"
+		"--bind=alt-C:execute(gh ai run chat {-1})+abort"
 	)
 fi
 GH_FZF_RUN_OPTS+="${GH_FZF_RUN_OPTS:+ }$(printf '%q ' "${_gh_fzf_run_opts[@]}")"
