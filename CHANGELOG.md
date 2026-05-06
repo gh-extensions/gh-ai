@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.27.0](https://github.com/gh-extensions/gh-ai/compare/v0.26.1...v0.27.0) (2026-05-06)
+
+
+### Features
+
+* persist chat session directories across invocations ([85306ef](https://github.com/gh-extensions/gh-ai/commit/85306efbd2c8e8038f6cbb2900046c7b4f5abf17))
+* support multiple AI providers (claude, codex, gemini) ([fd7191c](https://github.com/gh-extensions/gh-ai/commit/fd7191c1a8a722d0e632baf3bde1f823cfac2052))
+
 ## [0.26.1](https://github.com/gh-extensions/gh-claude/compare/v0.26.0...v0.26.1) (2026-04-16)
 
 
