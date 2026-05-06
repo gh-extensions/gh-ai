@@ -30,7 +30,8 @@ setup() {
 			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
 			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
 			_ask_ai _ask_codex _ask_gemini \
-			_chat_ai _chat_codex _chat_gemini
+			_chat_ai _chat_codex _chat_gemini \
+			_get_codex_default_model _get_gemini_default_model
 	)"
 }
 

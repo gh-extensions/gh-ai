@@ -33,7 +33,7 @@ _ask_ai() {
 #
 # Usage: printf "%s" "$prompt" | _chat_ai [AGENT_ARGS...]
 _chat_ai() {
-	claude "$@" "${_GH_AI_ARGS[@]}"
+	claude "${_GH_AI_ARGS[@]}" "$@"
 }
 
 # Aliases for backward compatibility or explicit 'claude' agent setting

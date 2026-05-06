@@ -53,10 +53,7 @@ _ask_gemini() {
 #
 # Usage: printf "%s" "$prompt" | _chat_gemini [AGENT_ARGS...]
 _chat_gemini() {
-	local prompt
-	prompt=$(cat)
-
 	# Gemini CLI doesn't have a perfect "agent" mode like Claude,
 	# but we can pass the prompt and let it be interactive if supported.
-	gemini --prompt "$prompt" "$@" "${_GH_AI_ARGS[@]}"
+	gemini "${_GH_AI_ARGS[@]}" "$@"
 }

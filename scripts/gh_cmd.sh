@@ -50,7 +50,7 @@ _cmd_render() {
 _get_agent() {
 	local agent
 	agent=$(gh config get ai.agent 2>/dev/null || true)
-	printf '%s' "${agent:-ai}"
+	printf '%s' "${agent:-claude}"
 }
 
 # Resolve the default model for an AI provider
@@ -58,7 +58,7 @@ _get_agent() {
 # Usage: _get_agent_default_model AGENT
 _get_agent_default_model() {
 	case "$1" in
-	ai | claude)
+	claude)
 		_get_claude_default_model
 		;;
 	codex)
@@ -130,7 +130,7 @@ _cmd_ask() {
 	fi
 
 	case "$agent" in
-	ai | claude)
+	claude)
 		_ask_ai "$agent_model"
 		;;
 	codex)
@@ -159,13 +159,10 @@ _cmd_chat() {
 	local agent
 	agent=$(_get_agent)
 
-	local binary="$agent"
-	[[ "$agent" == "ai" || "$agent" == "claude" ]] && binary="claude"
-
 	# Verify the agent binary exists
-	if ! command -v "$binary" &>/dev/null; then
-		gum log --level error "$binary not found"
-		case "$binary" in
+	if ! command -v "$agent" &>/dev/null; then
+		gum log --level error "$agent not found"
+		case "$agent" in
 		claude) gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code" ;;
 		codex) gum log --level info "Install codex: https://developers.openai.com/codex" ;;
 		gemini) gum log --level info "Install gemini: https://github.com/google-gemini/gemini-cli" ;;
@@ -173,8 +170,10 @@ _cmd_chat() {
 		return 1
 	fi
 
+	# Codex needs a TTY for its interactive session and only accepts the
+	# prompt as a positional argument, so it cannot be fed via a pipe.
 	if [[ -n "$prompt" ]]; then
-		printf "%s" "$prompt" | "_chat_$agent" "$@"
+		"_chat_$agent" "$@" "$prompt"
 	else
 		"_chat_$agent" "$@"
 	fi

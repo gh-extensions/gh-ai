@@ -60,11 +60,13 @@ _ask_codex() {
 	rm -f "$output_file" "$error_file"
 }
 
-# Pipe a prompt into Codex for an interactive session
+# Start an interactive Codex session
 #
-# Usage: printf "%s" "$prompt" | _chat_codex [AGENT_ARGS...]
+# Codex requires a TTY on stdin and only accepts the prompt as a positional
+# argument, so all arguments (including any seeding prompt) are forwarded
+# directly to codex rather than piped via stdin.
+#
+# Usage: _chat_codex [AGENT_ARGS...] [PROMPT]
 _chat_codex() {
-	# For Codex, we use 'exec' to handle the piped prompt.
-	# We don't use --output-last-message here to keep it interactive.
-	codex "$@" "${_GH_AI_ARGS[@]}" -
+	codex "${_GH_AI_ARGS[@]}" "$@"
 }
