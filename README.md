@@ -258,7 +258,7 @@ Override the AI provider and model via `gh config`.
 
 | Key              | Default       | Description                            |
 | ---------------- | ------------- | -------------------------------------- |
-| `ai.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`) |
+| `ai.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`, `forge`) |
 | `ai.model`       | Agent default | Model for all commands (fallback)      |
 | `ai.pr.model`    |               | Model override for `pr` subcommands    |
 | `ai.issue.model` |               | Model override for `issue` subcommands |
@@ -269,6 +269,7 @@ Agent defaults:
 - `claude`: `haiku`
 - `codex`: `gpt-5.4-mini`
 - `gemini`: `gemini-2.0-flash`
+- `forge`: configured via forge itself (gh-ai does not pass `--model`)
 
 Priority: `--model` flag > per-command config > `ai.model` > agent default.
 

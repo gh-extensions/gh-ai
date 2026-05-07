@@ -28,9 +28,9 @@ setup() {
 			_gh_repo_name _git_repo_path _git_branch_diff \
 			_gh_config_ai_model _extract_ai_arg \
 			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
-			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
-			_ask_claude _ask_codex _ask_gemini \
-			_chat_claude _chat_codex _chat_gemini \
+			_get_claude_default_model _get_codex_default_model _get_gemini_default_model _get_forge_default_model \
+			_ask_claude _ask_codex _ask_gemini _ask_forge \
+			_chat_claude _chat_codex _chat_gemini _chat_forge \
 			_get_codex_default_model _get_gemini_default_model
 	)"
 }
@@ -57,6 +57,7 @@ setup() {
 	[[ "$(_get_agent_default_model claude)" == "haiku" ]]
 	[[ "$(_get_agent_default_model codex)" == "gpt-5.4-mini" ]]
 	[[ "$(_get_agent_default_model gemini)" == "gemini-2.0-flash" ]]
+	[[ "$(_get_agent_default_model forge)" == "" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -495,6 +496,70 @@ Actual body.")
 
 	run _cmd_chat "my prompt"
 	[[ "$output" == "called gemini chat" ]]
+}
+
+@test "_cmd_chat: dispatches to forge" {
+	gh() { echo "forge"; }
+	export -f gh
+
+	command() { [[ "$2" == "forge" ]] && return 0 || builtin command "$@"; }
+	export -f command
+
+	_chat_forge() { echo "called forge with $*"; }
+	export -f _chat_forge
+
+	run _cmd_chat "my prompt"
+	[[ "$output" == "called forge with my prompt" ]]
+}
+
+@test "_cmd_ask: dispatches to forge" {
+	gh() { echo "forge"; }
+	export -f gh
+
+	_ask_forge() { echo "called forge with $1"; }
+	export -f _ask_forge
+
+	run _cmd_ask "custom-model"
+	[[ "$output" == "called forge with custom-model" ]]
+}
+
+@test "_chat_forge: pipes prompt to forge via stdin" {
+	_GH_AI_ARGS=()
+	forge() {
+		local stdin
+		stdin=$(cat)
+		echo "args: $*"
+		echo "stdin: $stdin"
+	}
+	export -f forge
+
+	run _chat_forge "the prompt"
+	[[ "$output" == *"args: "* ]]
+	[[ "$output" == *"stdin: the prompt"* ]]
+}
+
+@test "_chat_forge: forwards _GH_AI_ARGS and extra args" {
+	_GH_AI_ARGS=(--verbose)
+	forge() {
+		local stdin
+		stdin=$(cat)
+		echo "args: $*"
+		echo "stdin: $stdin"
+	}
+	export -f forge
+
+	run _chat_forge --extra flag "the prompt"
+	[[ "$output" == *"args: --verbose --extra flag"* ]]
+	[[ "$output" == *"stdin: the prompt"* ]]
+}
+
+@test "_chat_forge: starts forge without stdin when no prompt given" {
+	_GH_AI_ARGS=()
+	forge() { echo "args: $*"; }
+	export -f forge
+
+	run _chat_forge
+	[[ "$output" == "args: " ]]
 }
 
 # ---------------------------------------------------------------------------

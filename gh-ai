@@ -45,8 +45,13 @@ _check_dependencies() {
 				missing+=("jq      — https://stedolan.github.io/jq/")
 			fi
 			;;
+		forge)
+			if ! command -v forge &>/dev/null; then
+				missing+=("forge   — https://forgecode.dev")
+			fi
+			;;
 		*)
-			echo "gh-ai: unsupported agent '$agent' (supported: claude, codex, gemini)" >&2
+			echo "gh-ai: unsupported agent '$agent' (supported: claude, codex, gemini, forge)" >&2
 			exit 1
 			;;
 		esac
@@ -100,7 +105,7 @@ CONFIGURATION:
 
     | Key               | Default         | Description                           |
     | ----------------- | --------------- | ------------------------------------- |
-    | `ai.agent`    | `claude`        | AI agent (`claude`, `codex`, `gemini`) |
+    | `ai.agent`    | `claude`        | AI agent (`claude`, `codex`, `gemini`, `forge`) |
     | `ai.model`    | Agent default   | Model for all commands                |
     | `ai.pr.model` |                 | Model override for `pr` commands      |
 
@@ -108,6 +113,7 @@ CONFIGURATION:
     - `claude`: `haiku`
     - `codex`: `gpt-5.4-mini`
     - `gemini`: `gemini-2.0-flash`
+    - `forge`:  configured via forge itself
 
 EXAMPLES:
     gh ai pr chat 42

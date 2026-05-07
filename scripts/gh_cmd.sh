@@ -13,6 +13,8 @@ source "$_gh_cmd_dir/gh_cmd_claude.sh"
 source "$_gh_cmd_dir/gh_cmd_codex.sh"
 # shellcheck source=scripts/gh_cmd_gemini.sh
 source "$_gh_cmd_dir/gh_cmd_gemini.sh"
+# shellcheck source=scripts/gh_cmd_forge.sh
+source "$_gh_cmd_dir/gh_cmd_forge.sh"
 
 # Core utility functions for gh-ai
 
@@ -67,8 +69,11 @@ _get_agent_default_model() {
 	gemini)
 		_get_gemini_default_model
 		;;
+	forge)
+		_get_forge_default_model
+		;;
 	*)
-		gum log --level error "Unsupported agent '$1' (supported: ai, codex, gemini)"
+		gum log --level error "Unsupported agent '$1' (supported: claude, codex, gemini, forge)"
 		return 1
 		;;
 	esac
@@ -139,8 +144,11 @@ _cmd_ask() {
 	gemini)
 		_ask_gemini "$agent_model"
 		;;
+	forge)
+		_ask_forge "$agent_model"
+		;;
 	*)
-		gum log --level error "Unsupported agent '$agent' (supported: ai, codex, gemini)"
+		gum log --level error "Unsupported agent '$agent' (supported: claude, codex, gemini, forge)"
 		return 1
 		;;
 	esac
@@ -166,6 +174,7 @@ _cmd_chat() {
 		claude) gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code" ;;
 		codex) gum log --level info "Install codex: https://developers.openai.com/codex" ;;
 		gemini) gum log --level info "Install gemini: https://github.com/google-gemini/gemini-cli" ;;
+		forge) gum log --level info "Install forge: https://forgecode.dev" ;;
 		esac
 		return 1
 	fi
