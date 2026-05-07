@@ -309,14 +309,14 @@ _git_branch_diff() {
 	_commits_ref=$(printf '%s\n' "$_log_ref" | sed 's/^[a-f0-9]* /- /')
 }
 
-# Resolve the base directory for persistent chat sessions.
+# Resolve the base directory for persistent agent context.
 #
-# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/ai/sessions.
+# Uses XDG_STATE_HOME if set, otherwise ~/.local/state/gh/ai/context.
 #
 # Stdout: base directory path
-# Usage: base=$(_gh_session_base_dir)
-_gh_session_base_dir() {
-	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/ai/sessions"
+# Usage: base=$(_gh_context_base_dir)
+_gh_context_base_dir() {
+	printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/gh/ai/context"
 }
 
 # Create a temporary context directory for commands
@@ -348,7 +348,7 @@ _resolve_context_dir() {
 
 	if [[ "$_rcd_type" == "analyze" ]]; then
 		local _rcd_base
-		_rcd_base=$(_gh_session_base_dir)
+		_rcd_base=$(_gh_context_base_dir)
 		_rcd_dir="${_rcd_base}/${_rcd_name}"
 		mkdir -p "$_rcd_dir"
 	else

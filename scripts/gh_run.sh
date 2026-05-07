@@ -60,8 +60,8 @@ _prepare_run_context() {
 		return 1
 	fi
 
-	_save_context_file "$_ctx_dir" "state/run_jobs.txt" "$_ctx_jobs"
-	_save_context_file "$_ctx_dir" "state/run_log.txt" "$_ctx_log"
+	_save_context_file "$_ctx_dir" "run_jobs.txt" "$_ctx_jobs"
+	_save_context_file "$_ctx_dir" "run_log.txt" "$_ctx_log"
 }
 
 # Shared argument parser for run commands that accept only a run ID.
@@ -123,7 +123,7 @@ DESCRIPTION:
     With -i, opens an interactive agent session that begins with the
     analysis and asks how you'd like to proceed.
 
-    Context files persist under ~/.local/state/gh/ai/sessions/run-<ID>/state/
+    Context files persist under ~/.local/state/gh/ai/context/run-<ID>/
     and are refreshed on every invocation. Claude options (e.g. --model,
     --verbose) go before the subcommand.
 
@@ -192,7 +192,7 @@ _gh_run_analyze() {
 			GH_RUN_EVENT="$gh_run_event" \
 			GH_RUN_BRANCH="$gh_run_branch" \
 			GH_RUN_SHA="$gh_run_sha" \
-			GH_AI_SESSION_DIR="$gh_run_dir" \
+			GH_AI_CONTEXT_DIR="$gh_run_dir" \
 			GH_AI_INTERACTIVE_INSTRUCTION="$gh_run_interactive_instruction" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)

@@ -30,7 +30,7 @@ setup() {
 			_show_run_analyze_help _show_run_help _gh_run_analyze _gh_run \
 			_prepare_run_analyze_context _prepare_run_context \
 			_cmd_chat _cmd_ask _cmd_render _get_agent \
-			_gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file \
+			_gh_context_base_dir _resolve_context_dir _create_context_dir _save_context_file \
 			_chat_claude _chat_codex _chat_gemini _ask_claude _ask_codex _ask_gemini _gh_config_ai_model
 	)"
 }
@@ -151,7 +151,7 @@ _setup_run_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"how they'd like to proceed"* ]]
-	[[ "$output" == *"/.local/state/gh/ai/sessions/run-123456/state/run_log.txt"* ]]
+	[[ "$output" == *"/.local/state/gh/ai/context/run-123456/run_log.txt"* ]]
 }
 
 @test "_gh_run_analyze: shows help with --help flag" {

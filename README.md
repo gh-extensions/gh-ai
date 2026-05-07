@@ -99,7 +99,7 @@ Analyzes a pull request. Without `-i`, prints the analysis to stdout.
 With `-i`, opens an interactive agent session that begins with the analysis
 and asks how you'd like to proceed (review specific areas, propose fixes,
 draft a comment, etc.). Context files are staged under
-`~/.local/state/gh/ai/sessions/pull-<N>/state/` and are refreshed on every
+`~/.local/state/gh/ai/context/pull-<N>/` and are refreshed on every
 invocation; the agent reads them on demand.
 
 ```bash
@@ -135,7 +135,7 @@ Analyzes an issue. Without `-i`, prints the analysis to stdout. With `-i`,
 opens an interactive agent session that begins with the analysis and asks
 how you'd like to proceed — discuss scope, draft an implementation plan,
 draft a clarifying comment, or begin work. Context files are staged under
-`~/.local/state/gh/ai/sessions/issue-<N>/state/` and are refreshed on every
+`~/.local/state/gh/ai/context/issue-<N>/` and are refreshed on every
 invocation.
 
 ```bash
@@ -153,7 +153,7 @@ to stdout. With `-i`, opens an interactive agent session that begins with
 the analysis and asks how you'd like to proceed (investigate a failure,
 draft a fix, retry, etc.). Uses `--log-failed` for failed runs, `--log`
 otherwise. Context files are staged under
-`~/.local/state/gh/ai/sessions/run-<ID>/state/` and refreshed on every
+`~/.local/state/gh/ai/context/run-<ID>/` and refreshed on every
 invocation.
 
 ```bash
@@ -230,7 +230,7 @@ gh pr list --search "author:app/dependabot is:pr" --json number,title \
 
 The CLI is agent-agnostic and does not manage session IDs internally. It always
 fetches the latest data from GitHub, stages it under
-`~/.local/state/gh/ai/sessions/{pull,issue,run}-<N>/state/`, and passes the
+`~/.local/state/gh/ai/context/{pull,issue,run}-<N>/`, and passes the
 file paths as a context prompt to the agent.
 
 You can manage agent-specific sessions by passing flags directly:

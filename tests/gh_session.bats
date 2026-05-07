@@ -27,31 +27,31 @@ setup() {
 		export _gh_ai_source_dir="$REPO_ROOT"
 		# shellcheck source=../scripts/gh_cmd.sh
 		source "$REPO_ROOT/scripts/gh_cmd.sh"
-		declare -f _gh_session_base_dir _create_context_dir _resolve_context_dir _save_context_file _extract_ai_arg
+		declare -f _gh_context_base_dir _create_context_dir _resolve_context_dir _save_context_file _extract_ai_arg
 	)"
 }
 
 # ---------------------------------------------------------------------------
-# _gh_session_base_dir
+# _gh_context_base_dir
 # ---------------------------------------------------------------------------
 
-@test "_gh_session_base_dir: returns default path" {
+@test "_gh_context_base_dir: returns default path" {
 	local result
-	result=$(_gh_session_base_dir)
+	result=$(_gh_context_base_dir)
 	echo "HOME: $HOME"
 	echo "result: $result"
-	[[ "$result" == "$HOME/.local/state/gh/ai/sessions" ]]
+	[[ "$result" == "$HOME/.local/state/gh/ai/context" ]]
 }
 
 # ---------------------------------------------------------------------------
-# _gh_session_base_dir
+# _gh_context_base_dir
 # ---------------------------------------------------------------------------
 
-@test "_gh_session_base_dir: respects XDG_STATE_HOME" {
+@test "_gh_context_base_dir: respects XDG_STATE_HOME" {
 	export XDG_STATE_HOME="/tmp/state"
 	local result
-	result=$(_gh_session_base_dir)
-	[[ "$result" == "/tmp/state/gh/ai/sessions" ]]
+	result=$(_gh_context_base_dir)
+	[[ "$result" == "/tmp/state/gh/ai/context" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ setup() {
 	_resolve_context_dir "analyze" "pull-42" dir
 
 	[[ -d "$dir" ]]
-	[[ "$dir" == "$HOME/.local/state/gh/ai/sessions/pull-42" ]]
+	[[ "$dir" == "$HOME/.local/state/gh/ai/context/pull-42" ]]
 }
 
 @test "_resolve_context_dir: creates temp dir for non-analyze" {

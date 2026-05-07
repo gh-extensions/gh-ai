@@ -137,9 +137,9 @@ _prepare_issue_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "state/issue_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "state/issue_comments.md" "$_ctx_comments"
-	_save_context_file "$_ctx_dir" "state/issue_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "issue_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "issue_comments.md" "$_ctx_comments"
+	_save_context_file "$_ctx_dir" "issue_context.md" "$_ctx_context"
 }
 
 # Parse issue create arguments
@@ -206,7 +206,7 @@ _prepare_issue_create_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "state/issue_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "issue_context.md" "$_ctx_context"
 }
 
 # Issue create help function
@@ -279,7 +279,7 @@ _gh_issue_create() {
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
 				GH_ISSUE_DESCRIPTION="$gh_issue_description" \
 					GH_ISSUE_LABELS="" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -398,11 +398,11 @@ _gh_issue_edit() {
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
+					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
+					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -522,11 +522,11 @@ _gh_issue_comment() {
 				GH_ISSUE_NUMBER="$gh_issue_number" \
 					GH_ISSUE_TITLE="$gh_issue_title" \
 					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
+					GH_ISSUE_BODY_FILE="$gh_issue_dir/issue_body.md" \
 					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
+					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/issue_comments.md" \
 					GH_ISSUE_DESCRIPTION="$gh_issue_description" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
+					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/issue_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
@@ -594,7 +594,7 @@ DESCRIPTION:
     analysis and asks how you'd like to proceed (discuss scope, draft a
     plan, draft a clarifying comment, etc.).
 
-    Context files persist under ~/.local/state/gh/ai/sessions/issue-<N>/state/
+    Context files persist under ~/.local/state/gh/ai/context/issue-<N>/
     and are refreshed on every invocation. Claude options (e.g. --model,
     --verbose) go before the subcommand.
 
@@ -662,7 +662,7 @@ _gh_issue_analyze() {
 			GH_ISSUE_URL="$gh_issue_url" \
 			GH_ISSUE_LABELS="$gh_issue_labels" \
 			GH_ISSUE_FOCUS="$gh_issue_focus" \
-			GH_AI_SESSION_DIR="$gh_issue_dir" \
+			GH_AI_CONTEXT_DIR="$gh_issue_dir" \
 			GH_AI_INTERACTIVE_INSTRUCTION="$gh_issue_interactive_instruction" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)

@@ -30,7 +30,7 @@ setup() {
 			_show_issue_analyze_help _show_issue_help _gh_issue_analyze _gh_issue \
 			_prepare_issue_analyze_context _prepare_issue_context \
 			_cmd_chat _cmd_ask _cmd_render _get_agent \
-			_gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file \
+			_gh_context_base_dir _resolve_context_dir _create_context_dir _save_context_file \
 			_chat_claude _chat_codex _chat_gemini _ask_claude _ask_codex _ask_gemini _gh_config_ai_model
 	)"
 }
@@ -150,7 +150,7 @@ _setup_issue_mocks() {
 
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == *"how they'd like to proceed"* ]]
-	[[ "$output" == *"/.local/state/gh/ai/sessions/issue-42/state/issue_body.md"* ]]
+	[[ "$output" == *"/.local/state/gh/ai/context/issue-42/issue_body.md"* ]]
 }
 
 @test "_gh_issue_analyze: one-shot prompt does not include trailing question" {

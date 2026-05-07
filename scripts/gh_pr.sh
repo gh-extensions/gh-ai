@@ -157,10 +157,10 @@ _prepare_pr_diff_context() {
 	local _ctx_diff_stat
 	_ctx_diff_stat=$(printf '%s' "$_ctx_diff" | git apply --stat 2>/dev/null || true)
 
-	_save_context_file "$_ctx_dir" "state/pr_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "state/pr_diff.patch" "$_ctx_diff"
-	_save_context_file "$_ctx_dir" "state/pr_diff_stat.txt" "$_ctx_diff_stat"
-	_save_context_file "$_ctx_dir" "state/pr_commits.txt" "$_ctx_commits"
+	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
 }
 
 # Parse PR create arguments
@@ -249,9 +249,9 @@ _prepare_pr_create_context() {
 	_create_context_dir _ctx_dir_path
 	_ctx_dir="$_ctx_dir_path"
 
-	_save_context_file "$_ctx_dir" "state/pr_diff.patch" "$_ctx_diff"
-	_save_context_file "$_ctx_dir" "state/pr_diff_stat.txt" "$_ctx_diff_stat"
-	_save_context_file "$_ctx_dir" "state/pr_commits.txt" "$_ctx_commits"
+	_save_context_file "$_ctx_dir" "pr_diff.patch" "$_ctx_diff"
+	_save_context_file "$_ctx_dir" "pr_diff_stat.txt" "$_ctx_diff_stat"
+	_save_context_file "$_ctx_dir" "pr_commits.txt" "$_ctx_commits"
 }
 
 # PR create help function
@@ -325,9 +325,9 @@ _gh_pr_create() {
 	gh_pr_content=$(
 		gum spin --title "Generating GitHub pull request..." -- \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
+				GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -445,10 +445,10 @@ _gh_pr_edit() {
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
-					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
@@ -560,10 +560,10 @@ _gh_pr_review() {
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_DIFF_FILE="$gh_pr_dir/pr_diff.patch" \
+					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/pr_diff_stat.txt" \
+					GH_PR_COMMITS_FILE="$gh_pr_dir/pr_commits.txt" \
 					GH_PR_HEAD="$gh_pr_head" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
@@ -633,7 +633,7 @@ DESCRIPTION:
     With -i, opens an interactive agent session that begins with the
     analysis and asks how you'd like to proceed.
 
-    Context files persist under ~/.local/state/gh/ai/sessions/pull-<N>/state/
+    Context files persist under ~/.local/state/gh/ai/context/pull-<N>/
     and are refreshed on every invocation. Claude options (e.g. --model,
     --verbose) go before the subcommand.
 
@@ -710,7 +710,7 @@ _gh_pr_analyze() {
 			GH_PR_URL="$gh_pr_url" \
 			GH_PR_HEAD="$gh_pr_head" \
 			GH_PR_FOCUS="$gh_pr_focus" \
-			GH_AI_SESSION_DIR="$gh_pr_dir" \
+			GH_AI_CONTEXT_DIR="$gh_pr_dir" \
 			GH_AI_INTERACTIVE_INSTRUCTION="$gh_pr_interactive_instruction" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
@@ -775,9 +775,9 @@ _prepare_pr_comment_context() {
 		_ctx_context=$(cat)
 	fi
 
-	_save_context_file "$_ctx_dir" "state/pr_body.md" "$_ctx_body"
-	_save_context_file "$_ctx_dir" "state/pr_comments.md" "$_ctx_comments"
-	_save_context_file "$_ctx_dir" "state/pr_context.md" "$_ctx_context"
+	_save_context_file "$_ctx_dir" "pr_body.md" "$_ctx_body"
+	_save_context_file "$_ctx_dir" "pr_comments.md" "$_ctx_comments"
+	_save_context_file "$_ctx_dir" "pr_context.md" "$_ctx_context"
 }
 
 # PR comment help function
@@ -860,10 +860,10 @@ _gh_pr_comment() {
 				GH_PR_NUMBER="$gh_pr_number" \
 					GH_PR_TITLE="$gh_pr_title" \
 					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
-					GH_PR_COMMENTS_FILE="$gh_pr_dir/state/pr_comments.md" \
+					GH_PR_BODY_FILE="$gh_pr_dir/pr_body.md" \
+					GH_PR_COMMENTS_FILE="$gh_pr_dir/pr_comments.md" \
 					GH_PR_DESCRIPTION="$gh_pr_description" \
-					GH_PR_CONTEXT_FILE="$gh_pr_dir/state/pr_context.md" \
+					GH_PR_CONTEXT_FILE="$gh_pr_dir/pr_context.md" \
 					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 			)
 	)
