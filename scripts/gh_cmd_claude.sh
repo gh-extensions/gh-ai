@@ -20,6 +20,7 @@ _ask_claude() {
 	local agent_model="$1"
 
 	MAX_THINKING_TOKENS=0 claude -p \
+		--dangerously-skip-permissions \
 		--model="$agent_model" \
 		--no-session-persistence \
 		--disable-slash-commands \
