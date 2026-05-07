@@ -83,9 +83,9 @@ USAGE:
     gh ai [CLAUDE_OPTIONS] <command> [subcommand] [options]
 
 COMMANDS:
-    pr          Pull request operations (create, edit, review, explain, chat)
-    issue       Issue operations (create, edit, plan, chat)
-    run         Workflow run operations (explain, chat)
+    pr          Pull request operations (create, edit, review, analyze, comment)
+    issue       Issue operations (create, edit, comment, analyze)
+    run         Workflow run operations (analyze)
 
 FLAGS:
     -V, --version   Print version
@@ -110,8 +110,9 @@ CONFIGURATION:
     - `gemini`: `gemini-2.0-flash`
 
 EXAMPLES:
-    gh ai pr chat 42
-    gh ai --model sonnet pr chat 42
+    gh ai pr analyze 42
+    gh ai pr analyze 42 -i
+    gh ai --model sonnet pr analyze 42 -i
     gh config set ai.agent gemini
     gh config set ai.model gemini-2.0-flash
 

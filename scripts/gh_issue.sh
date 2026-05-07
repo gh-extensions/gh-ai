@@ -545,214 +545,114 @@ _gh_issue_comment() {
 	gh issue comment "$gh_issue_number" --body "$gh_issue_comment" "${passthrough[@]}"
 }
 
-# Parse issue plan arguments.
-#
-# Extracts issue number and -d/--description from args. Unknown flags produce an error
-# (plan has no gh passthrough target).
-_parse_issue_plan_args() {
-	local _ipla_pt=()
-	_parse_issue_args "" "$1" "$2" _ipla_pt "${@:3}" || return $?
-	if [[ ${#_ipla_pt[@]} -gt 0 ]]; then
-		gum log --level error "unknown flag '${_ipla_pt[0]}'"
-		return 1
-	fi
-}
-
-# Fetches issue metadata into a temp directory for use by _gh_issue_plan.
-_prepare_issue_plan_context() { _prepare_issue_context "plan" "$@"; }
-
-# Issue plan help function
-#
-# Displays help information for the issue plan command
-# including usage examples and available options.
-_show_issue_plan_help() {
-	cat <<'EOF'
-gh ai issue plan - Generate an AI implementation plan from a GitHub issue
-
-USAGE:
-    gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-
-DESCRIPTION:
-    Fetches the GitHub issue and generates an AI implementation plan,
-    printing it to stdout. Compose it with any tool using pipes.
-    Use -d to provide extra context or constraints that guide the AI.
-
-FLAGS:
-    -d, --description string   Extra context or focus for the plan (optional)
-
-EXAMPLES:
-    gh ai issue plan 42
-    gh ai issue plan https://github.com/owner/repo/issues/42
-    gh ai issue plan 42 -d "focus on the auth module"
-    gh ai issue plan 42 | pbcopy
-    gh ai issue plan 42 | claude
-    gh ai issue plan 42 | jules new
-    gh ai issue plan 42 | gh agent-task create --body -
-    gh issue develop 42 --checkout && git commit --allow-empty -m "chore: start work on #42" && gh ai issue plan 42 | gh pr create --body -
-EOF
-}
-
-# Issue Plan implementation
-#
-# Fetches a GitHub issue, generates an AI implementation plan,
-# and prints it to stdout.
-#
-# Usage: _gh_issue_plan <NUMBER> [-d <DESCRIPTION>]
-_gh_issue_plan() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_issue_plan_help
-		return 0
-		;;
-	esac
-
-	local template_file
-	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_plan.tmpl"
-
-	local gh_issue_number="" gh_issue_description=""
-	_parse_issue_plan_args gh_issue_number gh_issue_description "$@"
-
-	if [[ -z "$gh_issue_number" ]]; then
-		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]"
-		return 1
-	fi
-
-	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
-	_prepare_issue_plan_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
-
-	local gh_issue_agent_model
-	gh_issue_agent_model=$(_gh_config_ai_model "issue")
-
-	local gh_issue_focus=""
-	if [[ -n "$gh_issue_description" ]]; then
-		gh_issue_focus="<focus>${gh_issue_description}</focus>"
-	fi
-
-	local gh_issue_plan
-	# Generate implementation plan using assistant
-	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
-	gh_issue_plan=$(
-		gum spin --title "Generating GitHub issue #$gh_issue_number implementation plan..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" < <(
-				GH_ISSUE_NUMBER="$gh_issue_number" \
-					GH_ISSUE_TITLE="$gh_issue_title" \
-					GH_ISSUE_URL="$gh_issue_url" \
-					GH_ISSUE_BODY_FILE="$gh_issue_dir/state/issue_body.md" \
-					GH_ISSUE_LABELS="$gh_issue_labels" \
-					GH_ISSUE_COMMENTS_FILE="$gh_issue_dir/state/issue_comments.md" \
-					GH_ISSUE_FOCUS="$gh_issue_focus" \
-					GH_ISSUE_CONTEXT_FILE="$gh_issue_dir/state/issue_context.md" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-			)
-	)
-
-	# Clean up the temp context directory now that the AI call is done.
-	rm -rf "$gh_issue_dir"
-
-	# Validate we got content
-	if [[ -z "$gh_issue_plan" ]]; then
-		gum log --level error "Failed to generate implementation plan"
-		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
-		return 1
-	fi
-
-	printf '%s\n' "$gh_issue_plan"
-}
-
-# Argument parser for the issue chat subcommand.
+# Argument parser for the issue analyze subcommand.
 #
 # Pre-processes the argument list to convert any GitHub issue URL to a bare
-# numeric issue number before delegating to the shared _parse_chat_args.
+# numeric issue number before delegating to the shared _parse_analyze_args.
 #
-# Usage: _parse_issue_chat_args num_ref desc_ref [args...]
-_parse_issue_chat_args() {
-	local _pica_num_ref="$1"
-	local _pica_desc_ref="$2"
-	shift 2
+# Usage: _parse_issue_analyze_args num_ref desc_ref interactive_ref [args...]
+_parse_issue_analyze_args() {
+	local _piaa_num_ref="$1"
+	local _piaa_desc_ref="$2"
+	local _piaa_inter_ref="$3"
+	shift 3
 
-	local _pica_processed=()
-	local _pica_arg
-	for _pica_arg in "$@"; do
-		local _pica_extracted
-		if _pica_extracted=$(_extract_issue_number "$_pica_arg") 2>/dev/null; then
-			_pica_processed+=("$_pica_extracted")
+	local _piaa_processed=()
+	local _piaa_arg
+	for _piaa_arg in "$@"; do
+		local _piaa_extracted
+		if _piaa_extracted=$(_extract_issue_number "$_piaa_arg") 2>/dev/null; then
+			_piaa_processed+=("$_piaa_extracted")
 		else
-			_pica_processed+=("$_pica_arg")
+			_piaa_processed+=("$_piaa_arg")
 		fi
 	done
 
-	_parse_chat_args "$_pica_num_ref" "$_pica_desc_ref" "${_pica_processed[@]}"
+	_parse_analyze_args "$_piaa_num_ref" "$_piaa_desc_ref" "$_piaa_inter_ref" "${_piaa_processed[@]}"
 }
 
-# Fetches issue metadata into the pre-resolved session directory for _gh_issue_chat.
-_prepare_issue_chat_context() { _prepare_issue_context "chat" "$@"; }
+# Fetches issue metadata into the persistent session directory for _gh_issue_analyze.
+_prepare_issue_analyze_context() { _prepare_issue_context "analyze" "$@"; }
 
-# Issue chat help function
+# Issue analyze help function
 #
-# Displays help information for the issue chat command
+# Displays help information for the issue analyze command
 # including usage examples and available options.
-_show_issue_chat_help() {
+_show_issue_analyze_help() {
 	cat <<'EOF'
-gh ai issue chat - Open an agent session with issue context
+gh ai issue analyze - Analyze an issue, optionally as an interactive session
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] issue analyze <ISSUE_NUMBER> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
-    Fetches the GitHub issue metadata, renders it as context, and pipes
-    it into the configured agent binary (default: claude).
-    Claude options (e.g. --model, --verbose) go before the subcommand.
+    Fetches GitHub issue metadata into a persistent session directory and
+    renders an analysis prompt referencing those files.
+
+    Without -i, prints the analysis to stdout and exits.
+    With -i, opens an interactive agent session that begins with the
+    analysis and asks how you'd like to proceed (discuss scope, draft a
+    plan, draft a clarifying comment, etc.).
+
+    Context files persist under ~/.local/state/gh/ai/sessions/issue-<N>/state/
+    and are refreshed on every invocation. Claude options (e.g. --model,
+    --verbose) go before the subcommand.
 
     Configure the model: gh config set ai.issue.model <model>
 
 FLAGS:
-    -d, --description string   Extra context or focus for the agent (optional)
+    -d, --description string   Extra context or focus for the analysis (optional)
+    -i, --interactive          Open an interactive agent session
 
 EXAMPLES:
-    gh ai issue chat 42
-    gh ai issue chat https://github.com/owner/repo/issues/42
-    gh ai issue chat 42 -d "focus on the auth module"
-    gh ai --model sonnet issue chat 42
+    gh ai issue analyze 42
+    gh ai issue analyze 42 -i
+    gh ai issue analyze https://github.com/owner/repo/issues/42 -i
+    gh ai issue analyze 42 -d "focus on the auth module" -i
+    gh ai issue analyze 42 | pbcopy
+    gh ai --model sonnet issue analyze 42 -i
 EOF
 }
 
-# Issue Chat implementation
+# Issue Analyze implementation
 #
-# Fetches a GitHub issue, renders the context template, and pipes it
-# into the configured agent binary. Pass --session-id or --resume after --
-# to manage sessions explicitly.
+# Fetches a GitHub issue's metadata into a persistent session directory,
+# renders the analyze template, and either prints the analysis (one-shot)
+# or opens an interactive agent session (-i).
 #
-# Usage: _gh_issue_chat <NUMBER> [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
-_gh_issue_chat() {
+# Usage: _gh_issue_analyze <NUMBER> [-d <DESCRIPTION>] [-i]
+_gh_issue_analyze() {
 	case "${1:-}" in
 	--help | -h | help)
-		_show_issue_chat_help
+		_show_issue_analyze_help
 		return 0
 		;;
 	esac
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_issue_chat.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_issue_analyze.tmpl"
 
-	local gh_issue_number="" gh_issue_description=""
-	_parse_issue_chat_args gh_issue_number gh_issue_description "$@"
+	local gh_issue_number="" gh_issue_description="" gh_issue_interactive=""
+	_parse_issue_analyze_args gh_issue_number gh_issue_description gh_issue_interactive "$@" || return 1
 
 	if [[ -z "$gh_issue_number" ]]; then
 		gum log --level error "No issue number provided"
-		gum log --level info "Usage: gh ai issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>]"
+		gum log --level info "Usage: gh ai issue analyze <ISSUE_NUMBER> [-d <DESCRIPTION>] [-i]"
 		return 1
 	fi
 
-	local gh_issue_dir=""
-	local gh_issue_title="" gh_issue_labels="" gh_issue_url=""
-	_prepare_issue_chat_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
+	local gh_issue_dir="" gh_issue_title="" gh_issue_labels="" gh_issue_url=""
+	_prepare_issue_analyze_context "$gh_issue_number" gh_issue_dir gh_issue_title gh_issue_labels gh_issue_url || return 1
 
 	local gh_issue_focus=""
 	if [[ -n "$gh_issue_description" ]]; then
 		gh_issue_focus="<focus>${gh_issue_description}</focus>"
+	fi
+
+	local gh_issue_interactive_instruction=""
+	if [[ "$gh_issue_interactive" == "true" ]]; then
+		gh_issue_interactive_instruction="Then ask the user how they'd like to proceed — discuss scope, draft an implementation plan, draft a clarifying comment, or begin work."
 	fi
 
 	local gh_issue_prompt
@@ -763,10 +663,31 @@ _gh_issue_chat() {
 			GH_ISSUE_LABELS="$gh_issue_labels" \
 			GH_ISSUE_FOCUS="$gh_issue_focus" \
 			GH_AI_SESSION_DIR="$gh_issue_dir" \
+			GH_AI_INTERACTIVE_INSTRUCTION="$gh_issue_interactive_instruction" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$gh_issue_prompt"
+	if [[ "$gh_issue_interactive" == "true" ]]; then
+		_cmd_chat "$gh_issue_prompt"
+		return $?
+	fi
+
+	local gh_issue_agent_model
+	gh_issue_agent_model=$(_gh_config_ai_model "issue")
+
+	local gh_issue_analysis
+	gh_issue_analysis=$(
+		gum spin --title "Analyzing GitHub issue #$gh_issue_number..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_issue_agent_model" <<<"$gh_issue_prompt"
+	)
+
+	if [[ -z "$gh_issue_analysis" ]]; then
+		gum log --level error "Failed to generate issue analysis"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	printf '%s\n' "$gh_issue_analysis"
 }
 
 # Issue help function
@@ -781,29 +702,25 @@ USAGE:
     gh ai [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
     gh ai [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
     gh ai [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] issue plan <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
-    gh ai [CLAUDE_OPTIONS] issue chat <ISSUE_NUMBER|URL> [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] issue analyze <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
-    bodies. Posts AI-generated comments on existing issues. Generates
-    implementation plans from issues and prints them to stdout.
-    Opens agent sessions with issue context.
+    bodies. Posts AI-generated comments on existing issues. Analyzes issues,
+    optionally opening an interactive agent session with -i.
     Claude options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create issues with AI-generated content
     edit        Edit an existing issue with AI-generated content
     comment     Post an AI-generated comment on an existing issue
-    plan        Generate an AI implementation plan from an issue
-    chat        Open an agent session with issue context
+    analyze     Analyze an issue (use -i for an interactive session)
 
 SEE ALSO:
     gh ai issue create --help     # Issue create usage
     gh ai issue edit --help       # Issue edit usage
     gh ai issue comment --help    # Issue comment usage
-    gh ai issue plan --help       # Issue plan usage
-    gh ai issue chat --help       # Issue chat usage
+    gh ai issue analyze --help    # Issue analyze usage
 EOF
 }
 
@@ -813,7 +730,7 @@ EOF
 # Shows help for unknown commands.
 #
 # Usage: _gh_issue <subcommand> [OPTIONS]
-# Subcommands: create, edit, comment, plan, chat, help
+# Subcommands: create, edit, comment, analyze, help
 _gh_issue() {
 	local subcommand="${1:-}"
 	shift || true
@@ -828,18 +745,15 @@ _gh_issue() {
 	comment)
 		_gh_issue_comment "$@"
 		;;
-	plan)
-		_gh_issue_plan "$@"
-		;;
-	chat)
-		_gh_issue_chat "$@"
+	analyze)
+		_gh_issue_analyze "$@"
 		;;
 	--help | -h | help | "")
 		_show_issue_help
 		;;
 	*)
 		gum log --level error "unknown issue command '$subcommand'"
-		gum log --level info "Available commands: create, edit, comment, plan, chat"
+		gum log --level info "Available commands: create, edit, comment, analyze"
 		gum log --level info "Run 'gh ai issue --help' for usage information"
 		return 1
 		;;
