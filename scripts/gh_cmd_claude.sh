@@ -25,7 +25,7 @@ _ask_claude() {
 		--disable-slash-commands \
 		--setting-sources='' \
 		--system-prompt='' \
-		--tools='' \
+		--tools='Read(*)' \
 		- || true
 }
 
