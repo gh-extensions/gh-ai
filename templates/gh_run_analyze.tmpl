@@ -39,9 +39,7 @@ explicitly requests it.
 
 Read the context files listed above to get the full context for GitHub
 Actions run #${GH_RUN_ID}, then analyze the run in your reply. Do not use
-tools or read files other than those listed in <context_files>. Then ask
-how the user would like to proceed — investigate specific failures, discuss
-fixes, or begin implementation.
+tools or read files other than those listed in <context_files>.
 
 If <focus> is empty, no specific focus area was requested.
 
@@ -50,6 +48,8 @@ Prioritize identifying:
 - the failing or unstable jobs and steps
 - the most relevant error messages or log evidence
 - likely causes, unknowns, and next areas to inspect
+
+${GH_AI_INTERACTIVE_INSTRUCTION}
 </instructions>
 
 <rules>

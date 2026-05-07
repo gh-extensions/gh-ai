@@ -331,12 +331,14 @@ _create_context_dir() {
 	_cdir_ref=$(mktemp -d "${_ctx_tmpdir%/}/gh-ai-ctx.XXXXXXXXXX")
 }
 
-# Resolve context directory: persistent session dir for chat, temp dir otherwise
+# Resolve context directory: persistent session dir for analyze, temp dir otherwise
 #
-# For chat commands, returns early if dir_ref is already set (pre-resolved by
-# _resolve_chat_session). Otherwise creates the session directory under the
-# XDG-based sessions base. All other command types get a temporary directory
-# via _create_context_dir.
+# For analyze commands, creates a persistent directory under the XDG-based
+# sessions base, keyed by resource (e.g. "pull-42", "issue-7", "run-123").
+# Files persist across invocations so the agent can re-read them within a
+# session, and a follow-up `analyze` invocation refreshes the staged data.
+# All other command types (deliverables) get a temporary directory via
+# _create_context_dir.
 #
 # Usage: _resolve_context_dir type session_name dir_ref
 _resolve_context_dir() {
@@ -344,10 +346,7 @@ _resolve_context_dir() {
 	local _rcd_name="$2"
 	local -n _rcd_dir="$3"
 
-	if [[ "$_rcd_type" == "chat" ]]; then
-		if [[ -n "$_rcd_dir" ]]; then
-			return 0
-		fi
+	if [[ "$_rcd_type" == "analyze" ]]; then
 		local _rcd_base
 		_rcd_base=$(_gh_session_base_dir)
 		_rcd_dir="${_rcd_base}/${_rcd_name}"
@@ -368,58 +367,63 @@ _save_context_file() {
 	printf '%s' "$content" >"$dir/$name"
 }
 
-# Shared argument parser for chat commands.
+# Shared argument parser for analyze commands.
 #
-# Extracts a numeric resource ID (first positional arg) and -d/--description
-# value. Unknown flags produce an error. All internal variables use _pca_
-# prefix to avoid nameref collisions.
+# Extracts a numeric resource ID (first positional arg), -d/--description
+# value, and -i/--interactive flag. Unknown flags produce an error. All
+# internal variables use _paa_ prefix to avoid nameref collisions.
 #
-# Usage: _parse_chat_args id_ref desc_ref [args...]
-_parse_chat_args() {
-	local -n _pca_id="$1"
-	local -n _pca_desc="$2"
-	shift 2
+# Usage: _parse_analyze_args id_ref desc_ref interactive_ref [args...]
+_parse_analyze_args() {
+	local -n _paa_id="$1"
+	local -n _paa_desc="$2"
+	local -n _paa_inter="$3"
+	shift 3
 
-	local _pca_raw=("$@")
-	local _pca_skip=false
-	local _pca_i=0
+	local _paa_raw=("$@")
+	local _paa_skip=false
+	local _paa_i=0
 
-	while [[ $_pca_i -lt ${#_pca_raw[@]} ]]; do
-		if [[ "$_pca_skip" = true ]]; then
-			_pca_skip=false
-			((++_pca_i))
+	while [[ $_paa_i -lt ${#_paa_raw[@]} ]]; do
+		if [[ "$_paa_skip" = true ]]; then
+			_paa_skip=false
+			((++_paa_i))
 			continue
 		fi
 
-		case "${_pca_raw[$_pca_i]}" in
+		case "${_paa_raw[$_paa_i]}" in
 		--description | -d)
-			if ((_pca_i + 1 >= ${#_pca_raw[@]})); then
-				gum log --level error -- "${_pca_raw[$_pca_i]} requires a value"
+			if ((_paa_i + 1 >= ${#_paa_raw[@]})); then
+				gum log --level error -- "${_paa_raw[$_paa_i]} requires a value"
 				return 1
 			fi
 			# shellcheck disable=SC2034 # nameref: set by caller
-			_pca_desc="${_pca_raw[$((_pca_i + 1))]}"
-			_pca_skip=true
+			_paa_desc="${_paa_raw[$((_paa_i + 1))]}"
+			_paa_skip=true
 			;;
 		--description=*)
 			# shellcheck disable=SC2034 # nameref: set by caller
-			_pca_desc="${_pca_raw[$_pca_i]#--description=}"
+			_paa_desc="${_paa_raw[$_paa_i]#--description=}"
+			;;
+		--interactive | -i)
+			# shellcheck disable=SC2034 # nameref: set by caller
+			_paa_inter=true
 			;;
 		-*)
-			gum log --level error "unknown flag '${_pca_raw[$_pca_i]}'"
+			gum log --level error "unknown flag '${_paa_raw[$_paa_i]}'"
 			return 1
 			;;
 		*)
-			local _pca_arg="${_pca_raw[$_pca_i]#\#}"
-			if [[ -z "$_pca_id" && "$_pca_arg" =~ ^[0-9]+$ ]]; then
-				_pca_id="$_pca_arg"
+			local _paa_arg="${_paa_raw[$_paa_i]#\#}"
+			if [[ -z "$_paa_id" && "$_paa_arg" =~ ^[0-9]+$ ]]; then
+				_paa_id="$_paa_arg"
 			else
-				gum log --level error "unexpected argument '${_pca_raw[$_pca_i]}'"
+				gum log --level error "unexpected argument '${_paa_raw[$_paa_i]}'"
 				return 1
 			fi
 			;;
 		esac
-		((++_pca_i))
+		((++_paa_i))
 	done
 }
 

@@ -584,219 +584,96 @@ _gh_pr_review() {
 	gh pr review "$gh_pr_number" --body "$gh_pr_review" "${passthrough[@]}"
 }
 
-# Parse PR explain arguments
-#
-# Extracts the PR number (first numeric arg, with auto-detect fallback)
-# via nameref.
-#
-# Usage: _parse_pr_explain_args num_ref [args...]
-_parse_pr_explain_args() {
-	local -n _ppea_num_ref="$1"
-	shift
-
-	local _ppea_raw=("$@")
-	local _ppea_i=0
-
-	while [[ $_ppea_i -lt ${#_ppea_raw[@]} ]]; do
-		case "${_ppea_raw[$_ppea_i]}" in
-		-*)
-			gum log --level error "unknown flag '${_ppea_raw[$_ppea_i]}'"
-			return 1
-			;;
-		*)
-			if [[ -z "$_ppea_num_ref" ]]; then
-				local _ppea_extracted
-				if _ppea_extracted=$(_extract_pr_number "${_ppea_raw[$_ppea_i]}"); then
-					_ppea_num_ref="$_ppea_extracted"
-				else
-					gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
-					return 1
-				fi
-			else
-				gum log --level error "unexpected argument '${_ppea_raw[$_ppea_i]}'"
-				return 1
-			fi
-			;;
-		esac
-		((++_ppea_i))
-	done
-
-	# Auto-detect PR number from current branch if not found in args
-	if [[ -z "$_ppea_num_ref" ]]; then
-		_ppea_num_ref=$(_detect_pr_number)
-	fi
-}
-
-# Fetches PR metadata and diff into a temp directory for use by _gh_pr_explain.
-_prepare_pr_explain_context() { _prepare_pr_diff_context "explain" "$@"; }
-
-# PR explain help function
-#
-# Displays help information for the PR explain command
-# including usage examples and available options.
-_show_pr_explain_help() {
-	cat <<'EOF'
-gh ai pr explain - Generate a plain-language explanation of a PR
-
-USAGE:
-    gh ai pr explain [PR_NUMBER]
-
-DESCRIPTION:
-    Generates a plain-language explanation of what a pull request does
-    and prints it to stdout. Auto-detects PR from the current branch
-    if no number is provided.
-
-EXAMPLES:
-    gh ai pr explain 42
-    gh ai pr explain                              # auto-detect PR
-    gh ai pr explain 42 | gh pr comment 42 --body -   # post as comment
-    gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR body
-EOF
-}
-
-# PR Explain implementation
-#
-# Generates a plain-language explanation of what a PR does
-# and prints it to stdout.
-#
-# Usage: _gh_pr_explain [NUMBER]
-_gh_pr_explain() {
-	case "${1:-}" in
-	--help | -h | help)
-		_show_pr_explain_help
-		return 0
-		;;
-	esac
-
-	local template_file
-	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_pr_explain.tmpl"
-
-	local gh_pr_number=""
-	_parse_pr_explain_args gh_pr_number "$@"
-
-	if [[ -z "$gh_pr_number" ]]; then
-		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh ai pr explain [PR_NUMBER]"
-		return 1
-	fi
-
-	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
-	_prepare_pr_explain_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
-
-	local gh_pr_agent_model
-	gh_pr_agent_model=$(_gh_config_ai_model "pr")
-
-	local gh_pr_explain
-	# Generate explanation using assistant run
-	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
-	gh_pr_explain=$(
-		gum spin --title "Generating GitHub pull request #$gh_pr_number explanation..." -- \
-			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" < <(
-				GH_PR_NUMBER="$gh_pr_number" \
-					GH_PR_TITLE="$gh_pr_title" \
-					GH_PR_URL="$gh_pr_url" \
-					GH_PR_BODY_FILE="$gh_pr_dir/state/pr_body.md" \
-					GH_PR_DIFF_FILE="$gh_pr_dir/state/pr_diff.patch" \
-					GH_PR_DIFF_STAT_FILE="$gh_pr_dir/state/pr_diff_stat.txt" \
-					GH_PR_COMMITS_FILE="$gh_pr_dir/state/pr_commits.txt" \
-					GH_PR_HEAD="$gh_pr_head" \
-					"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
-			)
-	)
-
-	# Clean up the temp context directory now that the AI call is done.
-	rm -rf "$gh_pr_dir"
-
-	# Validate we got explanation content
-	if [[ -z "$gh_pr_explain" ]]; then
-		gum log --level error "Failed to generate explanation"
-		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
-		return 1
-	fi
-
-	printf '%s\n' "$gh_pr_explain"
-}
-
-# Argument parser for the pr chat subcommand.
+# Argument parser for the pr analyze subcommand.
 #
 # Pre-processes the argument list to convert any GitHub PR URL to a bare
-# numeric PR number before delegating to the shared _parse_chat_args.
+# numeric PR number before delegating to the shared _parse_analyze_args.
 #
-# Usage: _parse_pr_chat_args num_ref desc_ref [args...]
-_parse_pr_chat_args() {
-	local _ppca_num_ref="$1"
-	local _ppca_desc_ref="$2"
-	shift 2
+# Usage: _parse_pr_analyze_args num_ref desc_ref interactive_ref [args...]
+_parse_pr_analyze_args() {
+	local _ppaa_num_ref="$1"
+	local _ppaa_desc_ref="$2"
+	local _ppaa_inter_ref="$3"
+	shift 3
 
-	local _ppca_processed=()
-	local _ppca_arg
-	for _ppca_arg in "$@"; do
-		local _ppca_extracted
-		if _ppca_extracted=$(_extract_pr_number "$_ppca_arg") 2>/dev/null; then
-			_ppca_processed+=("$_ppca_extracted")
+	local _ppaa_processed=()
+	local _ppaa_arg
+	for _ppaa_arg in "$@"; do
+		local _ppaa_extracted
+		if _ppaa_extracted=$(_extract_pr_number "$_ppaa_arg") 2>/dev/null; then
+			_ppaa_processed+=("$_ppaa_extracted")
 		else
-			_ppca_processed+=("$_ppca_arg")
+			_ppaa_processed+=("$_ppaa_arg")
 		fi
 	done
 
-	_parse_chat_args "$_ppca_num_ref" "$_ppca_desc_ref" "${_ppca_processed[@]}"
+	_parse_analyze_args "$_ppaa_num_ref" "$_ppaa_desc_ref" "$_ppaa_inter_ref" "${_ppaa_processed[@]}"
 }
 
-# Fetches PR metadata and diff into the pre-resolved session directory for _gh_pr_chat.
-_prepare_pr_chat_context() { _prepare_pr_diff_context "chat" "$@"; }
+# Fetches PR metadata and diff into the persistent session directory for _gh_pr_analyze.
+_prepare_pr_analyze_context() { _prepare_pr_diff_context "analyze" "$@"; }
 
-# PR chat help function
+# PR analyze help function
 #
-# Displays help information for the PR chat command
+# Displays help information for the PR analyze command
 # including usage examples and available options.
-_show_pr_chat_help() {
+_show_pr_analyze_help() {
 	cat <<'EOF'
-gh ai pr chat - Open an agent session with PR context
+gh ai pr analyze - Analyze a pull request, optionally as an interactive session
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
-    Fetches the GitHub PR metadata and diff, renders it as context, and
-    pipes it into the configured agent binary (default: claude).
+    Fetches the GitHub PR metadata and diff into a persistent session
+    directory and renders an analysis prompt referencing those files.
     Auto-detects PR from the current branch if no number is provided.
-    Claude options (e.g. --model, --verbose) go before the subcommand.
+
+    Without -i, prints the analysis to stdout and exits.
+    With -i, opens an interactive agent session that begins with the
+    analysis and asks how you'd like to proceed.
+
+    Context files persist under ~/.local/state/gh/ai/sessions/pull-<N>/state/
+    and are refreshed on every invocation. Claude options (e.g. --model,
+    --verbose) go before the subcommand.
 
     Configure the model: gh config set ai.pr.model <model>
 
 FLAGS:
-    -d, --description string   Extra context or focus for the agent (optional)
+    -d, --description string   Extra context or focus for the analysis (optional)
+    -i, --interactive          Open an interactive agent session
 
 EXAMPLES:
-    gh ai pr chat 42
-    gh ai pr chat -d "focus on the security changes"
-    gh ai pr chat                                     # auto-detect PR
-    gh ai --model sonnet pr chat 42
+    gh ai pr analyze 42
+    gh ai pr analyze 42 -i
+    gh ai pr analyze -d "focus on the security changes" -i
+    gh ai pr analyze                              # auto-detect PR
+    gh ai pr analyze 42 | gh pr comment 42 --body -   # post as comment
+    gh ai --model sonnet pr analyze 42 -i
 EOF
 }
 
-# PR Chat implementation
+# PR Analyze implementation
 #
-# Fetches a GitHub PR's metadata and diff, renders the context template,
-# and pipes it into the configured agent binary. Pass --session-id or
-# --resume after -- to manage sessions explicitly.
+# Fetches a GitHub PR's metadata and diff into a persistent session
+# directory, renders the analyze template, and either prints the analysis
+# (one-shot) or opens an interactive agent session (-i).
 #
-# Usage: _gh_pr_chat [NUMBER] [-d <DESCRIPTION>] [-- AGENT_OPTIONS]
-_gh_pr_chat() {
+# Usage: _gh_pr_analyze [NUMBER] [-d <DESCRIPTION>] [-i]
+_gh_pr_analyze() {
 	case "${1:-}" in
 	--help | -h | help)
-		_show_pr_chat_help
+		_show_pr_analyze_help
 		return 0
 		;;
 	esac
 
 	local template_file
 	# shellcheck disable=SC2154
-	template_file="$_gh_ai_source_dir/templates/gh_pr_chat.tmpl"
+	template_file="$_gh_ai_source_dir/templates/gh_pr_analyze.tmpl"
 
-	local gh_pr_number="" gh_pr_description=""
-	_parse_pr_chat_args gh_pr_number gh_pr_description "$@"
+	local gh_pr_number="" gh_pr_description="" gh_pr_interactive=""
+	_parse_pr_analyze_args gh_pr_number gh_pr_description gh_pr_interactive "$@" || return 1
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gh_pr_number=$(_detect_pr_number)
@@ -804,16 +681,15 @@ _gh_pr_chat() {
 
 	if [[ -z "$gh_pr_number" ]]; then
 		gum log --level error "No pull request number provided and could not detect pull request for current branch"
-		gum log --level info "Usage: gh ai pr chat [PR_NUMBER] [-d <DESCRIPTION>]"
+		gum log --level info "Usage: gh ai pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]"
 		return 1
 	fi
 
-	local gh_pr_dir=""
-	local gh_pr_title="" gh_pr_head="" gh_pr_url="" gh_pr_prompt=""
-	_prepare_pr_chat_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
+	local gh_pr_dir="" gh_pr_title="" gh_pr_head="" gh_pr_url=""
+	_prepare_pr_analyze_context "$gh_pr_number" gh_pr_dir gh_pr_title gh_pr_head gh_pr_url || return 1
 
 	if [[ -z "$gh_pr_head" ]]; then
-		gum log --level error "Could determine head branch for pull request #$gh_pr_number"
+		gum log --level error "Could not determine head branch for pull request #$gh_pr_number"
 		return 1
 	fi
 
@@ -822,18 +698,44 @@ _gh_pr_chat() {
 		gh_pr_focus="<focus>${gh_pr_description}</focus>"
 	fi
 
-	# *_FILE vars are read by 'gh_cmd.sh render' and inlined as their non-FILE counterparts.
+	local gh_pr_interactive_instruction=""
+	if [[ "$gh_pr_interactive" == "true" ]]; then
+		gh_pr_interactive_instruction="Then ask the user how they'd like to proceed — review specific areas, propose fixes, draft a comment, or discuss trade-offs."
+	fi
+
+	local gh_pr_prompt
 	gh_pr_prompt=$(
 		GH_PR_NUMBER="$gh_pr_number" \
 			GH_PR_TITLE="$gh_pr_title" \
 			GH_PR_URL="$gh_pr_url" \
+			GH_PR_HEAD="$gh_pr_head" \
 			GH_PR_FOCUS="$gh_pr_focus" \
 			GH_AI_SESSION_DIR="$gh_pr_dir" \
-			GH_PR_HEAD="$gh_pr_head" \
+			GH_AI_INTERACTIVE_INSTRUCTION="$gh_pr_interactive_instruction" \
 			"$_gh_ai_source_dir/scripts/gh_cmd.sh" render "$template_file"
 	)
 
-	_cmd_chat "$gh_pr_prompt"
+	if [[ "$gh_pr_interactive" == "true" ]]; then
+		_cmd_chat "$gh_pr_prompt"
+		return $?
+	fi
+
+	local gh_pr_agent_model
+	gh_pr_agent_model=$(_gh_config_ai_model "pr")
+
+	local gh_pr_analysis
+	gh_pr_analysis=$(
+		gum spin --title "Analyzing GitHub pull request #$gh_pr_number..." -- \
+			"$_gh_ai_source_dir/scripts/gh_cmd.sh" ask "$gh_pr_agent_model" <<<"$gh_pr_prompt"
+	)
+
+	if [[ -z "$gh_pr_analysis" ]]; then
+		gum log --level error "Failed to generate analysis"
+		gum log --level info "Run with DEBUG=1 for detailed diagnostics"
+		return 1
+	fi
+
+	printf '%s\n' "$gh_pr_analysis"
 }
 
 # Parse PR comment arguments (before -- separator).
@@ -992,29 +894,26 @@ USAGE:
     gh ai [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
     gh ai [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
     gh ai [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] pr explain [PR_NUMBER]
-    gh ai [CLAUDE_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>]
+    gh ai [CLAUDE_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
     gh ai [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
-    Creates, edits, reviews, explains, and comments on GitHub pull requests
-    with AI-generated content. Opens agent sessions with PR context.
+    Creates, edits, reviews, analyzes, and comments on GitHub pull requests
+    with AI-generated content. Use -i with analyze for an interactive session.
     Claude options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
     edit        Edit an existing PR with AI-generated content
     review      Review PRs with AI-generated feedback
-    explain     Generate a plain-language explanation of a PR
-    chat        Open an agent session with PR context
+    analyze     Analyze a PR (use -i for an interactive session)
     comment     Post an AI-generated comment on a pull request
 
 SEE ALSO:
     gh ai pr create --help     # Full list of gh pr create options
     gh ai pr edit --help       # Full list of gh pr edit options
     gh ai pr review --help     # Full list of gh pr review options
-    gh ai pr explain --help    # PR explain usage
-    gh ai pr chat --help       # PR chat usage
+    gh ai pr analyze --help    # PR analyze usage
     gh ai pr comment --help    # PR comment usage
 EOF
 }
@@ -1025,7 +924,7 @@ EOF
 # Shows help for unknown commands.
 #
 # Usage: _gh_pr <subcommand> [OPTIONS]
-# Subcommands: create, edit, review, explain, chat, comment, help
+# Subcommands: create, edit, review, analyze, comment, help
 _gh_pr() {
 	local subcommand="${1:-}"
 	shift || true
@@ -1040,11 +939,8 @@ _gh_pr() {
 	review)
 		_gh_pr_review "$@"
 		;;
-	explain)
-		_gh_pr_explain "$@"
-		;;
-	chat)
-		_gh_pr_chat "$@"
+	analyze)
+		_gh_pr_analyze "$@"
 		;;
 	comment)
 		_gh_pr_comment "$@"
@@ -1054,7 +950,7 @@ _gh_pr() {
 		;;
 	*)
 		gum log --level error "unknown pr command '$subcommand'"
-		gum log --level info "Available commands: create, edit, review, explain, chat, comment"
+		gum log --level info "Available commands: create, edit, review, analyze, comment"
 		gum log --level info "Run 'gh ai pr --help' for usage information"
 		return 1
 		;;

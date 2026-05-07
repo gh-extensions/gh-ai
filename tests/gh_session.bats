@@ -71,32 +71,32 @@ setup() {
 # _resolve_context_dir
 # ---------------------------------------------------------------------------
 
-@test "_resolve_context_dir: creates persistent dir for chat" {
+@test "_resolve_context_dir: creates persistent dir for analyze" {
 	local dir=""
-	_resolve_context_dir "chat" "pull-42" dir
+	_resolve_context_dir "analyze" "pull-42" dir
 
-	echo "HOME: $HOME"
-	echo "dir: $dir"
 	[[ -d "$dir" ]]
 	[[ "$dir" == "$HOME/.local/state/gh/ai/sessions/pull-42" ]]
 }
 
-@test "_resolve_context_dir: creates temp dir for non-chat" {
+@test "_resolve_context_dir: creates temp dir for non-analyze" {
 	local dir=""
-	_resolve_context_dir "issue" "issue-1" dir
+	_resolve_context_dir "edit" "issue-1" dir
 
 	[[ -d "$dir" ]]
 	[[ "$dir" == *"gh-ai-ctx."* ]]
 	rm -rf "$dir"
 }
 
-@test "_resolve_context_dir: returns early if dir is already set for chat" {
-	local dir="/tmp/pre-resolved"
-	mkdir -p "$dir"
-	_resolve_context_dir "chat" "pull-42" dir
+@test "_resolve_context_dir: re-creates analyze dir on each call" {
+	local dir1=""
+	_resolve_context_dir "analyze" "pull-42" dir1
 
-	[[ "$dir" == "/tmp/pre-resolved" ]]
-	rm -rf "$dir"
+	local dir2=""
+	_resolve_context_dir "analyze" "pull-42" dir2
+
+	[[ "$dir1" == "$dir2" ]]
+	[[ -d "$dir1" ]]
 }
 
 # ---------------------------------------------------------------------------

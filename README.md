@@ -52,16 +52,13 @@ gh extension install gh-extensions/gh-ai                # installs from main (un
 gh ai [AI_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
 gh ai [AI_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
 gh ai [AI_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
-gh ai [AI_OPTIONS] pr explain [PR_NUMBER]
 gh ai [AI_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
-gh ai [AI_OPTIONS] pr chat [PR_NUMBER] [-d <DESCRIPTION>] [-n]
+gh ai [AI_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
 gh ai [AI_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
 gh ai [AI_OPTIONS] issue edit <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
 gh ai [AI_OPTIONS] issue comment <ISSUE_NUMBER> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
-gh ai [AI_OPTIONS] issue plan <ISSUE_NUMBER> [-d <DESCRIPTION>]
-gh ai [AI_OPTIONS] issue chat <ISSUE_NUMBER> [-d <DESCRIPTION>] [-n]
-gh ai [AI_OPTIONS] run explain <RUN_ID>
-gh ai [AI_OPTIONS] run chat <RUN_ID> [-d <DESCRIPTION>] [-n]
+gh ai [AI_OPTIONS] issue analyze <ISSUE_NUMBER> [-d <DESCRIPTION>] [-i]
+gh ai [AI_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
 ```
 
 `AI_OPTIONS` are flags forwarded to the AI agent binary (e.g., `--model`,
@@ -98,24 +95,21 @@ gh ai pr review 42 -d "check error handling" --comment
 gh ai pr review # auto-detects PR for the current branch
 ```
 
-Explains a pull request in plain language.
+Analyzes a pull request. Without `-i`, prints the analysis to stdout.
+With `-i`, opens an interactive agent session that begins with the analysis
+and asks how you'd like to proceed (review specific areas, propose fixes,
+draft a comment, etc.). Context files are staged under
+`~/.local/state/gh/ai/sessions/pull-<N>/state/` and are refreshed on every
+invocation; the agent reads them on demand.
 
 ```bash
-gh ai pr explain 42
-gh ai pr explain                              # auto-detect PR from current branch
-gh ai pr explain 42 | gh pr comment 42 --body -   # post as PR comment
-gh ai pr explain 42 | gh pr edit 42 --body -      # replace PR description
-```
-
-Opens an interactive agent session with PR context. Each invocation starts a
-new session. Use `--session-id <UUID>` for a reusable named session, or
-`--resume <UUID>` to resume a specific session by UUID.
-
-```bash
-gh ai pr chat 42
-gh ai pr chat -d "focus on the security changes"
-gh ai --session-id <UUID> pr chat 42       # named session (reuses on next call)
-gh ai --resume <UUID> pr chat 42           # resume by UUID
+gh ai pr analyze 42
+gh ai pr analyze 42 -i                          # interactive session
+gh ai pr analyze -d "focus on the security changes" -i
+gh ai pr analyze                                # auto-detect PR from current branch
+gh ai pr analyze 42 | gh pr comment 42 --body -    # pipe analysis as a PR comment
+gh ai pr analyze 42 | gh pr edit 42 --body -       # replace PR description
+gh ai --session-id <UUID> pr analyze 42 -i      # named agent session
 ```
 
 ### Issue
@@ -137,83 +131,76 @@ gh ai issue edit 42 -d "fix typos and improve clarity"
 gh ai issue edit 42 -d "rephrase as a bug report" --add-label bug
 ```
 
-Generates an AI implementation plan from an issue and prints it to stdout.
-Use `-d`/`--description` to provide extra context or constraints that guide
-the AI when writing the plan.
+Analyzes an issue. Without `-i`, prints the analysis to stdout. With `-i`,
+opens an interactive agent session that begins with the analysis and asks
+how you'd like to proceed — discuss scope, draft an implementation plan,
+draft a clarifying comment, or begin work. Context files are staged under
+`~/.local/state/gh/ai/sessions/issue-<N>/state/` and are refreshed on every
+invocation.
 
 ```bash
-gh ai issue plan 42
-gh ai issue plan 42 -d "focus on the auth module"
-gh ai issue plan 42 | pbcopy
-```
-
-Opens an interactive agent session with issue context. Each invocation starts a
-new session. Use `--session-id <UUID>` for a reusable named session, or
-`--resume <UUID>` to resume a specific session by UUID.
-
-```bash
-gh ai issue chat 42
-gh ai issue chat 42 -d "focus on the auth module"
-gh ai --session-id <UUID> issue chat 42        # named session (reuses on next call)
-gh ai --resume <UUID> issue chat 42            # resume by UUID
+gh ai issue analyze 42
+gh ai issue analyze 42 -i                       # interactive session
+gh ai issue analyze 42 -d "focus on the auth module" -i
+gh ai issue analyze 42 | pbcopy                 # pipe the analysis
+gh ai --session-id <UUID> issue analyze 42 -i   # named agent session
 ```
 
 ### Run
 
-Analyzes a GitHub Actions workflow run and explains what happened.
+Analyzes a GitHub Actions workflow run. Without `-i`, prints the analysis
+to stdout. With `-i`, opens an interactive agent session that begins with
+the analysis and asks how you'd like to proceed (investigate a failure,
+draft a fix, retry, etc.). Uses `--log-failed` for failed runs, `--log`
+otherwise. Context files are staged under
+`~/.local/state/gh/ai/sessions/run-<ID>/state/` and refreshed on every
+invocation.
 
 ```bash
-gh ai run explain 123456 # uses --log-failed for failed runs, --log otherwise
-```
-
-Opens an interactive agent session with workflow run context. Each invocation
-starts a new session. Use `--session-id <UUID>` for a reusable named
-session, or `--resume <UUID>` to resume a specific session by UUID.
-
-```bash
-gh ai run chat 123456
-gh ai run chat 123456 -d "focus on test failures"
-gh ai --session-id <UUID> run chat 123456    # named session (reuses on next call)
-gh ai --resume <UUID> run chat 123456        # resume by UUID
+gh ai run analyze 123456
+gh ai run analyze 123456 -i                       # interactive session
+gh ai run analyze 123456 -d "focus on test failures" -i
+gh ai --session-id <UUID> run analyze 123456 -i   # named agent session
 ```
 
 ## Recipes
 
-**Pipe an issue plan directly into an AI agent**
+**Pipe an issue analysis directly into an AI agent**
 
 ```bash
-gh ai issue plan 42 | claude  # or: jules new, gh agent-task create -F -
+gh ai issue analyze 42 | claude  # or: jules new, gh agent-task create -F -
 ```
 
 **Start work on an issue, generate a plan, and open a draft PR in one command**
 
-Check out a development branch for the issue, record an empty commit to mark the
-start of work, then pipe the AI-generated implementation plan directly into a new
-pull request.
+Check out a development branch for the issue, record an empty commit to mark
+the start of work, then pipe the AI-generated analysis directly into a new
+pull request body.
 
 ```bash
 gh issue develop 42 --checkout && \
   git commit --allow-empty -m "chore: start work on #42" && git push && \
-  gh ai issue plan 42 | gh pr create --title "Implementation plan for #42" -F -
+  gh ai issue analyze 42 -d "produce an implementation plan with task IDs" \
+    | gh pr create --title "Implementation plan for #42" -F -
 ```
 
-**Open a chat session inside an isolated worktree with [gh-worktree](https://github.com/gh-extensions/gh-worktree)**
+**Open an interactive analyze session inside an isolated worktree with [gh-worktree](https://github.com/gh-extensions/gh-worktree)**
 
 [gh-worktree](https://github.com/gh-extensions/gh-worktree) creates a dedicated git worktree for the
-resource, then runs a command inside it. Combine it with `gh ai` to get a
-chat session that starts in the correct branch with no impact on your working tree.
+resource, then runs a command inside it. Combine it with `gh ai` to start an
+interactive session in the correct branch with no impact on your working tree.
 
 ```bash
-gh worktree pr 42 -- gh ai pr chat 42
-gh worktree issue 42 -- gh ai issue chat 42
-gh worktree run 12345678 -- gh ai run chat 12345678
+gh worktree pr 42 -- gh ai pr analyze 42 -i
+gh worktree issue 42 -- gh ai issue analyze 42 -i
+gh worktree run 12345678 -- gh ai run analyze 12345678 -i
 ```
 
 Inside tmux, open the session in a new window so your current work is not interrupted:
 
 ```bash
-tmux new-window -n "pull-42" "gh worktree pr 42 -- gh ai pr chat 42"
-tmux new-window -n "issue-42" "gh worktree issue 42 -- gh ai issue chat 42"
+tmux new-window -n "pull-42" "gh worktree pr 42 -- gh ai pr analyze 42 -i"
+tmux new-window -n "issue-42" "gh worktree issue 42 -- gh ai issue analyze 42 -i"
 ```
 
 **Start a dedicated tmux session for a PR or issue**
@@ -221,35 +208,39 @@ tmux new-window -n "issue-42" "gh worktree issue 42 -- gh ai issue chat 42"
 Create a named tmux session in the background, then attach to it. Useful when you want a fully isolated terminal session you can detach from and return to later.
 
 ```bash
-gh worktree pr 42 --keep -- tmux new-session -d -s "pull-42" "gh ai pr chat 42" && tmux attach -t "pull-42"
-gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh ai issue chat 42" && tmux attach -t "issue-42"
-gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh ai run chat 123" && tmux attach -t "run-123"
+gh worktree pr 42 --keep -- tmux new-session -d -s "pull-42" "gh ai pr analyze 42 -i" && tmux attach -t "pull-42"
+gh worktree issue 42 --keep -- tmux new-session -d -s "issue-42" "gh ai issue analyze 42 -i" && tmux attach -t "issue-42"
+gh worktree run 123 --keep -- tmux new-session -d -s "run-123" "gh ai run analyze 123 -i" && tmux attach -t "run-123"
 ```
 
 **Consolidate Dependabot PRs into one tracked issue and implement with an AI agent**
 
 Pipe the list of open Dependabot PRs into `gh ai issue create` so the AI names
-each PR in the issue body, then hand off the implementation plan to an AI agent.
+each PR in the issue body, then hand off an analysis of the new issue to an
+AI agent.
 
 ```bash
 # Pipe the plan to any agent: jules new, gh agent-task create -F -, claude, etc.
 gh pr list --search "author:app/dependabot is:pr" --json number,title \
   | gh ai issue create -d "Your task is to consolidate Dependabot pull requests." \
-  | xargs -I{} sh -c 'gh ai issue plan "{}" | jules new'
+  | xargs -I{} sh -c 'gh ai issue analyze "{}" | jules new'
 ```
 
 ## Agent Sessions
 
-The CLI is agent-agnostic and does not manage session IDs internally. It always fetches the latest data from GitHub and passes it as a context prompt to the agent.
+The CLI is agent-agnostic and does not manage session IDs internally. It always
+fetches the latest data from GitHub, stages it under
+`~/.local/state/gh/ai/sessions/{pull,issue,run}-<N>/state/`, and passes the
+file paths as a context prompt to the agent.
 
 You can manage agent-specific sessions by passing flags directly:
 
 ```bash
-# Start a new session with context
-gh ai pr chat 42
+# Start a new interactive session with context
+gh ai pr analyze 42 -i
 
 # Resume a specific Claude session (agent handles history)
-gh ai --resume <ID> pr chat 42
+gh ai --resume <ID> pr analyze 42 -i
 ```
 
 ## Configuration
@@ -274,7 +265,7 @@ Priority: `--model` flag > per-command config > `ai.model` > agent default.
 
 ```bash
 # Override the model for a single invocation
-gh ai --model sonnet pr chat 42
+gh ai --model sonnet pr analyze 42 -i
 
 # Set the default model
 gh config set ai.model haiku
@@ -301,18 +292,18 @@ that wraps `gh` commands in an interactive fuzzy finder. Source
 source "$HOME/.local/share/gh/extensions/gh-ai/extras/gh_fzf.sh"
 ```
 
-| Context        | Key     | Action                                           |
-| -------------- | ------- | ------------------------------------------------ |
-| `gh-fzf issue` | `alt-P` | Generate AI plan for the selected issue          |
-| `gh-fzf issue` | `alt-C` | Chat about the selected issue with AI            |
-| `gh-fzf pr`    | `alt-E` | Explain the selected PR                          |
-| `gh-fzf pr`    | `alt-R` | Request changes on the selected PR via AI review |
-| `gh-fzf pr`    | `alt-C` | Chat about the selected PR with AI               |
-| `gh-fzf run`   | `alt-E` | Explain the selected workflow run failure        |
-| `gh-fzf run`   | `alt-C` | Chat about the selected workflow run with AI     |
+| Context        | Key     | Action                                                  |
+| -------------- | ------- | ------------------------------------------------------- |
+| `gh-fzf issue` | `alt-A` | Analyze the selected issue with AI                      |
+| `gh-fzf issue` | `alt-C` | Open an interactive AI session for the selected issue   |
+| `gh-fzf pr`    | `alt-A` | Analyze the selected PR with AI                         |
+| `gh-fzf pr`    | `alt-R` | Request changes on the selected PR via AI review        |
+| `gh-fzf pr`    | `alt-C` | Open an interactive AI session for the selected PR      |
+| `gh-fzf run`   | `alt-A` | Analyze the selected workflow run with AI               |
+| `gh-fzf run`   | `alt-C` | Open an interactive AI session for the selected run     |
 
-When inside tmux, chat bindings (`alt-C`) automatically open in a new tmux
-window so fzf stays interactive. Set `GH_AI_FZF_TMUX=0` to disable this
+When inside tmux, interactive bindings (`alt-C`) automatically open in a new
+tmux window so fzf stays interactive. Set `GH_AI_FZF_TMUX=0` to disable this
 and always run inline.
 
 ## The gh-extensions Ecosystem
