@@ -37,7 +37,7 @@ setup() {
 			_show_pr_analyze_help _show_pr_help _gh_pr_analyze _gh_pr _detect_pr_number \
 			_prepare_pr_analyze_context _prepare_pr_diff_context \
 			_cmd_chat _cmd_ask _cmd_render _get_agent _git_repo_path \
-			_gh_session_base_dir _resolve_context_dir _create_context_dir _save_context_file \
+			_gh_context_base_dir _resolve_context_dir _create_context_dir _save_context_file \
 			_chat_claude _chat_codex _chat_gemini _ask_claude _ask_codex _ask_gemini _gh_config_ai_model
 	)"
 }
@@ -224,7 +224,7 @@ _setup_analyze_mocks() {
 	run _gh_pr_analyze 42 -i
 
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == *"/.local/state/gh/ai/sessions/pull-42/state/pr_diff.patch"* ]]
+	[[ "$output" == *"/.local/state/gh/ai/context/pull-42/pr_diff.patch"* ]]
 }
 
 @test "_gh_pr_analyze: errors when no PR number provided and none auto-detectable" {
