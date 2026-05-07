@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.27.0](https://github.com/gh-extensions/gh-ai/compare/v0.26.1...v0.27.0) (2026-05-07)
+
+
+### Features
+
+* add permission skip flag to claude command ([a9477bc](https://github.com/gh-extensions/gh-ai/commit/a9477bc856113e3bf15c3443e54cfe5b0b219a85))
+* enable Read tool in Claude command ([4adb26f](https://github.com/gh-extensions/gh-ai/commit/4adb26f9871ebe4e053f642d7f13448ac17ff329))
+* persist chat session directories across invocations ([85306ef](https://github.com/gh-extensions/gh-ai/commit/85306efbd2c8e8038f6cbb2900046c7b4f5abf17))
+* support multiple AI providers (claude, codex, gemini) ([fd7191c](https://github.com/gh-extensions/gh-ai/commit/fd7191c1a8a722d0e632baf3bde1f823cfac2052))
+
 ## [0.26.1](https://github.com/gh-extensions/gh-claude/compare/v0.26.0...v0.26.1) (2026-04-16)
 
 
