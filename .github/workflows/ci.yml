@@ -1,15 +1,12 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -20,20 +17,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
-
       - name: Setup Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v13
         with:
           use-flakehub: disabled
           use-gha-cache: enabled
-
       - name: Run Tests
         run: |
           nix develop --command bats tests/
-
   release:
     needs: test
     if: github.event_name == 'push'
@@ -51,7 +44,6 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-
       - name: Create Release PR
         id: release
         uses: googleapis/release-please-action@v5
