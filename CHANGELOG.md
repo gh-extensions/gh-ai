@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/gh-extensions/gh-ai/compare/v0.27.0...v0.28.0) (2026-11-04)
+
+
+### Features
+
+* **flake:** add the extension as a nix package ([#121](https://github.com/gh-extensions/gh-ai/issues/121)) ([f8b8c09](https://github.com/gh-extensions/gh-ai/commit/f8b8c09db54201cf69e4d81e82fd8dc798ced947))
+
 ## [0.27.0](https://github.com/gh-extensions/gh-ai/compare/v0.26.1...v0.27.0) (2026-05-07)
 
 
