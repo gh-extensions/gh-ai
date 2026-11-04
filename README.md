@@ -46,6 +46,18 @@ gh extension install gh-extensions/gh-ai --pin v1.2.3  # recommended: pin to a s
 gh extension install gh-extensions/gh-ai                # installs from main (unstable)
 ```
 
+**Nix:** the flake has the extension as a package, with its tools (`bash`, `gh`, `jq`, `gum`) in its `PATH`. With
+home-manager, add it to `programs.gh.extensions`:
+
+```nix
+{
+  inputs.gh-ai.url = "github:gh-extensions/gh-ai";
+
+  # in a home-manager module
+  programs.gh.extensions = [ inputs.gh-ai.packages.${system}.default ];
+}
+```
+
 ## Usage
 
 ```bash
