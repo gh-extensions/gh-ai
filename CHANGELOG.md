@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.1](https://github.com/gh-extensions/gh-ai/compare/v0.28.0...v0.28.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **ci:** merge with the App token so main gets its CI run ([#124](https://github.com/gh-extensions/gh-ai/issues/124)) ([66878ab](https://github.com/gh-extensions/gh-ai/commit/66878ab8755640cf36b2b07762f47147163c5c84))
+
 ## [0.28.0](https://github.com/gh-extensions/gh-ai/compare/v0.27.0...v0.28.0) (2026-11-04)
 
 
