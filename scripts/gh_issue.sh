@@ -583,7 +583,7 @@ _show_issue_analyze_help() {
 gh ai issue analyze - Analyze an issue, optionally as an interactive session
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] issue analyze <ISSUE_NUMBER> [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] issue analyze <ISSUE_NUMBER> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Fetches GitHub issue metadata into a persistent session directory and
@@ -595,7 +595,7 @@ DESCRIPTION:
     plan, draft a clarifying comment, etc.).
 
     Context files persist under ~/.local/state/gh/ai/context/issue-<N>/
-    and are refreshed on every invocation. Claude options (e.g. --model,
+    and are refreshed on every invocation. Agent options (e.g. --model,
     --verbose) go before the subcommand.
 
     Configure the model: gh config set ai.issue.model <model>
@@ -699,16 +699,16 @@ _show_issue_help() {
 gh ai issue - Issue commands with AI assistance
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] issue analyze <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] issue create -d <DESCRIPTION> [GH_ISSUE_CREATE_OPTIONS]
+    gh ai [AI_OPTIONS] issue edit <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_EDIT_OPTIONS]
+    gh ai [AI_OPTIONS] issue comment <ISSUE_NUMBER|URL> -d <DESCRIPTION> [GH_ISSUE_COMMENT_OPTIONS]
+    gh ai [AI_OPTIONS] issue analyze <ISSUE_NUMBER|URL> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Creates and edits GitHub issues with AI-generated titles and structured
     bodies. Posts AI-generated comments on existing issues. Analyzes issues,
     optionally opening an interactive agent session with -i.
-    Claude options (e.g. --model) go before the subcommand.
+    Agent options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create issues with AI-generated content

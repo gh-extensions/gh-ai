@@ -13,6 +13,8 @@ source "$_gh_cmd_dir/gh_cmd_claude.sh"
 source "$_gh_cmd_dir/gh_cmd_codex.sh"
 # shellcheck source=scripts/gh_cmd_gemini.sh
 source "$_gh_cmd_dir/gh_cmd_gemini.sh"
+# shellcheck source=scripts/gh_cmd_pi.sh
+source "$_gh_cmd_dir/gh_cmd_pi.sh"
 
 # Core utility functions for gh-ai
 
@@ -67,8 +69,11 @@ _get_agent_default_model() {
 	gemini)
 		_get_gemini_default_model
 		;;
+	pi)
+		_get_pi_default_model
+		;;
 	*)
-		gum log --level error "Unsupported agent '$1' (supported: ai, codex, gemini)"
+		gum log --level error "Unsupported agent '$1' (supported: claude, codex, gemini, pi)"
 		return 1
 		;;
 	esac
@@ -93,7 +98,7 @@ _gh_config_ai_model() {
 	if [[ -z "$model" ]]; then
 		model=$(_get_agent_default_model "$agent")
 	fi
-	printf '%s' "${model:-haiku}"
+	printf '%s' "$model"
 }
 
 # Extract a flag's value from the _GH_AI_ARGS array.
@@ -139,8 +144,11 @@ _cmd_ask() {
 	gemini)
 		_ask_gemini "$agent_model"
 		;;
+	pi)
+		_ask_pi "$agent_model"
+		;;
 	*)
-		gum log --level error "Unsupported agent '$agent' (supported: ai, codex, gemini)"
+		gum log --level error "Unsupported agent '$agent' (supported: claude, codex, gemini, pi)"
 		return 1
 		;;
 	esac
@@ -166,6 +174,7 @@ _cmd_chat() {
 		claude) gum log --level info "Install claude: https://docs.anthropic.com/en/docs/claude-code" ;;
 		codex) gum log --level info "Install codex: https://developers.openai.com/codex" ;;
 		gemini) gum log --level info "Install gemini: https://github.com/google-gemini/gemini-cli" ;;
+		pi) gum log --level info "Install pi: https://pi.dev" ;;
 		esac
 		return 1
 	fi

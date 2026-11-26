@@ -19,6 +19,7 @@ focus on shipping.
   - [Claude Code](https://docs.anthropic.com/en/docs/build-with-claude/claude-code) (`claude`)
   - [Codex](https://developers.openai.com/codex/) (`codex`)
   - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
+  - [Pi](https://pi.dev) (`pi`)
 - [Gum](https://github.com/charmbracelet/gum) (`gum`)
 
 **macOS (Homebrew):**
@@ -38,6 +39,7 @@ Install your AI agent separately:
 - Claude Code: [Claude Code installation guide](https://docs.anthropic.com/en/docs/claude-code/setup)
 - Codex: [OpenAI Codex](https://developers.openai.com/codex/)
 - Gemini CLI: [google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
+- Pi: [pi.dev](https://pi.dev) (`curl -fsSL https://pi.dev/install.sh | sh`)
 
 ## Installation
 
@@ -74,7 +76,7 @@ gh ai [AI_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
 ```
 
 `AI_OPTIONS` are flags forwarded to the AI agent binary (e.g., `--model`,
-`--session-id`, `--resume`, `--verbose`, `--allowedTools`, `--permission-mode`).
+`--session-id`, `--resume`, `--verbose`, `--tools`, `--thinking`).
 They are placed **before** the subcommand keyword.
 
 ### Pull Request
@@ -259,19 +261,20 @@ gh ai --resume <ID> pr analyze 42 -i
 
 Override the AI provider and model via `gh config`.
 
-| Key              | Default       | Description                            |
-| ---------------- | ------------- | -------------------------------------- |
-| `ai.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`) |
-| `ai.model`       | Agent default | Model for all commands (fallback)      |
-| `ai.pr.model`    |               | Model override for `pr` subcommands    |
-| `ai.issue.model` |               | Model override for `issue` subcommands |
-| `ai.run.model`   |               | Model override for `run` subcommands   |
+| Key              | Default       | Description                                   |
+| ---------------- | ------------- | --------------------------------------------- |
+| `ai.agent`       | `claude`      | AI agent (`claude`, `codex`, `gemini`, `pi`) |
+| `ai.model`       | Agent default | Model for all commands (fallback)             |
+| `ai.pr.model`    |               | Model override for `pr` subcommands           |
+| `ai.issue.model` |               | Model override for `issue` subcommands        |
+| `ai.run.model`   |               | Model override for `run` subcommands          |
 
 Agent defaults:
 
 - `claude`: `haiku`
 - `codex`: `gpt-5.4-mini`
 - `gemini`: `gemini-2.0-flash`
+- `pi`: Pi's configured model (no override)
 
 Priority: `--model` flag > per-command config > `ai.model` > agent default.
 
@@ -285,6 +288,10 @@ gh config set ai.model haiku
 # Use Gemini
 gh config set ai.agent gemini
 gh config set ai.model gemini-2.0-flash
+
+# Use Pi with its configured model
+gh config set ai.agent pi
+gh config unset ai.model   # optional: let Pi pick its model
 ```
 
 > **Note:** `gh config set` will print a warning for keys it doesn't

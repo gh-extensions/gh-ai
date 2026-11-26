@@ -622,7 +622,7 @@ _show_pr_analyze_help() {
 gh ai pr analyze - Analyze a pull request, optionally as an interactive session
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Fetches the GitHub PR metadata and diff into a persistent session
@@ -634,7 +634,7 @@ DESCRIPTION:
     analysis and asks how you'd like to proceed.
 
     Context files persist under ~/.local/state/gh/ai/context/pull-<N>/
-    and are refreshed on every invocation. Claude options (e.g. --model,
+    and are refreshed on every invocation. Agent options (e.g. --model,
     --verbose) go before the subcommand.
 
     Configure the model: gh config set ai.pr.model <model>
@@ -891,16 +891,16 @@ _show_pr_help() {
 gh ai pr - Pull request commands with AI assistance
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
-    gh ai [CLAUDE_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
-    gh ai [CLAUDE_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
+    gh ai [AI_OPTIONS] pr create [-d <DESCRIPTION>] [-B <BASE>] [GH_PR_CREATE_OPTIONS]
+    gh ai [AI_OPTIONS] pr edit [PR_NUMBER] -d <DESCRIPTION> [GH_PR_EDIT_OPTIONS]
+    gh ai [AI_OPTIONS] pr review [PR_NUMBER] [-d <DESCRIPTION>] [GH_PR_REVIEW_OPTIONS]
+    gh ai [AI_OPTIONS] pr analyze [PR_NUMBER] [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] pr comment [PR_NUMBER] -d <DESCRIPTION> [GH_PR_COMMENT_OPTIONS]
 
 DESCRIPTION:
     Creates, edits, reviews, analyzes, and comments on GitHub pull requests
     with AI-generated content. Use -i with analyze for an interactive session.
-    Claude options (e.g. --model) go before the subcommand.
+    Agent options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     create      Create PRs with AI-generated titles and descriptions
