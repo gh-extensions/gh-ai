@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/gh-extensions/gh-ai/compare/v0.28.1...v0.29.0) (2026-11-26)
+
+
+### Features
+
+* add Pi agent support ([#129](https://github.com/gh-extensions/gh-ai/issues/129)) ([dff2e6a](https://github.com/gh-extensions/gh-ai/commit/dff2e6a679c6a05d9936ac3329cf5144935d2641))
+
 ## [0.28.1](https://github.com/gh-extensions/gh-ai/compare/v0.28.0...v0.28.1) (2026-11-07)
 
 
