@@ -112,7 +112,7 @@ _show_run_analyze_help() {
 gh ai run analyze - Analyze a workflow run, optionally as an interactive session
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Fetches GitHub Actions workflow run metadata and logs into a persistent
@@ -124,7 +124,7 @@ DESCRIPTION:
     analysis and asks how you'd like to proceed.
 
     Context files persist under ~/.local/state/gh/ai/context/run-<ID>/
-    and are refreshed on every invocation. Claude options (e.g. --model,
+    and are refreshed on every invocation. Agent options (e.g. --model,
     --verbose) go before the subcommand.
 
     Configure the model: gh config set ai.run.model <model>
@@ -229,11 +229,11 @@ _show_run_help() {
 gh ai run - Workflow run commands with AI assistance
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
+    gh ai [AI_OPTIONS] run analyze <RUN_ID> [-d <DESCRIPTION>] [-i]
 
 DESCRIPTION:
     Analyzes GitHub Actions workflow runs. Use -i for an interactive session.
-    Claude options (e.g. --model) go before the subcommand.
+    Agent options (e.g. --model) go before the subcommand.
 
 COMMANDS:
     analyze     Analyze a workflow run (use -i for an interactive session)

@@ -29,8 +29,9 @@ setup() {
 			_gh_config_ai_model _extract_ai_arg \
 			_get_agent _get_agent_default_model _cmd_ask _cmd_chat \
 			_get_claude_default_model _get_codex_default_model _get_gemini_default_model \
-			_ask_claude _ask_codex _ask_gemini \
-			_chat_claude _chat_codex _chat_gemini \
+			_get_pi_default_model \
+			_ask_claude _ask_codex _ask_gemini _ask_pi \
+			_chat_claude _chat_codex _chat_gemini _chat_pi \
 			_get_codex_default_model _get_gemini_default_model
 	)"
 }
@@ -57,6 +58,7 @@ setup() {
 	[[ "$(_get_agent_default_model claude)" == "haiku" ]]
 	[[ "$(_get_agent_default_model codex)" == "gpt-5.4-mini" ]]
 	[[ "$(_get_agent_default_model gemini)" == "gemini-2.0-flash" ]]
+	[[ -z "$(_get_agent_default_model pi)" ]]
 }
 
 # ---------------------------------------------------------------------------
@@ -456,6 +458,21 @@ Actual body.")
 	[[ "$output" == "gpt-5.4-mini" ]]
 }
 
+@test "_gh_config_ai_model: returns empty for pi when no model is configured" {
+	gh() {
+		case "$*" in
+		"config get ai.agent"*) echo "pi" ;;
+		*) :; ;;
+		esac
+	}
+	export -f gh
+
+	local output
+	output=$(_gh_config_ai_model "pr")
+
+	[[ -z "$output" ]]
+}
+
 @test "_gh_config_ai_model: _GH_AI_ARGS --model overrides config" {
 	gh() { echo "sonnet"; }
 	export -f gh
@@ -495,6 +512,31 @@ Actual body.")
 
 	run _cmd_chat "my prompt"
 	[[ "$output" == "called gemini chat" ]]
+}
+
+@test "_cmd_ask: dispatches to pi" {
+	gh() { echo "pi"; }
+	export -f gh
+
+	_ask_pi() { echo "called pi with $1"; }
+	export -f _ask_pi
+
+	run _cmd_ask "custom-model"
+	[[ "$output" == "called pi with custom-model" ]]
+}
+
+@test "_cmd_chat: dispatches to pi" {
+	gh() { echo "pi"; }
+	export -f gh
+
+	command() { [[ "$2" == "pi" ]] && return 0 || builtin command "$@"; }
+	export -f command
+
+	_chat_pi() { echo "called pi chat"; }
+	export -f _chat_pi
+
+	run _cmd_chat "my prompt"
+	[[ "$output" == "called pi chat" ]]
 }
 
 # ---------------------------------------------------------------------------

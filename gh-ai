@@ -45,8 +45,13 @@ _check_dependencies() {
 				missing+=("jq      — https://stedolan.github.io/jq/")
 			fi
 			;;
+		pi)
+			if ! command -v pi &>/dev/null; then
+				missing+=("pi      — https://pi.dev")
+			fi
+			;;
 		*)
-			echo "gh-ai: unsupported agent '$agent' (supported: claude, codex, gemini)" >&2
+			echo "gh-ai: unsupported agent '$agent' (supported: claude, codex, gemini, pi)" >&2
 			exit 1
 			;;
 		esac
@@ -80,7 +85,7 @@ _show_help() {
 gh ai - AI-powered GitHub CLI extension
 
 USAGE:
-    gh ai [CLAUDE_OPTIONS] <command> [subcommand] [options]
+    gh ai [AI_OPTIONS] <command> [subcommand] [options]
 
 COMMANDS:
     pr          Pull request operations (create, edit, review, analyze, comment)
@@ -90,24 +95,25 @@ COMMANDS:
 FLAGS:
     -V, --version   Print version
 
-CLAUDE OPTIONS:
+AGENT OPTIONS:
     Options placed before the subcommand are forwarded to the configured agent binary.
-    For example: --model, --verbose, --resume, --session-id, --allowedTools,
-    --disallowedTools, --effort, --permission-mode, --mcp-config, etc.
+    For example: --model, --verbose, --resume, --session-id, --tools,
+    --thinking, --permission-mode, etc.
 
 CONFIGURATION:
     Override the AI provider and model via `gh config`.
 
-    | Key               | Default         | Description                           |
-    | ----------------- | --------------- | ------------------------------------- |
-    | `ai.agent`    | `claude`        | AI agent (`claude`, `codex`, `gemini`) |
-    | `ai.model`    | Agent default   | Model for all commands                |
-    | `ai.pr.model` |                 | Model override for `pr` commands      |
+    | Key           | Default       | Description                                  |
+    | ------------- | ------------- | -------------------------------------------- |
+    | `ai.agent`    | `claude`      | AI agent (`claude`, `codex`, `gemini`, `pi`) |
+    | `ai.model`    | Agent default | Model for all commands                       |
+    | `ai.pr.model` |               | Model override for `pr` commands             |
 
     Agent defaults:
     - `claude`: `haiku`
     - `codex`: `gpt-5.4-mini`
     - `gemini`: `gemini-2.0-flash`
+    - `pi`: Pi's configured model (no override)
 
 EXAMPLES:
     gh ai pr analyze 42
@@ -115,6 +121,7 @@ EXAMPLES:
     gh ai --model sonnet pr analyze 42 -i
     gh config set ai.agent gemini
     gh config set ai.model gemini-2.0-flash
+    gh config set ai.agent pi
 
 SEE ALSO:
     gh ai pr --help        # PR command help
